@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     reality_short_id: str = ""
     reality_spider_x: str = "/"
 
-    # Database
-    database_url: str = "sqlite+aiosqlite:///vpn_bot.db"
+    # Database (absolute path for Docker)
+    database_url: str = "sqlite+aiosqlite:////app/data/vpn_bot.db"
 
     model_config = {
         "env_file": ".env",

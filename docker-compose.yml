@@ -7,5 +7,4 @@ services:
       - .env
     volumes:
       - ./data:/app/data
-      - ./vpn_bot.db:/app/vpn_bot.db
     network_mode: "host"
