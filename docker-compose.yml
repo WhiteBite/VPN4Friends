@@ -1,0 +1,11 @@
+services:
+  vpn4friends:
+    build: .
+    container_name: vpn4friends
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./vpn_bot.db:/app/vpn_bot.db
+    network_mode: "host"

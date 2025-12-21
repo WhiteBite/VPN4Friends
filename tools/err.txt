@@ -1,0 +1,11 @@
+[36mINFO[0m[0000] network: updated default interface Ethernet, index 12
+[36mINFO[0m[0000] inbound/socks[socks-in]: tcp server started at 127.0.0.1:10809
+[36mINFO[0m[0000] sing-box started (0.77s)
+[36mINFO[0m[0026] [[38;5;69m788195125[0m 0ms] inbound/socks[socks-in]: inbound connection from 127.0.0.1:56790
+[36mINFO[0m[0026] [[38;5;69m788195125[0m 11ms] inbound/socks[socks-in]: inbound connection to 74.125.131.147:443
+[36mINFO[0m[0026] [[38;5;69m788195125[0m 12ms] outbound/vless[proxy]: outbound connection to 74.125.131.147:443
+[31mERROR[0m[0026] [[38;5;69m788195125[0m 87ms] connection: open connection to 74.125.131.147:443 using outbound/vless[proxy]: reality verification failed
+[36mINFO[0m[0032] [[38;5;191m192153007[0m 0ms] inbound/socks[socks-in]: inbound connection from 127.0.0.1:55989
+[36mINFO[0m[0032] [[38;5;191m192153007[0m 14ms] inbound/socks[socks-in]: inbound connection to 54.205.230.94:443
+[36mINFO[0m[0032] [[38;5;191m192153007[0m 14ms] outbound/vless[proxy]: outbound connection to 54.205.230.94:443
+[31mERROR[0m[0032] [[38;5;191m192153007[0m 395ms] connection: open connection to 54.205.230.94:443 using outbound/vless[proxy]: x509: certificate is valid for reroute443.microsoft.com, not www.microsoft.com

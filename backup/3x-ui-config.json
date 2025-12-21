@@ -1,0 +1,204 @@
+{
+    "panel": {
+        "username": "admin-dan",
+        "password": "spe~.4va+tw_)@4msfc4@i&~;6ukcf0(]m2",
+        "port": 2053,
+        "basePath": "/panel/"
+    },
+    "settings": {
+        "secret": "JxGwxgyWOm8yY3vqYgTui2FWH6TXGrRy",
+        "warp": {
+            "access_token": "ab766de2-5a18-49a3-8ac3-3f6b56ca13fc",
+            "device_id": "63edc1fb-c8cb-4024-a22f-c709595bb411",
+            "license_key": "E80X3iS1-8m467FUk-5ld2Hm61",
+            "private_key": "EF6lI8fVCdXoywunCm/VOT9fTCC8pLce7mTpUeBFBkc="
+        }
+    },
+    "xrayTemplateConfig": {
+        "log": {
+            "access": "none",
+            "dnsLog": false,
+            "error": "",
+            "loglevel": "warning",
+            "maskAddress": ""
+        },
+        "api": {
+            "tag": "api",
+            "services": [
+                "HandlerService",
+                "LoggerService",
+                "StatsService"
+            ]
+        },
+        "inbounds": [
+            {
+                "tag": "api",
+                "listen": "127.0.0.1",
+                "port": 62789,
+                "protocol": "tunnel",
+                "settings": {
+                    "address": "127.0.0.1"
+                }
+            }
+        ],
+        "outbounds": [
+            {
+                "tag": "direct",
+                "protocol": "freedom",
+                "settings": {
+                    "domainStrategy": "AsIs",
+                    "redirect": "",
+                    "noises": []
+                }
+            },
+            {
+                "tag": "blocked",
+                "protocol": "blackhole",
+                "settings": {}
+            },
+            {
+                "protocol": "wireguard",
+                "tag": "warp",
+                "settings": {
+                    "mtu": 1420,
+                    "secretKey": "EF6lI8fVCdXoywunCm/VOT9fTCC8pLce7mTpUeBFBkc=",
+                    "address": [
+                        "172.16.0.2/32",
+                        "2606:4700:110:86cc:2c3:38f5:6ffe:3f64/128"
+                    ],
+                    "workers": 2,
+                    "domainStrategy": "ForceIP",
+                    "reserved": [
+                        8,
+                        177,
+                        3
+                    ],
+                    "peers": [
+                        {
+                            "publicKey": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+                            "allowedIPs": [
+                                "0.0.0.0/0",
+                                "::/0"
+                            ],
+                            "endpoint": "engage.cloudflareclient.com:2408",
+                            "keepAlive": 0
+                        }
+                    ],
+                    "noKernelTun": false
+                }
+            }
+        ],
+        "policy": {
+            "levels": {
+                "0": {
+                    "statsUserDownlink": true,
+                    "statsUserUplink": true
+                }
+            },
+            "system": {
+                "statsInboundDownlink": true,
+                "statsInboundUplink": true,
+                "statsOutboundDownlink": false,
+                "statsOutboundUplink": false
+            }
+        },
+        "routing": {
+            "domainStrategy": "IPIfNonMatch",
+            "rules": [
+                {
+                    "type": "field",
+                    "inboundTag": [
+                        "api"
+                    ],
+                    "outboundTag": "api"
+                },
+                {
+                    "type": "field",
+                    "outboundTag": "blocked",
+                    "ip": [
+                        "geoip:private"
+                    ]
+                },
+                {
+                    "type": "field",
+                    "outboundTag": "blocked",
+                    "protocol": [
+                        "bittorrent"
+                    ]
+                }
+            ]
+        },
+        "stats": {},
+        "metrics": {
+            "tag": "metrics_out",
+            "listen": "127.0.0.1:11111"
+        },
+        "dns": {
+            "servers": [
+                "1.1.1.1",
+                "1.0.0.1",
+                "2606:4700:4700::1111",
+                "2606:4700:4700::1001"
+            ],
+            "queryStrategy": "UseIP",
+            "tag": "dns_inbound"
+        },
+        "fakedns": null
+    },
+    "inbound": {
+        "id": 1,
+        "remark": "VLESS-REALITY-Vision",
+        "enable": true,
+        "port": 443,
+        "protocol": "vless",
+        "settings": {
+            "clients": [
+                {
+                    "email": "vy8passs",
+                    "id": "691fd156-80d0-4cee-b7b4-bb2ccdb3a248",
+                    "flow": "xtls-rprx-vision",
+                    "comment": "test-client"
+                },
+                {
+                    "email": "user_5683814147_9557",
+                    "id": "314aa362-e660-4c50-ae72-be7cce6ba73e",
+                    "flow": "xtls-rprx-vision"
+                },
+                {
+                    "email": "user_267945352_2312",
+                    "id": "8a097b65-ed08-4281-a033-b2b76729b7ee",
+                    "flow": "xtls-rprx-vision"
+                }
+            ],
+            "decryption": "none"
+        },
+        "streamSettings": {
+            "network": "tcp",
+            "security": "reality",
+            "realitySettings": {
+                "target": "www.asus.com:443",
+                "serverNames": [
+                    "www.asus.com"
+                ],
+                "privateKey": "uOOn9B861RQ78DILrivkrPDC_kGmSjfQfTiuHqjXX0M",
+                "publicKey": "pJ3eZ4U58pv7L6Zg_ud2zhQqLoeoIXZ6bxyVNXOL9Co",
+                "shortIds": [
+                    "3d0dc523"
+                ],
+                "fingerprint": "chrome",
+                "spiderX": "/"
+            }
+        },
+        "sniffing": {
+            "enabled": true,
+            "destOverride": [
+                "http",
+                "tls",
+                "quic",
+                "fakedns"
+            ],
+            "metadataOnly": false,
+            "routeOnly": true
+        }
+    }
+}
