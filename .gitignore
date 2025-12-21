@@ -1,0 +1,46 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+3x-ui.env
+
+# Database
+*.db
+
+# Logs
+logs/
+*.log
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Kiro
+.kiro/
+
+# Tools binaries (local testing only)
+tools/*.exe
+tools/*.zip
+tools/sing-box*/
+tools/xray/

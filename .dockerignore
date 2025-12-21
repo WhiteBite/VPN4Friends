@@ -1,0 +1,17 @@
+.git
+.github
+.gitignore
+.env
+.env.example
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.db
+*.log
+logs/
+tools/
+data/
+*.md
+.kiro/
+.ruff_cache/
