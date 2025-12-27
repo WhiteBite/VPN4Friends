@@ -166,8 +166,8 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
 
     await message.answer_photo(
         photo=qr_photo,
-        caption=f"🔗 Твоя ссылка:\n\n`{vless_url}`",
-        parse_mode="Markdown",
+        caption=f"🔗 Твоя ссылка:\n\n<code>{vless_url}</code>",
+        parse_mode="HTML",
     )
 
 
@@ -264,9 +264,9 @@ async def request_vpn(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
         try:
             await bot.send_message(
                 admin_id,
-                f"🔔 Новая заявка на VPN!\n\n👤 {user.display_name}\n🆔 `{user.telegram_id}`",
+                f"🔔 Новая заявка на VPN!\n\n👤 {user.display_name}\n🆔 <code>{user.telegram_id}</code>",
                 reply_markup=get_request_action_kb(request),
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
         except Exception as e:
             logger.warning(f"Failed to notify admin {admin_id}: {e}")
