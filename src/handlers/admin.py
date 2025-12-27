@@ -57,9 +57,9 @@ async def cmd_users(message: Message, session: AsyncSession) -> None:
     # Send each user with management buttons
     for user in users:
         await message.answer(
-            f"👤 {user.display_name}\n🆔 `{user.telegram_id}`",
+            f"👤 {user.display_name}\n🆔 <code>{user.telegram_id}</code>",
             reply_markup=get_user_manage_kb(user),
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 
@@ -200,10 +200,10 @@ async def admin_requests(callback: CallbackQuery, session: AsyncSession) -> None
     for req in requests:
         await callback.message.answer(
             f"👤 {req.user.display_name}\n"
-            f"🆔 `{req.user.telegram_id}`\n"
+            f"🆔 <code>{req.user.telegram_id}</code>\n"
             f"📅 {req.created_at.strftime('%d.%m.%Y %H:%M')}",
             reply_markup=get_request_action_kb(req),
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 
@@ -249,10 +249,10 @@ async def approve_request(
             caption=(
                 "🎉 Твоя заявка одобрена!\n\n"
                 "Твоя ссылка для подключения:\n\n"
-                f"`{result}`\n\n"
+                f"<code>{result}</code>\n\n"
                 "📷 Или отсканируй QR-код выше"
             ),
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
         apps_text = (
@@ -336,9 +336,9 @@ async def admin_users(callback: CallbackQuery, session: AsyncSession) -> None:
     # Send each user with management buttons
     for user in users:
         await callback.message.answer(
-            f"👤 {user.display_name}\n🆔 `{user.telegram_id}`",
+            f"👤 {user.display_name}\n🆔 <code>{user.telegram_id}</code>",
             reply_markup=get_user_manage_kb(user),
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 

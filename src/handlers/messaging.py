@@ -82,9 +82,9 @@ async def process_feedback(
                 admin_id,
                 f"📩 Сообщение от пользователя:\n\n"
                 f"👤 {user.display_name}\n"
-                f"🆔 `{user.telegram_id}`\n\n"
+                f"🆔 <code>{user.telegram_id}</code>\n\n"
                 f"💬 {message.text}",
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=get_contact_admin_kb(user.telegram_id),
             )
         except Exception as e:
@@ -224,7 +224,6 @@ async def reply_to_user(callback: CallbackQuery, state: FSMContext, session: Asy
     await callback.message.answer(
         f"✉️ Ответ пользователю:\n👤 {user_name}\n\nНапиши сообщение:",
         reply_markup=get_cancel_kb(),
-        parse_mode="Markdown",
     )
 
 
@@ -240,9 +239,9 @@ async def process_dm_user_id(message: Message, state: FSMContext) -> None:
     await state.update_data(user_id=user_id)
     await state.set_state(BroadcastStates.waiting_for_dm_message)
     await message.answer(
-        f"✉️ Сообщение для `{user_id}`\n\nНапиши текст:",
+        f"✉️ Сообщение для <code>{user_id}</code>\n\nНапиши текст:",
         reply_markup=get_cancel_kb(),
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
 
 
