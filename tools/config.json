@@ -1,0 +1,58 @@
+{
+  "log": {
+    "level": "info"
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "local",
+        "address": "local",
+        "detour": "direct"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "127.0.0.1",
+      "listen_port": 1080
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "proxy",
+      "server": "185.232.205.172",
+      "server_port": 443,
+      "uuid": "67dbe54e-7fd6-497c-a5aa-1beb1ba8b797",
+      "flow": "",
+      "tls": {
+        "enabled": true,
+        "server_name": "canva.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "juKbvNwiuI-MWDtDGBOsf9kDssKQEdnBUAJRhMJInwA",
+          "short_id": "6c4a80"
+        }
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "protocol": "dns",
+        "outbound": "direct"
+      }
+    ],
+    "final": "proxy"
+  }
+}
