@@ -1,0 +1,14 @@
+============================================================
+VPN USERS MIGRATION REPORT
+============================================================
+Migration Date: 2026-01-09 15:59:41
+Duration: 79.53 seconds
+
+STATISTICS:
+  Total users in database: 2
+  Users with VPN profiles: 2
+  Successfully migrated: 2
+  Failed migrations: 0
+
+SUCCESS RATE: 100.0%
+============================================================
