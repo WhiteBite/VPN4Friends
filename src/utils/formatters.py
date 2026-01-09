@@ -16,3 +16,20 @@ def format_traffic(bytes_count: int) -> str:
 
     gb = mb / 1024
     return f"{gb:.2f} GB"
+
+
+def get_dns_instructions() -> str:
+    """Get DNS configuration instructions for VPN clients."""
+    return (
+        "\n\n⚙️ <b>Настройка DNS (важно!):</b>\n\n"
+        "Если видишь ошибку <code>cloudfront.net certificate</code>:\n\n"
+        "1️⃣ Открой настройки VPN в приложении\n"
+        "2️⃣ Найди раздел DNS\n"
+        "3️⃣ Измени на:\n"
+        "   • <b>DNS-сервер:</b> local (локальный)\n"
+        "   • Или укажи: <code>8.8.8.8</code>, <code>1.1.1.1</code>\n\n"
+        "❌ <b>Не используй:</b>\n"
+        "   • Remote DNS через прокси\n"
+        "   • DoH (DNS over HTTPS) серверы\n\n"
+        "✅ После изменения DNS всё заработает!"
+    )

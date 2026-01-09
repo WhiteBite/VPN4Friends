@@ -21,7 +21,7 @@ from src.keyboards.user_kb import (
 )
 from src.services.vpn_service import VPNService
 from src.services.xui_api import XUIApi
-from src.utils.formatters import format_traffic
+from src.utils.formatters import format_traffic, get_dns_instructions
 from src.utils.qr_generator import generate_qr_code
 
 logger = logging.getLogger(__name__)
@@ -166,7 +166,7 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
 
     await message.answer_photo(
         photo=qr_photo,
-        caption=f"🔗 Твоя ссылка:\n\n<code>{vless_url}</code>",
+        caption=f"🔗 Твоя ссылка:\n\n<code>{vless_url}</code>{get_dns_instructions()}",
         parse_mode="HTML",
     )
 
@@ -312,8 +312,9 @@ async def my_link(callback: CallbackQuery, session: AsyncSession) -> None:
             f"📷 Или отсканируй QR-код выше\n\n"
             f"📱 <b>Приложения:</b>\n"
             f"• iOS: V2RayTun, Shadowrocket\n"
-            f"• Android: V2RayNG, NekoBox\n"
+            f"• Android: V2RayNG, NekoBox, Throne\n"
             f"• Windows/macOS/Linux: Hiddify, Nekoray"
+            f"{get_dns_instructions()}"
         ),
         reply_markup=get_link_kb(),
         parse_mode="HTML",
@@ -425,8 +426,9 @@ async def refresh_link(callback: CallbackQuery, session: AsyncSession) -> None:
             f"📷 Или отсканируй QR-код выше\n\n"
             f"📱 <b>Приложения:</b>\n"
             f"• iOS: V2RayTun, Shadowrocket\n"
-            f"• Android: V2RayNG, NekoBox\n"
+            f"• Android: V2RayNG, NekoBox, Throne\n"
             f"• Windows/macOS/Linux: Hiddify, Nekoray"
+            f"{get_dns_instructions()}"
         ),
         reply_markup=get_link_kb(),
         parse_mode="HTML",
