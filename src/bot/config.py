@@ -12,19 +12,12 @@ class Settings(BaseSettings):
     admin_ids: list[int] = []
 
     # 3X-UI Panel
-    xui_api_url: str = "http://localhost:54321"
+    xui_api_url: str
     xui_base_path: str = "/panel"
-    xui_username: str = "admin"
-    xui_password: str = "admin"
-    xui_host: str = "your-server.com"
-    inbound_id: int = 1
-
-    # Reality settings
-    reality_public_key: str = ""
-    reality_fingerprint: str = "chrome"
-    reality_sni: str = "example.com"
-    reality_short_id: str = ""
-    reality_spider_x: str = "/"
+    xui_username: str
+    xui_password: str
+    xui_host: str
+    inbound_id: int
 
     # Database (absolute path for Docker)
     database_url: str = "sqlite+aiosqlite:////app/data/vpn_bot.db"
