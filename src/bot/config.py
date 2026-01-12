@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     bot_token: str
     admin_ids: list[int] = []
 
+    @model_validator(mode="after")
+    def get_admin_ids_from_env(self) -> "Settings":
+        """Force-load admin_ids from environment variable to bypass parsing issues."""
+        import os
+        admin_ids_str = os.getenv("ADMIN_IDS")
+        if admin_ids_str:
+            self.admin_ids = [int(x.strip()) for x in admin_ids_str.split(",") if x.strip()]
+        return self
+
     # 3X-UI Panel
     xui_api_url: str
     xui_base_path: str = "/panel"
