@@ -45,7 +45,7 @@ class User(Base):
     # Relationships
     requests: Mapped[list["VPNRequest"]] = relationship(back_populates="user")
     profiles: Mapped[list["VpnProfile"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user", lazy="selectin", cascade="all, delete-orphan"
     )
 
     @property
