@@ -13,7 +13,13 @@ class PresetRepository:
         self.session = session
 
     async def create(
-        self, user: User, profile: VpnProfile, name: str, app_type: str, format: str, options: dict | None = None
+        self,
+        user: User,
+        profile: VpnProfile,
+        name: str,
+        app_type: str,
+        format: str,
+        options: dict | None = None,
     ) -> ConnectionPreset:
         """Create a new connection preset."""
         preset = ConnectionPreset(

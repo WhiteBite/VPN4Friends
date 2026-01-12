@@ -64,9 +64,7 @@ async def get_me(
             protocol_settings = await api.get_protocol_settings(
                 active_profile.profile_data.get("inbound_id")
             )
-            available_snis = (
-                protocol_settings.get("reality", {}).get("sni_options", [])
-            )
+            available_snis = protocol_settings.get("reality", {}).get("sni_options", [])
 
         profile_schema = ProfileSchema(
             has_profile=True,
@@ -81,10 +79,7 @@ async def get_me(
     # Get presets info
     presets = await preset_service.get_user_presets(user)
     presets_schema = [
-        PresetSchema(
-            id=p.id, name=p.name, app_type=p.app_type, format=p.format
-        )
-        for p in presets
+        PresetSchema(id=p.id, name=p.name, app_type=p.app_type, format=p.format) for p in presets
     ]
 
     return MeResponse(
@@ -139,9 +134,7 @@ async def update_sni(
     if not success:
         return UpdateSNIResponse(
             success=False,
-            message=(
-                "Не удалось обновить SNI. Возможно, он недопустим для текущего протокола."
-            ),
+            message=("Не удалось обновить SNI. Возможно, он недопустим для текущего протокола."),
             sni=None,
         )
 
@@ -161,8 +154,7 @@ async def list_presets(
     preset_service = PresetService(session)
     presets = await preset_service.get_user_presets(user)
     return [
-        PresetSchema(id=p.id, name=p.name, app_type=p.app_type, format=p.format)
-        for p in presets
+        PresetSchema(id=p.id, name=p.name, app_type=p.app_type, format=p.format) for p in presets
     ]
 
 
