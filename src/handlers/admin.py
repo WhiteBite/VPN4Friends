@@ -5,7 +5,7 @@ import logging
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import BufferedInputFile, CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.config import settings
@@ -21,7 +21,6 @@ from src.keyboards.admin_kb import (
 from src.keyboards.callbacks import RequestAction, UserAction
 from src.services.vpn_service import VPNService
 from src.utils.formatters import format_traffic
-from src.utils.qr_generator import generate_qr_code
 
 logger = logging.getLogger(__name__)
 router = Router(name="admin")
@@ -245,7 +244,6 @@ async def approve_request_select_protocol(
         return
 
     # Get request to notify user
-    from src.database.repositories import RequestRepository
 
     request_repo = RequestRepository(session)
     request = await request_repo.get_by_id(callback_data.request_id)
@@ -300,7 +298,6 @@ async def reject_request(
     await callback.answer()
 
     # Get request before rejecting
-    from src.database.repositories import RequestRepository
 
     request_repo = RequestRepository(session)
     request = await request_repo.get_by_id(callback_data.request_id)
@@ -456,7 +453,6 @@ async def admin_stats(callback: CallbackQuery, session: AsyncSession) -> None:
     all_users = await user_repo.get_all()
     users_with_vpn = await user_repo.get_all_with_vpn()
 
-    from src.database.repositories import RequestRepository
 
     request_repo = RequestRepository(session)
     pending = await request_repo.get_all_pending()
