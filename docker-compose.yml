@@ -18,4 +18,20 @@ services:
     volumes:
       - ./data:/app/data
     network_mode: "host"
-    command: uvicorn src.api.main:app --host 0.0.0.0 --port 443
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+
+  api_proxy:
+    image: caddy:2
+    container_name: vpn4friends-api-proxy
+    restart: unless-stopped
+    environment:
+      - API_PUBLIC_DOMAIN=${API_PUBLIC_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy_data:/data
+      - ./caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
