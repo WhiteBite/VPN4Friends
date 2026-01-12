@@ -48,6 +48,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
+          debug: true
           script: |
             # Переходим в директорию проекта, если ее нет - клонируем
             cd /root/VPN4Friends || git clone https://github.com/${{ github.repository }}.git /root/VPN4Friends
