@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     @field_validator("admin_ids", mode="before")
     @classmethod
     def parse_admin_ids(cls, value: str) -> list[int]:
+        # --- Temporary Debugging --- 
+        import logging
+        logging.info(f"[DEBUG] Raw ADMIN_IDS value from .env: {value!r} (type: {type(value)})")
+        # --- End Debugging ---
         if isinstance(value, str):
             return [int(x.strip()) for x in value.split(",") if x.strip()]
         return []
