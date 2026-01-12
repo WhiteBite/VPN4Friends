@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     def get_admin_ids_from_env(self) -> "Settings":
         """Force-load admin_ids from environment variable to bypass parsing issues."""
         import os
+
         admin_ids_str = os.getenv("ADMIN_IDS")
         if admin_ids_str:
             self.admin_ids = [int(x.strip()) for x in admin_ids_str.split(",") if x.strip()]

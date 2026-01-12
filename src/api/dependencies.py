@@ -32,9 +32,7 @@ def _validate_telegram_data(init_data: str) -> dict:
         )
 
     hash_str = parsed_data.pop("hash")
-    data_check_string = "\n".join(
-        f"{k}={v}" for k, v in sorted(parsed_data.items())
-    )
+    data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed_data.items()))
 
     secret_key = hmac.new(b"WebAppData", settings.bot_token.encode(), sha256).digest()
     h = hmac.new(secret_key, data_check_string.encode(), sha256)

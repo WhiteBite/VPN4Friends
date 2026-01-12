@@ -192,7 +192,9 @@ class VPNService:
 
         # Validate SNI against allowed list from the panel
         async with XUIApi() as api:
-            protocol_settings = await api.get_protocol_settings(active_profile.profile_data.get("inbound_id"))
+            protocol_settings = await api.get_protocol_settings(
+                active_profile.profile_data.get("inbound_id")
+            )
             allowed_snis = protocol_settings.get("reality", {}).get("sni_options", [])
 
         if sni not in allowed_snis:
