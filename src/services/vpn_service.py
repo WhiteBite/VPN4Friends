@@ -36,9 +36,7 @@ class VPNService:
         logger.info(f"Created VPN request {request.id} for user {user.telegram_id}")
         return request
 
-    async def approve_request(
-        self, request_id: int, protocol_name: str
-    ) -> tuple[bool, str]:
+    async def approve_request(self, request_id: int, protocol_name: str) -> tuple[bool, str]:
         """
         Approve VPN request and create a profile for the specified protocol.
 
@@ -138,9 +136,7 @@ class VPNService:
             return None
 
         # The profile_data in DB already contains all necessary info
-        return generate_vpn_link(
-            active_profile.protocol_name, active_profile.profile_data
-        )
+        return generate_vpn_link(active_profile.protocol_name, active_profile.profile_data)
 
     async def get_pending_requests(self) -> list[VPNRequest]:
         """Get all pending VPN requests."""

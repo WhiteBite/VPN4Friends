@@ -34,6 +34,7 @@ def generate_vless_url(profile_data: dict[str, Any]) -> str:
         f"#{fragment}"
     )
 
+
 def generate_shadowsocks_url(profile_data: dict[str, Any]) -> str:
     """Generate Shadowsocks connection URL from profile data."""
     # Placeholder for Shadowsocks URL generation logic

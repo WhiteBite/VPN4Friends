@@ -301,5 +301,3 @@ def generate_client_name(username: str | None, telegram_id: int) -> str:
             return clean_name
     # Fallback на telegram_id если username нет
     return f"user_{telegram_id}"
-
-

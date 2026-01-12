@@ -453,7 +453,6 @@ async def admin_stats(callback: CallbackQuery, session: AsyncSession) -> None:
     all_users = await user_repo.get_all()
     users_with_vpn = await user_repo.get_all_with_vpn()
 
-
     request_repo = RequestRepository(session)
     pending = await request_repo.get_all_pending()
 
