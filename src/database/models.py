@@ -3,8 +3,16 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import (JSON, BigInteger, Boolean, DateTime, Enum, ForeignKey,
-                        String, func)
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    String,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 

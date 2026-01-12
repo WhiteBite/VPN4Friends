@@ -5,22 +5,23 @@ import logging
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.config import settings
 from src.bot.middlewares.admin import AdminFilter
-from src.database.repositories import UserRepository
+from src.database.repositories import RequestRepository, UserRepository
 from src.keyboards.admin_kb import (
     get_admin_main_kb,
     get_back_to_admin_kb,
-    get_request_action_kb,
     get_protocol_select_kb,
+    get_request_action_kb,
     get_user_manage_kb,
 )
 from src.keyboards.callbacks import RequestAction, UserAction
 from src.services.vpn_service import VPNService
 from src.utils.formatters import format_traffic
+from src.utils.qr_generator import generate_qr_code
 
 logger = logging.getLogger(__name__)
 router = Router(name="admin")

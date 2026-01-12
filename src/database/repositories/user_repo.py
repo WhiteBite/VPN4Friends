@@ -75,7 +75,7 @@ class UserRepository:
     async def get_all_with_vpn(self) -> list[User]:
         """Get all users with an active VPN profile."""
         result = await self.session.execute(
-            select(User).where(User.profiles.any(VpnProfile.is_active == True))
+            select(User).where(User.profiles.any(VpnProfile.is_active))
         )
         return list(result.scalars().all())
 
