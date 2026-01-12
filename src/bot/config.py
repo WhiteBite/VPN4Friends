@@ -2,15 +2,9 @@
 
 import json
 import logging
-import os
 
 from pydantic import BaseModel, field_validator, model_validator
 from pydantic_settings import BaseSettings
-
-# --- Direct Environment Variable Check ---
-raw_admin_ids = os.getenv("ADMIN_IDS")
-logging.info(f"[DIRECT ENV CHECK] Raw ADMIN_IDS from os.getenv: {raw_admin_ids!r}")
-# --- End Check ---
 
 class Protocol(BaseModel):
     """Represents a single VPN protocol configuration."""
@@ -64,10 +58,6 @@ class Settings(BaseSettings):
     @field_validator("admin_ids", mode="before")
     @classmethod
     def parse_admin_ids(cls, value: str) -> list[int]:
-        # --- Temporary Debugging --- 
-        import logging
-        logging.info(f"[DEBUG] Raw ADMIN_IDS value from .env: {value!r} (type: {type(value)})")
-        # --- End Debugging ---
         if isinstance(value, str):
             return [int(x.strip()) for x in value.split(",") if x.strip()]
         return []
