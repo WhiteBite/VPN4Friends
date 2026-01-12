@@ -113,6 +113,7 @@ async def notify_admins_shutdown(bot: Bot) -> None:
 async def main() -> None:
     """Initialize and start the bot."""
     logger.info("Starting VPN bot...")
+    logger.info(f"[DEBUG] Admin IDs loaded: {settings.admin_ids}")
 
     # Initialize database
     await init_db()
