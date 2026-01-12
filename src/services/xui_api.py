@@ -264,8 +264,10 @@ class XUIApi:
                 "fingerprint": reality_inner.get(
                     "fingerprint", stream_settings.get("fingerprint", "chrome")
                 ),
-                "sni": server_names[0] if server_names else "",
-                "short_id": short_ids[0] if short_ids else "",
+                "sni_options": server_names,
+                "default_sni": server_names[0] if server_names else "",
+                "short_id_options": short_ids,
+                "default_short_id": short_ids[0] if short_ids else "",
                 "spider_x": reality_inner.get("spiderX", "/"),
             }
         # Add other protocols like shadowsocks here

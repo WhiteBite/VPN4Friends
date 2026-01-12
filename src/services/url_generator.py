@@ -13,12 +13,14 @@ def generate_vless_url(profile_data: dict[str, Any]) -> str:
     fragment = f"{remark}-{email}" if remark else email
 
     # Get Reality settings from profile (fetched from panel)
-    reality = profile_data.get("reality", {})
-    public_key = reality.get("public_key", "")
-    fingerprint = reality.get("fingerprint", "chrome")
-    sni = reality.get("sni", "")
-    short_id = reality.get("short_id", "")
-    spider_x = reality.get("spider_x", "/")
+    reality_settings = profile_data.get("reality", {})
+
+    # Prioritize user-selected SNI, fall back to default
+    user_settings = profile_data.get("settings", {})
+    sni = user_settings.get("sni", reality_settings.get("default_sni", ""))
+    fingerprint = reality_settings.get("fingerprint", "chrome")
+    short_id = reality_settings.get("short_id", "")
+    spider_x = reality_settings.get("spider_x", "/")
 
     spider_x_encoded = quote(spider_x, safe="")
 

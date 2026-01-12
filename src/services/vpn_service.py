@@ -145,3 +145,61 @@ class VPNService:
     async def get_all_users_with_vpn(self) -> list[User]:
         """Get all users with an active VPN profile."""
         return await self.user_repo.get_all_with_vpn()
+
+    async def switch_protocol(self, user: User, protocol_name: str) -> tuple[bool, str]:
+        """Switch the user's active VPN to a new protocol."""
+        protocol = settings.get_protocol(protocol_name)
+        if not protocol:
+            return False, f"Протокол '{protocol_name}' не настроен."
+
+        # Revoke current active profile before creating a new one
+        if user.active_profile:
+            await self.revoke_vpn(user)
+
+        # This flow is very similar to approving a request, but without a request object
+        async with XUIApi() as api:
+            client_name = generate_client_name(user.username, user.telegram_id)
+            client_data = await api.create_client(
+                inbound_id=protocol.inbound_id, email=client_name, protocol=protocol.name
+            )
+            if not client_data:
+                return False, "Ошибка создания профиля в 3X-UI"
+
+            protocol_settings = await api.get_protocol_settings(protocol.inbound_id)
+
+        full_profile_data = {**client_data, **protocol_settings}
+
+        await self.user_repo.create_vpn_profile(
+            user=user, protocol_name=protocol.name, profile_data=full_profile_data
+        )
+
+        vpn_link = generate_vpn_link(protocol.name, full_profile_data)
+        if not vpn_link:
+            return False, "Не удалось сгенерировать ссылку для VPN."
+
+        logger.info(f"Switched protocol to {protocol_name} for user {user.telegram_id}")
+        return True, vpn_link
+
+    async def update_profile_settings(self, user: User, sni: str) -> bool:
+        """Update user-specific settings for the active profile, e.g., SNI."""
+        active_profile = user.active_profile
+        if not active_profile:
+            return False
+
+        # Validate SNI against allowed list from the panel
+        async with XUIApi() as api:
+            protocol_settings = await api.get_protocol_settings(active_profile.profile_data.get("inbound_id"))
+            allowed_snis = protocol_settings.get("reality", {}).get("sni_options", [])
+
+        if sni not in allowed_snis:
+            logger.warning(f"User {user.telegram_id} tried to set an invalid SNI: {sni}")
+            return False
+
+        # Store the selected SNI in the profile's settings
+        if not active_profile.settings:
+            active_profile.settings = {}
+        active_profile.settings["sni"] = sni
+
+        await self.user_repo.update_vpn_profile(active_profile)
+        logger.info(f"Updated SNI to {sni} for user {user.telegram_id}")
+        return True

@@ -47,6 +47,9 @@ class User(Base):
     profiles: Mapped[list["VpnProfile"]] = relationship(
         back_populates="user", lazy="selectin", cascade="all, delete-orphan"
     )
+    presets: Mapped[list["ConnectionPreset"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
     @property
     def has_vpn(self) -> bool:
@@ -81,6 +84,10 @@ class VpnProfile(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    # New fields for user customization
+    label: Mapped[str | None] = mapped_column(String(100))
+    settings: Mapped[dict | None] = mapped_column(JSON)
+
     # Relationships
     user: Mapped["User"] = relationship(back_populates="profiles")
 
@@ -101,3 +108,22 @@ class VPNRequest(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="requests")
+
+
+class ConnectionPreset(Base):
+    """User-defined connection preset for a specific app/format."""
+
+    __tablename__ = "connection_presets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    profile_id: Mapped[int] = mapped_column(ForeignKey("vpn_profiles.id"))
+
+    name: Mapped[str] = mapped_column(String(100))
+    app_type: Mapped[str] = mapped_column(String(50))
+    format: Mapped[str] = mapped_column(String(50))
+    options: Mapped[dict | None] = mapped_column(JSON)
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="presets")
+    profile: Mapped["VpnProfile"] = relationship()
