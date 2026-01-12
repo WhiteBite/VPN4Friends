@@ -4,8 +4,6 @@ import json
 import logging
 import uuid
 from typing import Any
-from urllib.parse import quote
-
 import aiohttp
 
 from src.bot.config import settings
