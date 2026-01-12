@@ -71,13 +71,13 @@ class VPNService:
         full_profile_data = {**client_data, **protocol_settings}
 
         # Save the new profile to the database
-        await self.user_repo.create_vpn_profile(
+        profile = await self.user_repo.create_vpn_profile(
             user=user, protocol_name=protocol.name, profile_data=full_profile_data
         )
 
         await self.request_repo.approve(request)
 
-        vpn_link = generate_vpn_link(protocol.name, full_profile_data)
+        vpn_link = generate_vpn_link(protocol.name, profile.profile_data, profile.settings)
         if not vpn_link:
             return False, "Не удалось сгенерировать ссылку для VPN."
 
@@ -135,8 +135,12 @@ class VPNService:
         if not active_profile:
             return None
 
-        # The profile_data in DB already contains all necessary info
-        return generate_vpn_link(active_profile.protocol_name, active_profile.profile_data)
+        # The profile_data in DB already contains all necessary info; merge with settings
+        return generate_vpn_link(
+            active_profile.protocol_name,
+            active_profile.profile_data,
+            active_profile.settings,
+        )
 
     async def get_pending_requests(self) -> list[VPNRequest]:
         """Get all pending VPN requests."""
@@ -169,11 +173,11 @@ class VPNService:
 
         full_profile_data = {**client_data, **protocol_settings}
 
-        await self.user_repo.create_vpn_profile(
+        profile = await self.user_repo.create_vpn_profile(
             user=user, protocol_name=protocol.name, profile_data=full_profile_data
         )
 
-        vpn_link = generate_vpn_link(protocol.name, full_profile_data)
+        vpn_link = generate_vpn_link(protocol.name, profile.profile_data, profile.settings)
         if not vpn_link:
             return False, "Не удалось сгенерировать ссылку для VPN."
 

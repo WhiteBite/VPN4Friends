@@ -335,32 +335,248 @@ The bot itself will continue to support quick commands like `/link` for basic us
 
 ---
 
-## 7. Implementation Tasks (for future work)
+## 7. Implementation Status & Tasks
+
+This section reflects the **current** state of implementation and a detailed list of
+remaining work. It is split into **Completed** and **Planned** items so another
+developer can immediately understand what is done and what is left.
+
+### 7.1. Completed
 
 1. **DB & models**
-   - Add `settings` and optional `label` to `VpnProfile`.
-   - Introduce `ConnectionPreset` model and table.
-   - Add corresponding repositories (`PresetRepository`) and update existing ones if needed.
+   - `VpnProfile` extended with:
+     - `label: str | None` — optional human‑friendly label.
+     - `settings: JSON | None` — user‑level overrides (e.g. selected SNI).
+   - New model `ConnectionPreset` added with fields:
+     - `user_id`, `profile_id`, `name`, `app_type`, `format`, `options`.
+   - Relationships:
+     - `User.profiles` and `User.presets` wired with cascade delete.
+     - `ConnectionPreset.profile` references `VpnProfile`.
 
-2. **Services**
-   - Extend `VPNService` with `switch_protocol`, `update_profile_settings`, `get_user_profile`.
-   - Implement `PresetService` with CRUD + `generate_config` using existing `url_generator` and future format generators.
+2. **Repositories**
+   - `PresetRepository` implemented:
+     - `create(user, profile, name, app_type, format, options)`.
+     - `get_by_id(preset_id)`.
+     - `get_by_user(user)`.
+     - `delete(preset)`.
+   - `UserRepository` updated:
+     - `create_vpn_profile`, `deactivate_all_profiles`, `delete_active_profile`,
+       `update_vpn_profile` for working with `VpnProfile`.
 
-3. **XUI API enhancements**
-   - Ensure `XUIApi.get_protocol_settings` returns **full** SNI/serverNames list (not just first value).
-   - Keep `create_client` / `delete_client` stable for all supported protocols.
+3. **Services (business logic)**
+   - `VPNService`:
+     - Базовые методы: `create_request`, `approve_request`, `reject_request`,
+       `revoke_vpn`, `get_user_stats`, `get_active_vpn_link`, `get_pending_requests`,
+       `get_all_users_with_vpn`.
+     - Расширения для мульти‑протокола и SNI:
+       - `approve_request(request_id, protocol_name)` — создаёт клиента в нужном
+         inbound, сохраняет `VpnProfile`, генерирует ссылку через
+         `generate_vpn_link`.
+       - `switch_protocol(user, protocol_name)` — ревокнет старый профиль,
+         создаст новый в другом inbound и вернёт свежую ссылку.
+       - `update_profile_settings(user, sni)` — валидирует SNI по списку из
+         `XUIApi.get_protocol_settings` и сохраняет в `VpnProfile.settings`.
+       - `get_active_vpn_link(user)` — генерирует ссылку, учитывая
+         `VpnProfile.settings` (например, выбранный SNI).
+   - `PresetService`:
+     - `create_preset(user, name, app_type, format, options)` — создаёт пресет для
+       активного профиля.
+     - `get_user_presets(user)` — список пресетов пользователя.
+     - `delete_preset(user, preset_id)` и `get_preset_for_user(user, preset_id)` —
+       безопасная работа только со «своими» пресетами.
+     - `generate_config(preset)` — для форматов `*_uri` возвращает структуру
+       `{ "type": "uri", "value": "vless://..." }` с учётом `profile.settings`.
 
-4. **Mini App backend (FastAPI)**
-   - Create `src/api/main.py` with described endpoints.
-   - Implement Telegram WebApp auth (validating `initData`).
-   - Wire DI for `AsyncSession`, `VPNService`, `PresetService`.
+4. **XUI API enhancements**
+   - `XUIApi.get_protocol_settings(inbound_id)` реализован для VLESS‑Reality:
+     - Парсит `streamSettings.realitySettings` и возвращает:
+       - `port`, `remark`.
+       - `reality.public_key`, `fingerprint`, `sni_options`, `default_sni`,
+         `short_id_options`, `default_short_id`, `spider_x`.
+   - `create_client` / `delete_client` работают через модификацию JSON `settings`.
 
-5. **Bot integration**
-   - Add `web_app` button to open Mini App in main user menu.
-   - Optionally add simple text‑only fallbacks for users without WebApp support.
+5. **URL генератор (VLESS / мульти‑протокол)**
+   - `url_generator.py`:
+     - `merge_profile_settings(profile_data, settings_overrides)` — аккуратно
+       мёрджит `VpnProfile.settings` (в т.ч. выбранный SNI) в
+       `profile_data["reality"]`, с fallback’ами `default_sni` и
+       `default_short_id`.
+     - `generate_vless_url(profile_data)` — собирает VLESS‑URL из подготовленных
+       данных (`public_key`, `fingerprint`, `sni`, `short_id`, `spider_x`).
+     - `generate_vpn_link(protocol_name, profile_data, settings_overrides=None)` —
+       единая точка генерации ссылки по протоколу (с учётом SNI‑overrides).
+   - Тесты `tests/test_vless_url.py` и `tests/test_qr_generator.py` покрывают
+     корректность URL и его пригодность для QR.
 
-6. **DevOps**
-   - Update `Dockerfile` / `docker-compose.yml` to run both bot and FastAPI (either in one process manager or separate services).
-   - Extend CI/CD to build & deploy the updated backend.
+6. **Mini App backend (FastAPI)**
+   - Реализованы файлы:
+     - `src/api/dependencies.py` — валидация `X-Telegram-Init-Data`, загрузка
+       текущего пользователя.
+     - `src/api/schemas.py` — схемы `MeResponse`, `ProfileSchema`, `PresetSchema`,
+       запросы/ответы для смены протокола, SNI, пресетов.
+     - `src/api/main.py` — FastAPI‑приложение с эндпоинтами:
+       - `GET /me` — агрегированное состояние пользователя.
+       - `POST /me/protocol` — смена протокола.
+       - `POST /me/sni` — смена SNI.
+       - `GET /presets`, `POST /presets`, `DELETE /presets/{id}`,
+         `GET /presets/{id}/config`.
+   - DI для `AsyncSession`, `VPNService`, `PresetService` настроен через
+     `get_session` и зависимости FastAPI.
 
-This document should be treated as the authoritative high‑level specification for future refactors and Mini App integration. Another AI can use it as a starting point to implement the remaining pieces without re‑discovering the design decisions.
+7. **Mini App frontend (React + Vite)**
+   - Папка `miniapp/`:
+     - `package.json`, `vite.config.js`, `index.html`.
+     - `src/main.jsx`, `src/App.jsx`, `src/styles.css`.
+     - `src/api.js` — клиент для Mini App API (`/me`, `/me/protocol`, `/me/sni`,
+       `/presets`, `/presets/{id}/config`) с заголовком `X-Telegram-Init-Data`.
+     - `src/telegram.js` — helper для работы с `window.Telegram.WebApp` и initData.
+   - UI Mini App:
+     - блок пользователя (имя, username),
+     - текущий профиль (протокол, label, SNI, доступные SNI),
+     - чипы выбора протокола,
+     - чипы выбора SNI,
+     - список пресетов + форма создания пресета,
+     - превью конфига пресета и копирование URI в буфер.
+   - Интеграция с Telegram WebApp: `tg.ready()`, `tg.expand()`, учёт темы
+     (`colorScheme`) и размер экрана.
+
+8. **Bot & handlers**
+   - Админские/юзерские хендлеры обновлены под мульти‑протоколную схему:
+     - при выдаче ссылки и статистики отображается текущий протокол.
+     - админ‑флоу одобрения заявки учитывает выбор протокола.
+
+9. **DevOps / CI/CD**
+   - `Dockerfile`:
+     - копирует `src/`, `alembic.ini`, `alembic/` и `start.sh`.
+     - `CMD ["./start.sh"]`, где:
+       - выполняются миграции Alembic,
+       - запускается бот (`python -m src.bot.app`).
+   - `docker-compose.yml`:
+     - один сервис `vpn4friends` с `network_mode: "host"`, монтированием `./data`.
+   - GitHub Actions `ci.yml`:
+     - job `lint` (Ruff),
+     - job `deploy` — ssh на сервер, `git pull`, `docker compose up -d --build`,
+       `docker image prune -f`.
+
+---
+
+### 7.2. Remaining Tasks / Future Work
+
+Ниже — полный список задач, которые можно/нужно сделать дальше. Они сгруппированы
+по областям. Не все критичны для запуска, но описаны, чтобы было понятно, где
+ещё можно улучшать систему.
+
+#### 7.2.1. Core VPN & Protocols
+
+- **Shadowsocks (полная поддержка)**
+  - В `XUIApi.get_protocol_settings` реализовать ветку для `protocol == "shadowsocks"`:
+    - парсить `method`, `password` и прочие нужные поля из inbound `settings`.
+  - В `url_generator.generate_shadowsocks_url` реализовать корректную сборку
+    `ss://` URI по стандарту (base64 части, remark и т.п.).
+  - Добавить тест(ы) для ss‑URL (аналогично VLESS тестам).
+
+- **Дополнительные протоколы (опционально)**
+  - При необходимости добавить новые записи в `PROTOCOLS_CONFIG` и соответствующую
+    логику в `XUIApi` и `url_generator`.
+
+#### 7.2.2. Mini App Backend (расширения)
+
+- **API для списка протоколов**
+  - Добавить эндпоинт (например, `GET /protocols`), который отдаёт список доступных
+    протоколов из `settings.protocols` (name, label, description, recommended).
+
+- **Расширение пресетов и форматов**
+  - Поддержать форматы конфигов помимо `*_uri`:
+    - `clash_yaml` — генерация YAML профиля для Clash/Hiddify.
+    - другие форматы по мере необходимости.
+  - Расширить `PresetService.generate_config`, чтобы для таких форматов
+    возвращался `{ "type": "file", "filename": "config.yaml", "content": "..." }`.
+
+- **Более точный контракт ошибок API**
+  - Стандартизировать формат ошибок (например, `{ "success": false, "message": "..." }`)
+    для тех эндпоинтов, где сейчас используются HTTP‑исключения.
+
+#### 7.2.3. Mini App Frontend (UX/функционал)
+
+- **Динамический список протоколов**
+  - Перейти от захардкоженного `AVAILABLE_PROTOCOLS` к данным с backend
+    (`/protocols` или расширенный `/me`).
+
+- **Улучшение UX и визуала**
+  - Добавить skeleton‑лоадеры вместо простого текста "Загрузка...".
+  - Более детальные сообщения об ошибках в зависимости от ответа API.
+  - Поддержка разных языков интерфейса (i18n), если потребуется.
+
+- **Работа с файлами (если будут YAML/профили)**
+  - Для форматов `type == "file"` реализовать скачивание файла/открытие в
+    приложении (вместо копирования URI).
+
+#### 7.2.4. Bot Integration & UX
+
+- **Кнопка открытия Mini App**
+  - В основном меню бота добавить кнопку "Мои настройки VPN" с `web_app` ссылкой
+    на Mini App.
+  - Описать в README шаги по настройке WebApp URL в BotFather.
+
+- **Fallback‑поведение**
+  - Продумать простой текстовый флоу для пользователей без поддержки WebApp
+    (например, команда, которая просто даёт ссылку/инструкцию).
+
+#### 7.2.5. Testing & QA
+
+- **Unit‑тесты бизнес‑логики**
+  - `VPNService.switch_protocol` —
+    - сценарий с существующим активным профилем;
+    - ошибка при несуществующем протоколе;
+    - ошибка при сбое `create_client`.
+  - `VPNService.update_profile_settings` —
+    - валидный/невалидный SNI;
+    - отсутствие активного профиля.
+  - `merge_profile_settings` / `generate_vpn_link` — корректное использование
+    `default_sni`, `default_short_id` и overrides.
+
+- **API‑тесты Mini App backend**
+  - `GET /me`, `POST /me/protocol`, `POST /me/sni`, `/presets*` — happy‑path и
+    базовые ошибки (нет профиля, нет пресета, невалидный SNI).
+
+#### 7.2.6. DevOps & Deployment
+
+- **Отдельный сервис для API (при необходимости)**
+  - Добавить во `docker-compose.yml` второй сервис `api`:
+    - команда `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`;
+    - общая сеть с ботом или `network_mode: "host"`.
+  - При желании — раздавать Mini App статику тем же сервисом или отдельным nginx.
+
+- **Обновление CI/CD при появлении API‑сервиса**
+  - При добавлении второго сервиса в compose убедиться, что пайплайн деплоя
+    корректно пересобирает и перезапускает оба.
+
+- **Наблюдаемость (по желанию)**
+  - Добавить базовое логирование запросов в FastAPI.
+  - Рассмотреть метрики (Prometheus) для числа активных пользователей/заявок.
+
+#### 7.2.7. Docs & Cleanup
+
+- **Актуализация корневого README**
+  - Обновить разделы:
+    - конфигурация `PROTOCOLS_CONFIG` и мульти‑протокол;
+    - наличие Mini App backend и фронта;
+    - упрощённый Docker‑запуск (один контейнер с ботом и миграциями).
+
+- **Отдельный README для `miniapp/`**
+  - Как запустить:
+    - `npm install`, `npm run dev`;
+    - использование `VITE_API_BASE_URL`.
+  - Как подключить Mini App к боту (BotFather, WebApp URL).
+
+- **Удаление легаси и артефактов**
+  - Удалить `supervisord.conf` и любые упоминания про supervisord, так как
+    сейчас контейнер запускает только бот через `start.sh`.
+  - При необходимости удалить/обновить другие неактуальные файлы/комментарии.
+
+---
+
+This document should be treated as the authoritative high‑level specification and
+roadmap for future refactors and Mini App integration. Another AI (or developer)
+can use it as a starting point to understand what has already been built and what
+remains to be done without re‑discovering the design decisions.
