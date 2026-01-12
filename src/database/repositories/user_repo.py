@@ -1,9 +1,10 @@
 """User repository for database operations."""
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from src.database.models import User
+from src.database.models import User, VpnProfile
 
 
 class UserRepository:
@@ -13,8 +14,12 @@ class UserRepository:
         self.session = session
 
     async def get_by_telegram_id(self, telegram_id: int) -> User | None:
-        """Get user by Telegram ID."""
-        result = await self.session.execute(select(User).where(User.telegram_id == telegram_id))
+        """Get user by Telegram ID with profiles eagerly loaded."""
+        result = await self.session.execute(
+            select(User)
+            .where(User.telegram_id == telegram_id)
+            .options(selectinload(User.profiles))
+        )
         return result.scalar_one_or_none()
 
     async def create(
@@ -68,8 +73,10 @@ class UserRepository:
         return user, True
 
     async def get_all_with_vpn(self) -> list[User]:
-        """Get all users with active VPN profile."""
-        result = await self.session.execute(select(User).where(User.vless_profile_data.isnot(None)))
+        """Get all users with an active VPN profile."""
+        result = await self.session.execute(
+            select(User).where(User.profiles.any(VpnProfile.is_active == True))
+        )
         return list(result.scalars().all())
 
     async def get_all(self) -> list[User]:
@@ -77,7 +84,36 @@ class UserRepository:
         result = await self.session.execute(select(User))
         return list(result.scalars().all())
 
-    async def set_vpn_profile(self, user: User, profile_data: str | None) -> None:
-        """Set or clear VPN profile data."""
-        user.vless_profile_data = profile_data
+    async def create_vpn_profile(
+        self, user: User, protocol_name: str, profile_data: dict
+    ) -> VpnProfile:
+        """Create a new VPN profile for a user."""
+        # Deactivate other profiles first
+        await self.deactivate_all_profiles(user)
+
+        new_profile = VpnProfile(
+            user=user,
+            protocol_name=protocol_name,
+            profile_data=profile_data,
+            is_active=True,
+        )
+        self.session.add(new_profile)
         await self.session.commit()
+        await self.session.refresh(new_profile)
+        return new_profile
+
+    async def deactivate_all_profiles(self, user: User) -> None:
+        """Set is_active=False for all of a user's profiles."""
+        await self.session.execute(
+            update(VpnProfile)
+            .where(VpnProfile.user_id == user.id)
+            .values(is_active=False)
+        )
+        await self.session.commit()
+
+    async def delete_active_profile(self, user: User) -> None:
+        """Delete the active profile for a user."""
+        active_profile = user.active_profile
+        if active_profile:
+            await self.session.delete(active_profile)
+            await self.session.commit()

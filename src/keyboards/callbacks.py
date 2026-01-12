@@ -6,8 +6,9 @@ from aiogram.filters.callback_data import CallbackData
 class RequestAction(CallbackData, prefix="req"):
     """Callback data for VPN request actions."""
 
-    action: str  # approve / reject
+    action: str  # approve / reject / select_protocol
     request_id: int
+    protocol_name: str | None = None
 
 
 class UserAction(CallbackData, prefix="user"):

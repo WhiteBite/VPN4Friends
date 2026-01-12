@@ -36,6 +36,24 @@ def get_request_action_kb(request: VPNRequest) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def get_protocol_select_kb(request_id: int) -> InlineKeyboardMarkup:
+    """Get keyboard for admin to select a protocol for the user."""
+    from src.bot.config import settings
+
+    builder = InlineKeyboardBuilder()
+    for protocol in settings.protocols:
+        builder.button(
+            text=protocol.label,
+            callback_data=RequestAction(
+                action="select_protocol",
+                request_id=request_id,
+                protocol_name=protocol.name,
+            ).pack(),
+        )
+    builder.adjust(1)  # One button per row
+    return builder.as_markup()
+
+
 def get_user_manage_kb(user: User) -> InlineKeyboardMarkup:
     """Get management keyboard for user."""
     builder = InlineKeyboardBuilder()
