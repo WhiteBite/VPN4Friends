@@ -149,24 +149,24 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(message.from_user.id)
 
-    if not user:
-        await message.answer("Сначала нажми /start")
-        return
-
-    if not user.has_vpn:
+    if not user or not user.active_profile:
         await message.answer("❌ У тебя нет активного VPN. Отправь заявку через /menu")
         return
 
     vpn_service = VPNService(session)
-    vless_url = await vpn_service.get_vless_url(user)
+    vpn_link = await vpn_service.get_active_vpn_link(user)
+    if not vpn_link:
+        await message.answer("❌ Не удалось получить ссылку на VPN.")
+        return
 
-    # Generate QR code
-    qr_buffer = generate_qr_code(vless_url)
+    qr_buffer = generate_qr_code(vpn_link)
     qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
+
+    protocol_name = user.active_profile.protocol_name.upper()
 
     await message.answer_photo(
         photo=qr_photo,
-        caption=f"🔗 Твоя ссылка:\n\n<code>{vless_url}</code>{get_dns_instructions()}",
+        caption=f"🔗 Твоя {protocol_name} ссылка:\n\n<code>{vpn_link}</code>{get_dns_instructions()}",
         parse_mode="HTML",
     )
 
@@ -177,11 +177,7 @@ async def cmd_stats(message: Message, session: AsyncSession) -> None:
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(message.from_user.id)
 
-    if not user:
-        await message.answer("Сначала нажми /start")
-        return
-
-    if not user.has_vpn:
+    if not user or not user.active_profile:
         await message.answer("❌ У тебя нет активного VPN.")
         return
 
@@ -194,9 +190,10 @@ async def cmd_stats(message: Message, session: AsyncSession) -> None:
 
     upload = format_traffic(stats["upload"])
     download = format_traffic(stats["download"])
+    protocol_name = stats["protocol"].upper()
 
     await message.answer(
-        f"📊 Твоя статистика:\n\n🔼 Загружено: {upload}\n🔽 Скачано: {download}",
+        f"📊 Твоя статистика ({protocol_name}):\n\n🔼 Загружено: {upload}\n🔽 Скачано: {download}",
         reply_markup=get_stats_kb(),
     )
 
@@ -283,12 +280,12 @@ async def pending_info(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "my_link")
 async def my_link(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Show user's VLESS link with QR code."""
+    """Show user's active VPN link with QR code."""
     await callback.answer()
 
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user or not user.has_vpn:
+    if not user or not user.active_profile:
         await callback.message.edit_text(
             "❌ У тебя нет активного VPN.",
             reply_markup=get_back_kb(),
@@ -296,19 +293,25 @@ async def my_link(callback: CallbackQuery, session: AsyncSession) -> None:
         return
 
     vpn_service = VPNService(session)
-    vless_url = await vpn_service.get_vless_url(user)
+    vpn_link = await vpn_service.get_active_vpn_link(user)
+    if not vpn_link:
+        await callback.message.edit_text(
+            "❌ Не удалось получить ссылку на VPN.",
+            reply_markup=get_back_kb(),
+        )
+        return
 
-    # Generate QR code
-    qr_buffer = generate_qr_code(vless_url)
+    qr_buffer = generate_qr_code(vpn_link)
     qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
 
-    # Delete old message and send new with photo
+    protocol_name = user.active_profile.protocol_name.upper()
+
     await callback.message.delete()
     await callback.message.answer_photo(
         photo=qr_photo,
         caption=(
-            f"🔗 <b>Твоя ссылка для подключения:</b>\n\n"
-            f"<code>{vless_url}</code>\n\n"
+            f"🔗 <b>Твоя {protocol_name} ссылка:</b>\n\n"
+            f"<code>{vpn_link}</code>\n\n"
             f"📷 Или отсканируй QR-код выше\n\n"
             f"📱 <b>Приложения:</b>\n"
             f"• iOS: V2RayTun, Shadowrocket\n"
@@ -333,7 +336,7 @@ async def my_stats(callback: CallbackQuery, session: AsyncSession) -> None:
 
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user or not user.has_vpn:
+    if not user or not user.active_profile:
         await callback.message.edit_text(
             "❌ У тебя нет активного VPN.",
             reply_markup=get_back_kb(),
@@ -352,9 +355,10 @@ async def my_stats(callback: CallbackQuery, session: AsyncSession) -> None:
 
     upload = format_traffic(stats["upload"])
     download = format_traffic(stats["download"])
+    protocol_name = stats["protocol"].upper()
 
     await callback.message.edit_text(
-        f"📊 Твоя статистика:\n\n🔼 Загружено: {upload}\n🔽 Скачано: {download}",
+        f"📊 Твоя статистика ({protocol_name}):\n\n🔼 Загружено: {upload}\n🔽 Скачано: {download}",
         reply_markup=get_stats_kb(),
     )
 
@@ -401,7 +405,7 @@ async def refresh_link(callback: CallbackQuery, session: AsyncSession) -> None:
 
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user or not user.has_vpn:
+    if not user or not user.active_profile:
         await callback.message.delete()
         await callback.message.answer(
             "❌ У тебя нет активного VPN.",
@@ -410,19 +414,26 @@ async def refresh_link(callback: CallbackQuery, session: AsyncSession) -> None:
         return
 
     vpn_service = VPNService(session)
-    vless_url = await vpn_service.get_vless_url(user)
+    vpn_link = await vpn_service.get_active_vpn_link(user)
+    if not vpn_link:
+        await callback.message.delete()
+        await callback.message.answer(
+            "❌ Не удалось обновить ссылку.",
+            reply_markup=get_back_kb(),
+        )
+        return
 
-    # Generate new QR code
-    qr_buffer = generate_qr_code(vless_url)
+    qr_buffer = generate_qr_code(vpn_link)
     qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
 
-    # Delete old and send new
+    protocol_name = user.active_profile.protocol_name.upper()
+
     await callback.message.delete()
     await callback.message.answer_photo(
         photo=qr_photo,
         caption=(
-            f"🔗 <b>Твоя ссылка для подключения:</b>\n\n"
-            f"<code>{vless_url}</code>\n\n"
+            f"🔗 <b>Твоя {protocol_name} ссылка:</b>\n\n"
+            f"<code>{vpn_link}</code>\n\n"
             f"📷 Или отсканируй QR-код выше\n\n"
             f"📱 <b>Приложения:</b>\n"
             f"• iOS: V2RayTun, Shadowrocket\n"

@@ -95,20 +95,10 @@ class XUIApi:
             result = await resp.json()
             return result.get("success", False)
 
-    async def create_client(self, email: str) -> dict[str, Any] | None:
-        """Create new VLESS client in inbound."""
-        inbound = await self.get_inbound(settings.inbound_id)
-
-        settings_data = json.loads(inbound["settings"])
-        stream_settings = json.loads(inbound["streamSettings"])
-        reality_settings = stream_settings.get("realitySettings", {})
-
-        clients = settings_data.get("clients", [])
-
-        client_id = str(uuid.uuid4())
-        new_client = {
+    def _get_client_template(self, protocol: str, client_id: str, email: str) -> dict[str, Any]:
+        """Get a new client template based on the protocol."""
+        base_template = {
             "id": client_id,
-            "flow": "xtls-rprx-vision",
             "email": email,
             "limitIp": 0,
             "totalGB": 0,
@@ -118,52 +108,45 @@ class XUIApi:
             "subId": "",
             "reset": 0,
         }
+        if protocol == "vless":
+            base_template["flow"] = "xtls-rprx-vision"
+        # Add other protocols like shadowsocks here if needed
+        # elif protocol == "shadowsocks":
+        #     base_template["method"] = "..."
+        #     base_template["password"] = "..."
+
+        return base_template
+
+    async def create_client(
+        self, inbound_id: int, email: str, protocol: str
+    ) -> dict[str, Any] | None:
+        """Create a new client in the specified inbound."""
+        inbound = await self.get_inbound(inbound_id)
+
+        settings_data = json.loads(inbound["settings"])
+        clients = settings_data.get("clients", [])
+
+        client_id = str(uuid.uuid4())
+        new_client = self._get_client_template(protocol, client_id, email)
 
         clients.append(new_client)
         settings_data["clients"] = clients
 
-        update_data = {
-            "up": inbound["up"],
-            "down": inbound["down"],
-            "total": inbound["total"],
-            "remark": inbound["remark"],
-            "enable": inbound["enable"],
-            "expiryTime": inbound["expiryTime"],
-            "listen": inbound["listen"],
-            "port": inbound["port"],
-            "protocol": inbound["protocol"],
-            "settings": json.dumps(settings_data),
-            "streamSettings": inbound["streamSettings"],
-            "sniffing": inbound["sniffing"],
-        }
+        inbound["settings"] = json.dumps(settings_data)
 
-        if await self.update_inbound(settings.inbound_id, update_data):
-            # Extract Reality settings from inbound for URL generation
-            # In 3X-UI, publicKey and fingerprint are nested in settings
-            reality_inner = reality_settings.get("settings", {})
-            server_names = reality_settings.get("serverNames", [])
-            short_ids = reality_settings.get("shortIds", [])
-
+        if await self.update_inbound(inbound_id, inbound):
+            # Return data needed to construct the profile
             return {
                 "client_id": client_id,
                 "email": email,
-                "port": inbound["port"],
-                "remark": inbound["remark"],
-                "reality": {
-                    "public_key": reality_inner.get("publicKey", ""),
-                    "fingerprint": reality_inner.get(
-                        "fingerprint", stream_settings.get("fingerprint", "chrome")
-                    ),
-                    "sni": server_names[0] if server_names else "",
-                    "short_id": short_ids[0] if short_ids else "",
-                    "spider_x": reality_inner.get("spiderX", "/"),
-                },
+                "protocol": protocol,
+                "inbound_id": inbound_id,
             }
         return None
 
-    async def delete_client(self, email: str) -> bool:
-        """Delete client from inbound by email."""
-        inbound = await self.get_inbound(settings.inbound_id)
+    async def delete_client(self, inbound_id: int, email: str) -> bool:
+        """Delete a client from the specified inbound by email."""
+        inbound = await self.get_inbound(inbound_id)
 
         settings_data = json.loads(inbound["settings"])
         clients = settings_data.get("clients", [])
@@ -173,23 +156,9 @@ class XUIApi:
             return False  # Client not found
 
         settings_data["clients"] = new_clients
+        inbound["settings"] = json.dumps(settings_data)
 
-        update_data = {
-            "up": inbound["up"],
-            "down": inbound["down"],
-            "total": inbound["total"],
-            "remark": inbound["remark"],
-            "enable": inbound["enable"],
-            "expiryTime": inbound["expiryTime"],
-            "listen": inbound["listen"],
-            "port": inbound["port"],
-            "protocol": inbound["protocol"],
-            "settings": json.dumps(settings_data),
-            "streamSettings": inbound["streamSettings"],
-            "sniffing": inbound["sniffing"],
-        }
-
-        return await self.update_inbound(settings.inbound_id, update_data)
+        return await self.update_inbound(inbound_id, inbound)
 
     async def get_client_traffic(self, email: str) -> dict[str, int]:
         """Get client traffic statistics."""
@@ -211,10 +180,13 @@ class XUIApi:
             return {"upload": 0, "download": 0}
 
     async def health_check(self) -> bool:
-        """Check if 3X-UI panel is accessible."""
+        """Check if 3X-UI panel is accessible by listing inbounds."""
+        if not self._session:
+            return False
         try:
-            await self.get_inbound(settings.inbound_id)
-            return True
+            url = self._build_url("/api/inbounds/list")
+            async with self._session.get(url, timeout=5) as resp:
+                return resp.status == 200
         except Exception:
             return False
 
@@ -274,28 +246,38 @@ class XUIApi:
         except Exception:
             return []
 
-    async def get_reality_settings(self) -> dict[str, Any]:
-        """Get Reality settings from inbound configuration."""
-        inbound = await self.get_inbound(settings.inbound_id)
-        stream_settings = json.loads(inbound["streamSettings"])
-        reality_settings = stream_settings.get("realitySettings", {})
-        # In 3X-UI, publicKey and fingerprint are nested in settings
-        reality_inner = reality_settings.get("settings", {})
+    async def get_protocol_settings(self, inbound_id: int) -> dict[str, Any]:
+        """Get protocol-specific settings from an inbound configuration."""
+        inbound = await self.get_inbound(inbound_id)
+        protocol = inbound.get("protocol")
 
-        server_names = reality_settings.get("serverNames", [])
-        short_ids = reality_settings.get("shortIds", [])
+        settings_data = {"port": inbound["port"], "remark": inbound["remark"]}
 
-        return {
-            "public_key": reality_inner.get("publicKey", ""),
-            "fingerprint": reality_inner.get(
-                "fingerprint", stream_settings.get("fingerprint", "chrome")
-            ),
-            "sni": server_names[0] if server_names else "",
-            "short_id": short_ids[0] if short_ids else "",
-            "spider_x": reality_inner.get("spiderX", "/"),
-            "port": inbound["port"],
-            "remark": inbound["remark"],
-        }
+        if protocol == "vless":
+            stream_settings = json.loads(inbound["streamSettings"])
+            reality_settings = stream_settings.get("realitySettings", {})
+            reality_inner = reality_settings.get("settings", {})
+            server_names = reality_settings.get("serverNames", [])
+            short_ids = reality_settings.get("shortIds", [])
+
+            settings_data["reality"] = {
+                "public_key": reality_inner.get("publicKey", ""),
+                "fingerprint": reality_inner.get(
+                    "fingerprint", stream_settings.get("fingerprint", "chrome")
+                ),
+                "sni": server_names[0] if server_names else "",
+                "short_id": short_ids[0] if short_ids else "",
+                "spider_x": reality_inner.get("spiderX", "/"),
+            }
+        # Add other protocols like shadowsocks here
+        # elif protocol == "shadowsocks":
+        #     ss_settings = json.loads(inbound["settings"])
+        #     settings_data["shadowsocks"] = {
+        #         "method": ss_settings.get("method"),
+        #         "password": ss_settings.get("password"),
+        #     }
+
+        return settings_data
 
 
 async def check_xui_connection() -> tuple[bool, str]:
@@ -322,31 +304,3 @@ def generate_client_name(username: str | None, telegram_id: int) -> str:
     return f"user_{telegram_id}"
 
 
-def generate_vless_url(profile_data: dict[str, Any]) -> str:
-    """Generate VLESS connection URL from profile data with Reality settings."""
-    remark = profile_data.get("remark", "")
-    email = profile_data["email"]
-    fragment = f"{remark}-{email}" if remark else email
-
-    # Get Reality settings from profile (fetched from panel)
-    reality = profile_data.get("reality", {})
-    public_key = reality.get("public_key", "")
-    fingerprint = reality.get("fingerprint", "chrome")
-    sni = reality.get("sni", "")
-    short_id = reality.get("short_id", "")
-    spider_x = reality.get("spider_x", "/")
-
-    # URL-encode spider_x (e.g., "/" -> "%2F")
-    spider_x_encoded = quote(spider_x, safe="")
-
-    return (
-        f"vless://{profile_data['client_id']}@{settings.xui_host}:{profile_data['port']}"
-        f"?type=tcp&security=reality"
-        f"&pbk={public_key}"
-        f"&fp={fingerprint}"
-        f"&sni={sni}"
-        f"&sid={short_id}"
-        f"&spx={spider_x_encoded}"
-        f"&flow=xtls-rprx-vision"
-        f"#{fragment}"
-    )

@@ -15,6 +15,7 @@ from src.keyboards.admin_kb import (
     get_admin_main_kb,
     get_back_to_admin_kb,
     get_request_action_kb,
+    get_protocol_select_kb,
     get_user_manage_kb,
 )
 from src.keyboards.callbacks import RequestAction, UserAction
@@ -208,17 +209,35 @@ async def admin_requests(callback: CallbackQuery, session: AsyncSession) -> None
 
 
 @router.callback_query(RequestAction.filter(F.action == "approve"))
-async def approve_request(
+async def approve_request_show_protocols(
+    callback: CallbackQuery, callback_data: RequestAction
+) -> None:
+    """Show protocol selection keyboard to the admin."""
+    await callback.answer()
+    await callback.message.edit_text(
+        "Выберите протокол для пользователя:",
+        reply_markup=get_protocol_select_kb(callback_data.request_id),
+    )
+
+
+@router.callback_query(RequestAction.filter(F.action == "select_protocol"))
+async def approve_request_select_protocol(
     callback: CallbackQuery,
     callback_data: RequestAction,
     session: AsyncSession,
     bot: Bot,
 ) -> None:
-    """Approve VPN request."""
+    """Approve VPN request with the selected protocol."""
     await callback.answer()
 
+    if not callback_data.protocol_name:
+        await callback.message.edit_text("❌ Ошибка: Протокол не выбран.")
+        return
+
     vpn_service = VPNService(session)
-    success, result = await vpn_service.approve_request(callback_data.request_id)
+    success, result = await vpn_service.approve_request(
+        request_id=callback_data.request_id, protocol_name=callback_data.protocol_name
+    )
 
     if not success:
         await callback.message.edit_text(f"❌ Ошибка: {result}")
@@ -231,7 +250,7 @@ async def approve_request(
     request = await request_repo.get_by_id(callback_data.request_id)
 
     await callback.message.edit_text(
-        f"✅ Заявка одобрена!\n\nПользователь: {request.user.display_name}\nVPN создан."
+        f"✅ Заявка одобрена!\n\nПользователь: {request.user.display_name}\nПротокол: {callback_data.protocol_name}"
     )
 
     # Notify user with QR code

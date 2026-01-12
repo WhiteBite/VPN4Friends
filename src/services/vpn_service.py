@@ -1,13 +1,15 @@
 """VPN service for business logic."""
 
-import json
 import logging
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.bot.config import settings
 from src.database.models import User, VPNRequest
 from src.database.repositories import RequestRepository, UserRepository
-from src.services.xui_api import XUIApi, generate_client_name, generate_vless_url
+from src.services.url_generator import generate_vpn_link
+from src.services.xui_api import XUIApi, generate_client_name
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +36,14 @@ class VPNService:
         logger.info(f"Created VPN request {request.id} for user {user.telegram_id}")
         return request
 
-    async def approve_request(self, request_id: int) -> tuple[bool, str]:
+    async def approve_request(
+        self, request_id: int, protocol_name: str
+    ) -> tuple[bool, str]:
         """
-        Approve VPN request and create profile.
+        Approve VPN request and create a profile for the specified protocol.
 
         Returns:
-            Tuple of (success, message/vless_url)
+            Tuple of (success, message/vpn_link)
         """
         request = await self.request_repo.get_by_id(request_id)
         if not request:
@@ -49,25 +53,38 @@ class VPNService:
             return False, "Заявка уже обработана"
 
         user = request.user
+        protocol = settings.get_protocol(protocol_name)
+        if not protocol:
+            return False, f"Протокол '{protocol_name}' не настроен."
 
-        # Create VPN profile in 3X-UI
         async with XUIApi() as api:
             client_name = generate_client_name(user.username, user.telegram_id)
-            profile_data = await api.create_client(client_name)
-
-            if not profile_data:
+            # Create client in the corresponding inbound
+            client_data = await api.create_client(
+                inbound_id=protocol.inbound_id, email=client_name, protocol=protocol.name
+            )
+            if not client_data:
                 return False, "Ошибка создания профиля в 3X-UI"
 
-        # Save profile to user
-        await self.user_repo.set_vpn_profile(user, json.dumps(profile_data))
+            # Fetch protocol-specific settings (like Reality, etc.)
+            protocol_settings = await api.get_protocol_settings(protocol.inbound_id)
 
-        # Mark request as approved
+        # Combine client data with protocol settings for the link generator
+        full_profile_data = {**client_data, **protocol_settings}
+
+        # Save the new profile to the database
+        await self.user_repo.create_vpn_profile(
+            user=user, protocol_name=protocol.name, profile_data=full_profile_data
+        )
+
         await self.request_repo.approve(request)
 
-        vless_url = generate_vless_url(profile_data)
-        logger.info(f"Approved request {request_id} for user {user.telegram_id}")
+        vpn_link = generate_vpn_link(protocol.name, full_profile_data)
+        if not vpn_link:
+            return False, "Не удалось сгенерировать ссылку для VPN."
 
-        return True, vless_url
+        logger.info(f"Approved request {request_id} for user {user.telegram_id}")
+        return True, vpn_link
 
     async def reject_request(self, request_id: int, comment: str | None = None) -> bool:
         """Reject VPN request."""
@@ -80,55 +97,55 @@ class VPNService:
         return True
 
     async def revoke_vpn(self, user: User) -> bool:
-        """Revoke user's VPN access."""
-        if not user.vless_profile_data:
+        """Revoke user's active VPN access."""
+        active_profile = user.active_profile
+        if not active_profile:
             return False
 
-        profile_data = json.loads(user.vless_profile_data)
-        email = profile_data.get("email")
+        email = active_profile.profile_data.get("email")
+        inbound_id = active_profile.profile_data.get("inbound_id")
 
-        if email:
+        if email and inbound_id:
             async with XUIApi() as api:
-                await api.delete_client(email)
+                await api.delete_client(inbound_id, email)
 
-        await self.user_repo.set_vpn_profile(user, None)
+        await self.user_repo.delete_active_profile(user)
         logger.info(f"Revoked VPN for user {user.telegram_id}")
         return True
 
-    async def get_user_stats(self, user: User) -> dict[str, int] | None:
-        """Get traffic statistics for user."""
-        if not user.vless_profile_data:
+    async def get_user_stats(self, user: User) -> dict[str, Any] | None:
+        """Get traffic statistics for the user's active profile."""
+        active_profile = user.active_profile
+        if not active_profile:
             return None
 
-        profile_data = json.loads(user.vless_profile_data)
-        email = profile_data.get("email")
-
+        email = active_profile.profile_data.get("email")
         if not email:
             return None
 
         async with XUIApi() as api:
-            return await api.get_client_traffic(email)
+            traffic_data = await api.get_client_traffic(email)
 
-    async def get_vless_url(self, user: User) -> str | None:
-        """Get VLESS URL for user with current Reality settings from panel."""
-        if not user.vless_profile_data:
+        return {
+            "protocol": active_profile.protocol_name,
+            **traffic_data,
+        }
+
+    async def get_active_vpn_link(self, user: User) -> str | None:
+        """Get the connection link for the user's active VPN profile."""
+        active_profile = user.active_profile
+        if not active_profile:
             return None
 
-        profile_data = json.loads(user.vless_profile_data)
-
-        # Fetch current Reality settings from panel
-        async with XUIApi() as api:
-            reality = await api.get_reality_settings()
-            profile_data["reality"] = reality
-            profile_data["port"] = reality["port"]
-            profile_data["remark"] = reality["remark"]
-
-        return generate_vless_url(profile_data)
+        # The profile_data in DB already contains all necessary info
+        return generate_vpn_link(
+            active_profile.protocol_name, active_profile.profile_data
+        )
 
     async def get_pending_requests(self) -> list[VPNRequest]:
         """Get all pending VPN requests."""
         return await self.request_repo.get_all_pending()
 
     async def get_all_users_with_vpn(self) -> list[User]:
-        """Get all users with active VPN."""
+        """Get all users with an active VPN profile."""
         return await self.user_repo.get_all_with_vpn()
