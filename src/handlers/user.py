@@ -21,7 +21,6 @@ from src.keyboards.user_kb import (
 )
 from src.services.vpn_service import VPNService
 from src.services.xui_api import XUIApi
-from src.database.repositories import RequestRepository
 from src.utils.formatters import format_traffic, get_dns_instructions
 from src.utils.qr_generator import generate_qr_code
 
