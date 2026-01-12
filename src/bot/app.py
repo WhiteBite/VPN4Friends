@@ -1,27 +1,9 @@
 """Main application entry point."""
 
-import asyncio
 import logging
-import signal
 import sys
-from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-
-from aiogram import Bot, Dispatcher
-from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
-
-from src.bot.config import settings
-from src.bot.error_handler import router as error_router
-from src.bot.middlewares import DatabaseMiddleware
-from src.database import init_db, session_factory
-from src.handlers import (
-    admin_messaging_router,
-    admin_router,
-    user_messaging_router,
-    user_router,
-)
-from src.services.xui_api import check_xui_connection
 
 
 def setup_logging() -> None:
@@ -53,7 +35,29 @@ def setup_logging() -> None:
     root_logger.addHandler(console_handler)
 
 
+# --- Setup logging FIRST --- #
 setup_logging()
+
+# --- Now import everything else ---
+import asyncio
+import signal
+from datetime import datetime
+
+from aiogram import Bot, Dispatcher
+from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
+
+from src.bot.config import settings
+from src.bot.error_handler import router as error_router
+from src.bot.middlewares import DatabaseMiddleware
+from src.database import init_db, session_factory
+from src.handlers import (
+    admin_messaging_router,
+    admin_router,
+    user_messaging_router,
+    user_router,
+)
+from src.services.xui_api import check_xui_connection
+
 logger = logging.getLogger(__name__)
 
 
