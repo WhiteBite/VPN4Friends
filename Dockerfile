@@ -15,4 +15,9 @@ RUN mkdir -p /app/data
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-CMD ["python", "-m", "src.bot.app"]
+# Copy the start script and make it executable
+COPY start.sh .
+RUN chmod +x start.sh
+
+# Set the command to run the start script
+CMD ["./start.sh"]

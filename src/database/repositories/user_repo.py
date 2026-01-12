@@ -113,3 +113,8 @@ class UserRepository:
         if active_profile:
             await self.session.delete(active_profile)
             await self.session.commit()
+
+    async def update_vpn_profile(self, profile: VpnProfile) -> None:
+        """Update a VPN profile's settings."""
+        self.session.add(profile)
+        await self.session.commit()
