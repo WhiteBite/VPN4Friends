@@ -15,20 +15,34 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
         builder.button(text="📊 Статистика", callback_data="my_stats")
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
         builder.button(text="❌ Удалить VPN", callback_data="delete_vpn")
-        if settings.miniapp_url:
-            builder.button(
-                text="⚙️ Мои настройки VPN",
-                web_app=WebAppInfo(url=settings.miniapp_url),
-            )
-        builder.adjust(2, 2, 1)
     elif has_pending:
         builder.button(text="⏳ Заявка на рассмотрении", callback_data="pending_info")
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
-        builder.adjust(1)
     else:
         builder.button(text="🔑 Попросить VPN у Дани", callback_data="request_vpn")
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
-        builder.adjust(1)
+
+    if settings.miniapp_url:
+        builder.button(
+            text="⚙️ Мои настройки VPN",
+            web_app=WebAppInfo(url=settings.miniapp_url),
+        )
+
+    if has_vpn:
+        if settings.miniapp_url:
+            builder.adjust(2, 2, 1, 1)
+        else:
+            builder.adjust(2, 2, 1)
+    elif has_pending:
+        if settings.miniapp_url:
+            builder.adjust(1, 1)
+        else:
+            builder.adjust(1)
+    else:
+        if settings.miniapp_url:
+            builder.adjust(1, 1)
+        else:
+            builder.adjust(1)
 
     return builder.as_markup()
 
@@ -63,5 +77,10 @@ def get_link_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="🔄 Обновить ссылку", callback_data="refresh_link")
     builder.button(text="🏠 Меню", callback_data="back_to_menu_new")
+    if settings.miniapp_url:
+        builder.button(
+            text="⚙️ Мои настройки VPN",
+            web_app=WebAppInfo(url=settings.miniapp_url),
+        )
     builder.adjust(1)
     return builder.as_markup()
