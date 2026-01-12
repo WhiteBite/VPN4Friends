@@ -53,7 +53,6 @@ async def get_me(
     session: AsyncSession = Depends(get_session),
 ) -> MeResponse:
     """Get consolidated state for the current user."""
-    vpn_service = VPNService(session)
     preset_service = PresetService(session)
 
     user_schema = UserSchema(full_name=user.full_name, username=user.username)

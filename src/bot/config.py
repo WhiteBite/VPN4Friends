@@ -1,10 +1,10 @@
 """Application configuration using pydantic-settings."""
 
 import json
-import logging
 
 from pydantic import BaseModel, field_validator, model_validator
 from pydantic_settings import BaseSettings
+
 
 class Protocol(BaseModel):
     """Represents a single VPN protocol configuration."""

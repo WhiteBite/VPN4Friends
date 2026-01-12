@@ -19,11 +19,11 @@ def _validate_telegram_data(init_data: str) -> dict:
     """Validate initData from Telegram Mini App."""
     try:
         parsed_data = dict(parse_qsl(init_data))
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid initData format",
-        )
+        ) from e
 
     if "hash" not in parsed_data:
         raise HTTPException(
@@ -36,9 +36,7 @@ def _validate_telegram_data(init_data: str) -> dict:
         f"{k}={v}" for k, v in sorted(parsed_data.items())
     )
 
-    secret_key = hmac.new(
-        "WebAppData".encode(), settings.bot_token.encode(), sha256
-    ).digest()
+    secret_key = hmac.new(b"WebAppData", settings.bot_token.encode(), sha256).digest()
     h = hmac.new(secret_key, data_check_string.encode(), sha256)
 
     if h.hexdigest() != hash_str:
