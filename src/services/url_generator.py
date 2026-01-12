@@ -5,6 +5,7 @@ from urllib.parse import quote
 
 from src.bot.config import settings
 
+
 def generate_vless_url(profile_data: dict[str, Any]) -> str:
     """Generate VLESS connection URL from profile data."""
     remark = profile_data.get("remark", "")

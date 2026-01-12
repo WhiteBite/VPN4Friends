@@ -1,6 +1,7 @@
 """Application configuration using pydantic-settings."""
 
 import json
+
 from pydantic import BaseModel, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
