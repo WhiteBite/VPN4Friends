@@ -8,3 +8,14 @@ services:
     volumes:
       - ./data:/app/data
     network_mode: "host"
+
+  vpn4friends_api:
+    build: .
+    container_name: vpn4friends-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    network_mode: "host"
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
