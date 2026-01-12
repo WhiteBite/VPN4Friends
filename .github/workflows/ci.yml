@@ -36,6 +36,12 @@ jobs:
     needs: lint
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     steps:
+      - name: Format SSH Key
+        run: |
+          mkdir -p ~/.ssh/
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
       - name: Deploy and Restart
         uses: appleboy/ssh-action@v1.0.3
         with:
