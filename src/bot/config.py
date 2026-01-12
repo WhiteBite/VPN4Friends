@@ -1,10 +1,16 @@
 """Application configuration using pydantic-settings."""
 
 import json
+import logging
+import os
 
 from pydantic import BaseModel, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
+# --- Direct Environment Variable Check ---
+raw_admin_ids = os.getenv("ADMIN_IDS")
+logging.info(f"[DIRECT ENV CHECK] Raw ADMIN_IDS from os.getenv: {raw_admin_ids!r}")
+# --- End Check ---
 
 class Protocol(BaseModel):
     """Represents a single VPN protocol configuration."""
