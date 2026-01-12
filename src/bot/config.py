@@ -57,12 +57,10 @@ class Settings(BaseSettings):
 
     @field_validator("admin_ids", mode="before")
     @classmethod
-    def parse_admin_ids(cls, value: str | list[int] | int) -> list[int]:
-        if isinstance(value, int):
-            return [value]
+    def parse_admin_ids(cls, value: str) -> list[int]:
         if isinstance(value, str):
             return [int(x.strip()) for x in value.split(",") if x.strip()]
-        return value
+        return []
 
     def get_protocol(self, protocol_name: str) -> Protocol | None:
         """Get protocol object by name."""
