@@ -1,6 +1,7 @@
 """Main FastAPI application for the Mini App backend."""
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_user
@@ -26,6 +27,16 @@ from src.services import PresetService, VPNService, XUIApi
 app = FastAPI(
     title="VPN4Friends Mini App API",
     version="1.0.0",
+)
+
+# Allow Mini App frontend to call this API from the browser.
+# For now we allow all origins; this can be restricted later
+# to specific domains (e.g. settings.miniapp_url).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
