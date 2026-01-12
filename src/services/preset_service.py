@@ -53,6 +53,13 @@ class PresetService:
         logger.info(f"Deleted preset {preset_id} for user {user.telegram_id}")
         return True
 
+    async def get_preset_for_user(self, user: User, preset_id: int) -> ConnectionPreset | None:
+        """Get a preset by ID only if it belongs to the given user."""
+        preset = await self.preset_repo.get_by_id(preset_id)
+        if not preset or preset.user_id != user.id:
+            return None
+        return preset
+
     async def generate_config(self, preset: ConnectionPreset) -> dict[str, str] | None:
         """Generate the final config for a preset."""
         profile = preset.profile
@@ -62,13 +69,11 @@ class PresetService:
             return None
 
         # Combine profile data with user-specific overrides from profile.settings
-        # For now, we'll just pass the main profile_data
-        # In the future, we can merge `profile.settings` here
         full_profile_data = profile.profile_data
 
         # TODO: Add logic to handle different formats (e.g., YAML for Clash/Hiddify)
         if preset.format.endswith("_uri"):
-            link = generate_vpn_link(profile.protocol_name, full_profile_data)
+            link = generate_vpn_link(profile.protocol_name, full_profile_data, profile.settings)
             if link:
                 return {"type": "uri", "value": link}
 

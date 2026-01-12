@@ -270,13 +270,12 @@ class XUIApi:
                 "default_short_id": short_ids[0] if short_ids else "",
                 "spider_x": reality_inner.get("spiderX", "/"),
             }
-        # Add other protocols like shadowsocks here
-        # elif protocol == "shadowsocks":
-        #     ss_settings = json.loads(inbound["settings"])
-        #     settings_data["shadowsocks"] = {
-        #         "method": ss_settings.get("method"),
-        #         "password": ss_settings.get("password"),
-        #     }
+        elif protocol == "shadowsocks":
+            ss_settings = json.loads(inbound["settings"])
+            settings_data["shadowsocks"] = {
+                "method": ss_settings.get("method", ""),
+                "password": ss_settings.get("password", ""),
+            }
 
         return settings_data
 

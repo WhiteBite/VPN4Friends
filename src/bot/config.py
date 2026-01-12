@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # Telegram
     bot_token: str
     admin_ids: list[int] = []
+    miniapp_url: str = ""
 
     @model_validator(mode="after")
     def get_admin_ids_from_env(self) -> "Settings":

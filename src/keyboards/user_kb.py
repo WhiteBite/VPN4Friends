@@ -1,7 +1,9 @@
 """User keyboards."""
 
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from src.bot.config import settings
 
 
 def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboardMarkup:
@@ -13,7 +15,12 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
         builder.button(text="📊 Статистика", callback_data="my_stats")
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
         builder.button(text="❌ Удалить VPN", callback_data="delete_vpn")
-        builder.adjust(2, 2)
+        if settings.miniapp_url:
+            builder.button(
+                text="⚙️ Мои настройки VPN",
+                web_app=WebAppInfo(url=settings.miniapp_url),
+            )
+        builder.adjust(2, 2, 1)
     elif has_pending:
         builder.button(text="⏳ Заявка на рассмотрении", callback_data="pending_info")
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")

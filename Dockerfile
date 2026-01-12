@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Копирование кода
 COPY src/ ./src/
+COPY alembic.ini .
+COPY alembic/ ./alembic/
 
 # Создание директории для данных
 RUN mkdir -p /app/data
