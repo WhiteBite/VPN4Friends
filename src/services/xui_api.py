@@ -330,11 +330,11 @@ def generate_vless_url(profile_data: dict[str, Any]) -> str:
 
     # Get Reality settings from profile (fetched from panel)
     reality = profile_data.get("reality", {})
-    public_key = reality.get("public_key", settings.reality_public_key)
-    fingerprint = reality.get("fingerprint", settings.reality_fingerprint)
-    sni = reality.get("sni", settings.reality_sni)
-    short_id = reality.get("short_id", settings.reality_short_id)
-    spider_x = reality.get("spider_x", settings.reality_spider_x)
+    public_key = reality.get("public_key", "")
+    fingerprint = reality.get("fingerprint", "chrome")
+    sni = reality.get("sni", "")
+    short_id = reality.get("short_id", "")
+    spider_x = reality.get("spider_x", "/")
 
     # URL-encode spider_x (e.g., "/" -> "%2F")
     spider_x_encoded = quote(spider_x, safe="")
