@@ -1,6 +1,7 @@
 """Database session management."""
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from typing import AsyncGenerator
 
 from src.bot.config import settings
 from src.database.models import Base
@@ -10,12 +11,24 @@ engine = create_async_engine(
     echo=False,
 )
 
-session_factory = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+SessionMaker = async_sessionmaker[AsyncSession]
 
+def create_session_maker(database_url: str) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(
+        create_async_engine(
+            database_url,
+            echo=False,
+        ),
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+session_factory = create_session_maker(settings.database_url)
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency to get a database session."""
+    async with session_factory() as session:
+        yield session
 
 async def init_db() -> None:
     """Create all database tables."""
