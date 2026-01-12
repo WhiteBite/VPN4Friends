@@ -16,9 +16,7 @@ class UserRepository:
     async def get_by_telegram_id(self, telegram_id: int) -> User | None:
         """Get user by Telegram ID with profiles eagerly loaded."""
         result = await self.session.execute(
-            select(User)
-            .where(User.telegram_id == telegram_id)
-            .options(selectinload(User.profiles))
+            select(User).where(User.telegram_id == telegram_id).options(selectinload(User.profiles))
         )
         return result.scalar_one_or_none()
 
@@ -105,9 +103,7 @@ class UserRepository:
     async def deactivate_all_profiles(self, user: User) -> None:
         """Set is_active=False for all of a user's profiles."""
         await self.session.execute(
-            update(VpnProfile)
-            .where(VpnProfile.user_id == user.id)
-            .values(is_active=False)
+            update(VpnProfile).where(VpnProfile.user_id == user.id).values(is_active=False)
         )
         await self.session.commit()
 

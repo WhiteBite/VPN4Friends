@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     xui_host: str
 
     # Protocols configuration (JSON string from .env)
-    protocols_config: str = '[]'
+    protocols_config: str = "[]"
     protocols: list[Protocol] = []
 
     # Database (absolute path for Docker)
