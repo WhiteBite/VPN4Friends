@@ -7,12 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_current_user
 from src.api.schemas import (
     CreatePresetRequest,
+    EndpointSchema,
     GenericResponse,
+    LinkResponse,
     MeResponse,
     PresetConfigResponse,
     PresetSchema,
     ProfileSchema,
     ProtocolSchema,
+    SelectEndpointRequest,
+    StatsResponse,
     SwitchProtocolRequest,
     SwitchProtocolResponse,
     UpdateSNIRequest,
@@ -23,6 +27,16 @@ from src.bot.config import settings
 from src.database.models import User
 from src.database.session import get_session
 from src.services import PresetService, VPNService, XUIApi
+from src.services.url_generator import generate_vpn_link
+
+
+def format_bytes(b: int) -> str:
+    """Format bytes into a human-readable string."""
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if abs(b) < 1024:
+            return f"{b:.1f} {unit}"
+        b /= 1024
+    return f"{b:.1f} PiB"
 
 app = FastAPI(
     title="VPN4Friends Mini App API",
@@ -238,3 +252,128 @@ async def get_preset_config(
         )
 
     return PresetConfigResponse(type=config["type"], value=config["value"])
+
+
+# ---- New endpoints for Mini App redesign ----
+
+
+@app.get("/me/link", response_model=LinkResponse)
+async def get_link(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> LinkResponse:
+    """Get the VPN connection link for the user's active profile.
+
+    Returns the link directly — no preset needed.
+    """
+    active_profile = user.active_profile
+    if not active_profile:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нет активного VPN-профиля.",
+        )
+
+    # Determine endpoint (from user settings or default)
+    endpoint_name = (active_profile.settings or {}).get("endpoint")
+    endpoint = settings.get_endpoint(endpoint_name) if endpoint_name else None
+
+    link = generate_vpn_link(
+        active_profile.protocol_name,
+        active_profile.profile_data,
+        active_profile.settings,
+        endpoint=endpoint,
+    )
+
+    if not link:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось сгенерировать VPN-ссылку.",
+        )
+
+    return LinkResponse(
+        link=link,
+        protocol=active_profile.protocol_name,
+        endpoint=endpoint_name,
+    )
+
+
+@app.get("/me/stats", response_model=StatsResponse)
+async def get_stats(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> StatsResponse:
+    """Get traffic statistics for the user's active VPN profile."""
+    vpn_service = VPNService(session)
+    stats = await vpn_service.get_user_stats(user)
+
+    if not stats:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нет активного VPN-профиля или нет данных.",
+        )
+
+    upload = stats.get("upload", 0)
+    download = stats.get("download", 0)
+
+    return StatsResponse(
+        protocol=stats.get("protocol", "unknown"),
+        upload=upload,
+        download=download,
+        upload_formatted=format_bytes(upload),
+        download_formatted=format_bytes(download),
+    )
+
+
+@app.get("/endpoints", response_model=list[EndpointSchema])
+async def list_endpoints() -> list[EndpointSchema]:
+    """Return available server endpoints (relay, direct, etc.)."""
+    return [
+        EndpointSchema(
+            name=ep.name,
+            label=ep.label,
+            host=ep.host,
+            port=ep.port,
+            is_relay=ep.is_relay,
+            description=ep.description,
+        )
+        for ep in settings.endpoints
+    ]
+
+
+@app.post("/me/endpoint", response_model=GenericResponse)
+async def select_endpoint_route(
+    payload: SelectEndpointRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> GenericResponse:
+    """Select a server endpoint for the user's VPN link generation."""
+    # Validate endpoint exists
+    endpoint = settings.get_endpoint(payload.endpoint)
+    if not endpoint:
+        return GenericResponse(
+            success=False,
+            message=f"Точка входа '{payload.endpoint}' не найдена.",
+        )
+
+    # Store in user's profile settings
+    active_profile = user.active_profile
+    if not active_profile:
+        return GenericResponse(
+            success=False,
+            message="Нет активного VPN-профиля.",
+        )
+
+    if not active_profile.settings:
+        active_profile.settings = {}
+    active_profile.settings["endpoint"] = payload.endpoint
+
+    from src.database.repositories.user_repo import UserRepository
+
+    user_repo = UserRepository(session)
+    await user_repo.update_vpn_profile(active_profile)
+
+    return GenericResponse(
+        success=True,
+        message=f"Точка входа изменена на '{endpoint.label}'.",
+    )
+

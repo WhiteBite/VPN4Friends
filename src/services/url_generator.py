@@ -1,9 +1,14 @@
 """Generates connection URLs for different VPN protocols."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 from src.bot.config import settings
+
+if TYPE_CHECKING:
+    from src.bot.config import ServerEndpoint
 
 
 def merge_profile_settings(
@@ -47,12 +52,18 @@ def merge_profile_settings(
     return combined
 
 
-def generate_vless_url(profile_data: dict[str, Any]) -> str:
+def generate_vless_url(
+    profile_data: dict[str, Any],
+    endpoint: ServerEndpoint | None = None,
+) -> str:
     """Generate VLESS connection URL from prepared profile data.
 
     The ``profile_data`` dict should already contain a ``reality`` section with
     keys: ``public_key``, ``fingerprint``, ``sni``, ``short_id`` and
     ``spider_x``.
+
+    If *endpoint* is provided, its ``host`` and ``port`` override the values
+    from ``profile_data`` / ``settings.xui_host``.
     """
 
     remark = profile_data.get("remark", "")
@@ -67,10 +78,17 @@ def generate_vless_url(profile_data: dict[str, Any]) -> str:
     spider_x = reality.get("spider_x", "/")
 
     spider_x_encoded = quote(spider_x, safe="")
-    host = profile_data.get("host", settings.xui_host)
+
+    # Endpoint override takes priority over profile_data and settings
+    if endpoint:
+        host = endpoint.host
+        port = endpoint.port
+    else:
+        host = profile_data.get("host", settings.xui_host)
+        port = profile_data["port"]
 
     return (
-        f"vless://{profile_data['client_id']}@{host}:{profile_data['port']}"
+        f"vless://{profile_data['client_id']}@{host}:{port}"
         f"?type=tcp&security=reality"
         f"&pbk={public_key}"
         f"&fp={fingerprint}"
@@ -115,16 +133,19 @@ def generate_vpn_link(
     protocol_name: str,
     profile_data: dict[str, Any],
     settings_overrides: dict | None = None,
+    endpoint: ServerEndpoint | None = None,
 ) -> str | None:
     """Generate a VPN link for the given protocol.
 
     For protocols that support per-user settings (like VLESS Reality SNI),
     the ``settings_overrides`` dict is merged into ``profile_data`` before
     constructing the final URL.
+
+    If *endpoint* is provided, it overrides the host/port in the generated URL.
     """
     if protocol_name == "vless":
         prepared = merge_profile_settings(profile_data, settings_overrides)
-        return generate_vless_url(prepared)
+        return generate_vless_url(prepared, endpoint=endpoint)
     if protocol_name == "shadowsocks":
         return generate_shadowsocks_url(profile_data)
     # Add other protocols here

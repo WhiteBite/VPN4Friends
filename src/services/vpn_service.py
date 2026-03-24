@@ -8,10 +8,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.bot.config import settings
 from src.database.models import User, VPNRequest
 from src.database.repositories import RequestRepository, UserRepository
+from src.services.panel_api import PanelAPI
 from src.services.url_generator import generate_vpn_link
 from src.services.xui_api import XUIApi, generate_client_name
 
 logger = logging.getLogger(__name__)
+
+
+def get_panel_for_server(server_id: str | None = None) -> PanelAPI:
+    """Factory: return the correct PanelAPI for a server endpoint.
+
+    If the endpoint is a relay with a ``target``, follows the chain
+    to the actual server with the panel. Falls back to default XUIApi.
+    """
+    if server_id:
+        endpoint = settings.get_endpoint(server_id)
+
+        # Resolve relay → target (relay shares the target's panel)
+        if endpoint and endpoint.is_relay and endpoint.target:
+            endpoint = settings.get_endpoint(endpoint.target)
+
+        if endpoint and endpoint.panel_type == "hiddify":
+            from src.services.hiddify_api import HiddifyApi
+
+            return HiddifyApi(endpoint.panel_config)
+        elif endpoint and endpoint.panel_config:
+            return XUIApi(endpoint.panel_config)
+
+    # Default: global 3X-UI settings
+    return XUIApi()
 
 
 class VPNService:
@@ -51,31 +76,42 @@ class VPNService:
             return False, "Заявка уже обработана"
 
         user = request.user
+
+        # Prevent duplicate VPN: if user already has an active profile, skip
+        if user.has_vpn:
+            await self.request_repo.approve(request)
+            return False, "У пользователя уже есть активный VPN."
+
         protocol = settings.get_protocol(protocol_name)
         if not protocol:
             return False, f"Протокол '{protocol_name}' не настроен."
 
-        async with XUIApi() as api:
-            client_name = generate_client_name(user.username, user.telegram_id)
-            # Create client in the corresponding inbound
-            client_data = await api.create_client(
-                inbound_id=protocol.inbound_id, email=client_name, protocol=protocol.name
-            )
-            if not client_data:
-                return False, "Ошибка создания профиля в 3X-UI"
+        # BUG-2 FIX: Immediately mark as approved to prevent race condition
+        # (double-click on "Approve" button)
+        await self.request_repo.approve(request)
 
-            # Fetch protocol-specific settings (like Reality, etc.)
-            protocol_settings = await api.get_protocol_settings(protocol.inbound_id)
+        try:
+            async with XUIApi() as api:
+                client_name = generate_client_name(user.username, user.telegram_id)
+                client_data = await api.create_client(
+                    inbound_id=protocol.inbound_id, email=client_name, protocol=protocol.name
+                )
+                if not client_data:
+                    # Rollback: revert request status
+                    await self.request_repo.revert_to_pending(request)
+                    return False, "Ошибка создания профиля в 3X-UI"
 
-        # Combine client data with protocol settings for the link generator
+                protocol_settings = await api.get_protocol_settings(protocol.inbound_id)
+        except Exception as e:
+            logger.error(f"Failed to create client for request {request_id}: {e}")
+            await self.request_repo.revert_to_pending(request)
+            return False, "Ошибка создания профиля в 3X-UI"
+
         full_profile_data = {**client_data, **protocol_settings}
 
-        # Save the new profile to the database
         profile = await self.user_repo.create_vpn_profile(
             user=user, protocol_name=protocol.name, profile_data=full_profile_data
         )
-
-        await self.request_repo.approve(request)
 
         vpn_link = generate_vpn_link(protocol.name, profile.profile_data, profile.settings)
         if not vpn_link:
@@ -103,9 +139,18 @@ class VPNService:
         email = active_profile.profile_data.get("email")
         inbound_id = active_profile.profile_data.get("inbound_id")
 
+        # BUG-4 FIX: Log warning if 3x-ui deletion fails
         if email and inbound_id:
-            async with XUIApi() as api:
-                await api.delete_client(inbound_id, email)
+            try:
+                async with XUIApi() as api:
+                    deleted = await api.delete_client(inbound_id, email)
+                    if not deleted:
+                        logger.warning(
+                            f"Failed to delete client '{email}' from 3x-ui inbound {inbound_id} "
+                            f"(may be a ghost client)"
+                        )
+            except Exception as e:
+                logger.error(f"Error deleting client '{email}' from 3x-ui: {e}")
 
         await self.user_repo.delete_active_profile(user)
         logger.info(f"Revoked VPN for user {user.telegram_id}")
@@ -156,11 +201,14 @@ class VPNService:
         if not protocol:
             return False, f"Протокол '{protocol_name}' не настроен."
 
+        # BUG-3 FIX: Don't switch to the same protocol
+        if user.active_profile and user.active_profile.protocol_name == protocol_name:
+            return False, "Этот протокол уже активен."
+
         # Revoke current active profile before creating a new one
         if user.active_profile:
             await self.revoke_vpn(user)
 
-        # This flow is very similar to approving a request, but without a request object
         async with XUIApi() as api:
             client_name = generate_client_name(user.username, user.telegram_id)
             client_data = await api.create_client(

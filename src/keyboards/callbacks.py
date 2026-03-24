@@ -14,5 +14,12 @@ class RequestAction(CallbackData, prefix="req"):
 class UserAction(CallbackData, prefix="user"):
     """Callback data for user management actions."""
 
-    action: str  # revoke / stats
+    action: str  # revoke / stats / detail
     user_id: int
+
+
+class AdminPage(CallbackData, prefix="pg"):
+    """Callback data for paginated admin lists."""
+
+    section: str  # users / requests
+    page: int = 0

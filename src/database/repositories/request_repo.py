@@ -1,6 +1,6 @@
 """VPN Request repository for database operations."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,15 +45,22 @@ class RequestRepository:
     async def approve(self, request: VPNRequest, comment: str | None = None) -> None:
         """Approve VPN request."""
         request.status = RequestStatus.APPROVED
-        request.processed_at = datetime.utcnow()
+        request.processed_at = datetime.now(timezone.utc)
         request.admin_comment = comment
         await self.session.commit()
 
     async def reject(self, request: VPNRequest, comment: str | None = None) -> None:
         """Reject VPN request."""
         request.status = RequestStatus.REJECTED
-        request.processed_at = datetime.utcnow()
+        request.processed_at = datetime.now(timezone.utc)
         request.admin_comment = comment
+        await self.session.commit()
+
+    async def revert_to_pending(self, request: VPNRequest) -> None:
+        """Revert request status back to PENDING (used for rollback on error)."""
+        request.status = RequestStatus.PENDING
+        request.processed_at = None
+        request.admin_comment = None
         await self.session.commit()
 
     async def get_all_pending(self) -> list[VPNRequest]:

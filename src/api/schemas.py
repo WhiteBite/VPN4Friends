@@ -25,9 +25,9 @@ class ProfileSchema(BaseModel):
     """VPN profile information."""
 
     has_profile: bool
-    protocol: str | None
-    label: str | None
-    sni: str | None
+    protocol: str | None = None
+    label: str | None = None
+    sni: str | None = None
     available_snis: list[str] = []
 
 
@@ -84,3 +84,39 @@ class GenericResponse(BaseModel):
 class PresetConfigResponse(BaseModel):
     type: str
     value: str
+
+
+# ----- New schemas for Mini App redesign -----
+
+
+class LinkResponse(BaseModel):
+    """Direct VPN link (no preset needed)."""
+
+    link: str
+    protocol: str
+    endpoint: str | None = None
+
+
+class StatsResponse(BaseModel):
+    """Traffic statistics."""
+
+    protocol: str
+    upload: int
+    download: int
+    upload_formatted: str
+    download_formatted: str
+
+
+class EndpointSchema(BaseModel):
+    """Server endpoint information."""
+
+    name: str
+    label: str
+    host: str
+    port: int
+    is_relay: bool
+    description: str
+
+
+class SelectEndpointRequest(BaseModel):
+    endpoint: str

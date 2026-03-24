@@ -1,5 +1,6 @@
 """Messaging handlers for broadcasts and user feedback."""
 
+import asyncio
 import logging
 
 from aiogram import Bot, F, Router
@@ -40,6 +41,7 @@ class BroadcastStates(StatesGroup):
 
     select_target = State()
     waiting_for_message = State()
+    confirm_broadcast = State()
     waiting_for_user_id = State()
     waiting_for_dm_message = State()
 
@@ -149,45 +151,86 @@ async def select_broadcast_target(
 
 
 @admin_router.message(BroadcastStates.waiting_for_message)
-async def process_broadcast(
+async def preview_broadcast(
     message: Message,
     state: FSMContext,
     session: AsyncSession,
-    bot: Bot,
 ) -> None:
-    """Send broadcast message to selected users."""
+    """Show broadcast preview before sending."""
+    from src.keyboards.messaging_kb import get_broadcast_confirm_kb
+
     data = await state.get_data()
     target = data.get("target", "all")
-    await state.clear()
 
     user_repo = UserRepository(session)
-
     if target == "all":
         users = await user_repo.get_all()
     elif target == "with_vpn":
         users = await user_repo.get_all_with_vpn()
-    else:  # without_vpn
+    else:
         all_users = await user_repo.get_all()
         users = [u for u in all_users if not u.has_vpn]
+
+    count = len(users)
+
+    await state.update_data(broadcast_text=message.text)
+    await state.set_state(BroadcastStates.confirm_broadcast)
+
+    await message.answer(
+        f"📢 <b>Предпросмотр рассылки</b>\n\n"
+        f"{message.text}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👥 Получателей: <b>{count}</b>",
+        reply_markup=get_broadcast_confirm_kb(),
+        parse_mode="HTML",
+    )
+
+
+@admin_router.callback_query(
+    BroadcastStates.confirm_broadcast,
+    F.data == "broadcast_confirm",
+)
+async def confirm_broadcast(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession,
+    bot: Bot,
+) -> None:
+    """Send broadcast after admin confirmation."""
+    await callback.answer()
+    data = await state.get_data()
+    target = data.get("target", "all")
+    text = data.get("broadcast_text", "")
+    await state.clear()
+
+    user_repo = UserRepository(session)
+    if target == "all":
+        users = await user_repo.get_all()
+    elif target == "with_vpn":
+        users = await user_repo.get_all_with_vpn()
+    else:
+        all_users = await user_repo.get_all()
+        users = [u for u in all_users if not u.has_vpn]
+
+    await callback.message.edit_text(f"📤 Отправляю {len(users)} пользователям...")
 
     success = 0
     failed = 0
 
     for user in users:
-        if user.telegram_id in settings.admin_ids:
-            continue  # Skip admins
-
         try:
             await bot.send_message(
                 user.telegram_id,
-                f"📢 Объявление от Дани:\n\n{message.text}",
+                f"📢 <b>Объявление:</b>\n\n{text}",
+                parse_mode="HTML",
             )
             success += 1
         except Exception as e:
-            logger.warning(f"Failed to send broadcast to {user.telegram_id}: {e}")
+            logger.warning(f"Broadcast to {user.telegram_id} failed: {e}")
             failed += 1
+        await asyncio.sleep(0.05)  # Flood control: max ~20 msg/sec
 
-    await message.answer(
+    await callback.message.edit_text(
         f"✅ Рассылка завершена!\n\n📨 Отправлено: {success}\n❌ Не доставлено: {failed}"
     )
 

@@ -34,3 +34,13 @@ def get_continue_chat_kb(user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="💬 Написать ещё", callback_data=f"reply_to_{user_id}")
     return builder.as_markup()
+
+
+def get_broadcast_confirm_kb() -> InlineKeyboardMarkup:
+    """Get keyboard to confirm or cancel broadcast."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Отправить", callback_data="broadcast_confirm")
+    builder.button(text="❌ Отмена", callback_data="cancel_action")
+    builder.adjust(2)
+    return builder.as_markup()
+

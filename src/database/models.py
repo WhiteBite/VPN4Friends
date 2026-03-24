@@ -79,12 +79,13 @@ class VpnProfile(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    server_id: Mapped[str | None] = mapped_column(String(50), index=True)
     protocol_name: Mapped[str] = mapped_column(String(50))
     profile_data: Mapped[dict] = mapped_column(JSON)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    # New fields for user customization
+    # User customization
     label: Mapped[str | None] = mapped_column(String(100))
     settings: Mapped[dict | None] = mapped_column(JSON)
 

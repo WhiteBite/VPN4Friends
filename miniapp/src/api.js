@@ -22,18 +22,22 @@ async function apiRequest(path, options = {}) {
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
     try {
-      const text = await response.text();
-      if (text) {
-        message = text;
+      const body = await response.json();
+      message = body.detail || body.message || message;
+    } catch {
+      try {
+        message = await response.text() || message;
+      } catch {
+        // ignore
       }
-    } catch (e) {
-      // ignore
     }
     throw new Error(message);
   }
 
   return response.json();
 }
+
+// ----- User state -----
 
 export function fetchMe() {
   return apiRequest('/me');
@@ -42,6 +46,33 @@ export function fetchMe() {
 export function fetchProtocols() {
   return apiRequest('/protocols');
 }
+
+// ----- VPN Link (direct, no preset needed) -----
+
+export function fetchLink() {
+  return apiRequest('/me/link');
+}
+
+// ----- Stats -----
+
+export function fetchStats() {
+  return apiRequest('/me/stats');
+}
+
+// ----- Endpoints -----
+
+export function fetchEndpoints() {
+  return apiRequest('/endpoints');
+}
+
+export function selectEndpoint(endpoint) {
+  return apiRequest('/me/endpoint', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
+// ----- Protocol / SNI -----
 
 export function switchProtocol(protocol) {
   return apiRequest('/me/protocol', {
@@ -57,6 +88,8 @@ export function updateSni(sni) {
   });
 }
 
+// ----- Presets -----
+
 export function listPresets() {
   return apiRequest('/presets');
 }
@@ -69,9 +102,7 @@ export function createPreset(payload) {
 }
 
 export function deletePreset(id) {
-  return apiRequest(`/presets/${id}`, {
-    method: 'DELETE',
-  });
+  return apiRequest(`/presets/${id}`, { method: 'DELETE' });
 }
 
 export function getPresetConfig(id) {

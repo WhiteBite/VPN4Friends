@@ -1,0 +1,98 @@
+{
+  "log": {
+    "loglevel": "warning",
+    "access": "/var/log/xray/access.log",
+    "error": "/var/log/xray/error.log"
+  },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "YOUR_UUID_HERE",
+            "flow": "xtls-rprx-vision"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "max.ru:443",
+          "xver": 0,
+          "serverNames": [
+            "max.ru",
+            "www.max.ru"
+          ],
+          "privateKey": "YOUR_PRIVATE_KEY_HERE",
+          "shortIds": [
+            "YOUR_SHORT_ID_HERE"
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "***REMOVED***",
+            "port": 443,
+            "users": [
+              {
+                "id": "NETHERLANDS_UUID_HERE",
+                "encryption": "none",
+                "flow": "xtls-rprx-vision"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "fingerprint": "chrome",
+          "serverName": "google.com",
+          "publicKey": "NETHERLANDS_PUBLIC_KEY_HERE",
+          "shortId": "NETHERLANDS_SHORT_ID_HERE",
+          "spiderX": ""
+        }
+      },
+      "tag": "netherlands-exit"
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block"
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "ip": [
+          "geoip:private"
+        ],
+        "outboundTag": "block"
+      }
+    ]
+  }
+}

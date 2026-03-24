@@ -7,6 +7,9 @@ env/
 .env
 3x-ui.env
 
+# OpenCode project config (contains credentials)
+opencode.json
+
 # Database
 *.db
 
@@ -48,3 +51,26 @@ tools/xray/
 # Caddy runtime data
 caddy_data/
 caddy_config/
+
+# BACKUPS - NEVER COMMIT
+backup/
+backups/
+*.backup
+*.bak
+*.old
+
+# SSH keys
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# Docker
+docker-compose.override.yml
+*.local.yml
+
+# Secrets
+secrets/
+*.secret
+credentials.json
+service-account*.json

@@ -1,14 +1,72 @@
 """Preset service for business logic."""
 
 import logging
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.bot.config import settings
 from src.database.models import ConnectionPreset, User
 from src.database.repositories import PresetRepository, UserRepository
-from src.services.url_generator import generate_vpn_link
+from src.services.url_generator import generate_vpn_link, merge_profile_settings
 
 logger = logging.getLogger(__name__)
+
+
+def _build_clash_vless_yaml(profile_data: dict[str, Any], name: str) -> str:
+    """Build a minimal Clash/Hiddify YAML config for a VLESS Reality node."""
+    reality = profile_data.get("reality", {}) or {}
+    host = profile_data.get("host", settings.xui_host)
+    port = profile_data.get("port")
+    client_id = profile_data.get("client_id", "")
+
+    sni = reality.get("sni", "")
+    public_key = reality.get("public_key", "")
+    short_id = reality.get("short_id", "")
+    spider_x = reality.get("spider_x", "/")
+    fingerprint = reality.get("fingerprint", "chrome")
+
+    # Single-proxy YAML snippet compatible with Clash/Hiddify.
+    lines = [
+        "proxies:",
+        f"  - name: {name}",
+        "    type: vless",
+        f"    server: {host}",
+        f"    port: {port}",
+        f"    uuid: {client_id}",
+        "    flow: xtls-rprx-vision",
+        "    tls: true",
+        f"    servername: {sni}",
+        "    reality-opts:",
+        f"      public-key: {public_key}",
+        f"      short-id: {short_id}",
+        f"      spider-x: {spider_x}",
+        f"    client-fingerprint: {fingerprint}",
+        "    network: tcp",
+    ]
+
+    return "\n".join(lines)
+
+
+def _build_clash_shadowsocks_yaml(profile_data: dict[str, Any], name: str) -> str:
+    """Build a minimal Clash/Hiddify YAML config for a Shadowsocks node."""
+    host = profile_data.get("host", settings.xui_host)
+    port = profile_data.get("port")
+    shadowsocks = profile_data.get("shadowsocks", {}) or {}
+    method = shadowsocks.get("method", "")
+    password = shadowsocks.get("password", "")
+
+    lines = [
+        "proxies:",
+        f"  - name: {name}",
+        "    type: ss",
+        f"    server: {host}",
+        f"    port: {port}",
+        f"    cipher: {method}",
+        f"    password: {password}",
+    ]
+
+    return "\n".join(lines)
 
 
 class PresetService:
@@ -68,14 +126,31 @@ class PresetService:
             logger.error(f"Preset {preset.id} has no associated profile.")
             return None
 
-        # Combine profile data with user-specific overrides from profile.settings
+        # Raw profile data from 3X-UI panel
         full_profile_data = profile.profile_data
 
-        # TODO: Add logic to handle different formats (e.g., YAML for Clash/Hiddify)
+        # Clash/Hiddify YAML config
+        if preset.format == "clash_yaml":
+            if profile.protocol_name == "vless":
+                prepared = merge_profile_settings(full_profile_data, profile.settings or {})
+                yaml_config = _build_clash_vless_yaml(prepared, preset.name)
+                return {"type": "yaml", "value": yaml_config}
+            if profile.protocol_name == "shadowsocks":
+                yaml_config = _build_clash_shadowsocks_yaml(full_profile_data, preset.name)
+                return {"type": "yaml", "value": yaml_config}
+
+            logger.warning(
+                "Unsupported protocol '%s' for clash_yaml format in preset %s",
+                profile.protocol_name,
+                preset.id,
+            )
+            return None
+
+        # Generic URI-based config (VLESS/Shadowsocks, etc.)
         if preset.format.endswith("_uri"):
             link = generate_vpn_link(profile.protocol_name, full_profile_data, profile.settings)
             if link:
                 return {"type": "uri", "value": link}
 
-        logger.warning(f"Unsupported format '{preset.format}' for preset {preset.id}")
+        logger.warning("Unsupported format '%s' for preset %s", preset.format, preset.id)
         return None

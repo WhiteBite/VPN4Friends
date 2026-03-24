@@ -8,6 +8,7 @@ from typing import Any
 import aiohttp
 
 from src.bot.config import settings
+from src.services.panel_api import PanelAPI
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +19,20 @@ class XUIApiError(Exception):
     pass
 
 
-class XUIApi:
+class XUIApi(PanelAPI):
     """Async client for 3X-UI panel API."""
 
-    def __init__(self) -> None:
+    def __init__(self, server_config: dict | None = None) -> None:
         self._session: aiohttp.ClientSession | None = None
         self._cookie_jar = aiohttp.CookieJar(unsafe=True)
+        # Allow per-server config override
+        self._cfg = server_config or {
+            "api_url": settings.xui_api_url,
+            "base_path": settings.xui_base_path,
+            "username": settings.xui_username,
+            "password": settings.xui_password,
+            "host": settings.xui_host,
+        }
 
     async def __aenter__(self) -> "XUIApi":
         self._session = aiohttp.ClientSession(cookie_jar=self._cookie_jar)
@@ -36,8 +45,8 @@ class XUIApi:
 
     def _build_url(self, path: str) -> str:
         """Build full URL for API endpoint."""
-        base = settings.xui_api_url.rstrip("/")
-        base_path = settings.xui_base_path.strip("/")
+        base = self._cfg["api_url"].rstrip("/")
+        base_path = self._cfg["base_path"].strip("/")
         if base_path:
             return f"{base}/{base_path}{path}"
         return f"{base}{path}"
@@ -47,10 +56,10 @@ class XUIApi:
         if not self._session:
             raise XUIApiError("Session not initialized")
 
-        url = settings.xui_api_url.rstrip("/") + "/login"
+        url = self._cfg["api_url"].rstrip("/") + "/login"
         data = {
-            "username": settings.xui_username,
-            "password": settings.xui_password,
+            "username": self._cfg["username"],
+            "password": self._cfg["password"],
         }
 
         async with self._session.post(url, data=data) as resp:
@@ -89,10 +98,15 @@ class XUIApi:
 
         async with self._session.post(url, json=data) as resp:
             if resp.status != 200:
+                body = await resp.text()
+                logger.error(f"update_inbound({inbound_id}) failed: HTTP {resp.status}, body={body}")
                 return False
 
             result = await resp.json()
-            return result.get("success", False)
+            success = result.get("success", False)
+            if not success:
+                logger.error(f"update_inbound({inbound_id}) API error: {result.get('msg')}")
+            return success
 
     def _get_client_template(self, protocol: str, client_id: str, email: str) -> dict[str, Any]:
         """Get a new client template based on the protocol."""
@@ -119,11 +133,28 @@ class XUIApi:
     async def create_client(
         self, inbound_id: int, email: str, protocol: str
     ) -> dict[str, Any] | None:
-        """Create a new client in the specified inbound."""
+        """Create a new client in the specified inbound.
+
+        If a client with the same email already exists, returns its data
+        instead of creating a duplicate (prevents Xray crash).
+        """
         inbound = await self.get_inbound(inbound_id)
 
         settings_data = json.loads(inbound["settings"])
         clients = settings_data.get("clients", [])
+
+        # BUG-1 FIX: Check for existing client with same email
+        for existing in clients:
+            if existing.get("email") == email:
+                logger.warning(
+                    f"Client '{email}' already exists in inbound {inbound_id}, returning existing"
+                )
+                return {
+                    "client_id": existing["id"],
+                    "email": email,
+                    "protocol": protocol,
+                    "inbound_id": inbound_id,
+                }
 
         client_id = str(uuid.uuid4())
         new_client = self._get_client_template(protocol, client_id, email)
@@ -134,7 +165,6 @@ class XUIApi:
         inbound["settings"] = json.dumps(settings_data)
 
         if await self.update_inbound(inbound_id, inbound):
-            # Return data needed to construct the profile
             return {
                 "client_id": client_id,
                 "email": email,
