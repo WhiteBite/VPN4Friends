@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # Database (absolute path for Docker)
     database_url: str = "sqlite+aiosqlite:////app/data/vpn_bot.db"
 
+    # MTProto Proxy for Telegram
+    mtproto_proxy_host: str = ""
+    mtproto_proxy_port: int = 0
+    mtproto_proxy_secret: str = ""
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

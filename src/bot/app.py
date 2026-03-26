@@ -18,6 +18,7 @@ from src.database import init_db, session_factory
 from src.handlers import (
     admin_messaging_router,
     admin_router,
+    server_selection,
     user_messaging_router,
     user_router,
 )
@@ -140,6 +141,7 @@ async def main() -> None:
     # Register routers
     dp.include_router(user_router)
     dp.include_router(user_messaging_router)
+    dp.include_router(server_selection)  # Server selection router
     dp.include_router(admin_router)
     dp.include_router(admin_messaging_router)
     logger.info("Handlers registered")

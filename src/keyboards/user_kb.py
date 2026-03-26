@@ -13,13 +13,21 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
     if has_vpn:
         builder.button(text="🔗 Моя ссылка", callback_data="my_link")
         builder.button(text="📊 Статистика", callback_data="my_stats")
+        builder.button(text="🌐 Выбрать сервер", callback_data="choose_server")
+        # MTProto Proxy button for Telegram
+        mtproto_link = (
+            f"tg://proxy?server={settings.mtproto_proxy_host}"
+            f"&port={settings.mtproto_proxy_port}"
+            f"&secret={settings.mtproto_proxy_secret}"
+        )
+        builder.button(text="📡 Telegram Proxy", url=mtproto_link)
         if settings.miniapp_url:
             builder.button(
                 text="⚙️ Настройки",
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
-        builder.adjust(2, 2)
+        builder.adjust(2, 1, 1, 2)
     elif has_pending:
         builder.button(text="⏳ Заявка на рассмотрении", callback_data="pending_info")
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
