@@ -66,11 +66,15 @@ def get_protocol_select_kb(request_id: int) -> InlineKeyboardMarkup:
     # Use endpoints instead of protocols
     # Filter out mtproto endpoints (they don't need admin approval)
     for endpoint in settings.endpoints:
-        if endpoint.protocol and endpoint.protocol.lower() != "mtproto":
+        if (
+            hasattr(endpoint, "protocol")
+            and endpoint.protocol
+            and endpoint.protocol.lower() != "mtproto"
+        ):
             builder.button(
                 text=endpoint.label,
                 callback_data=RequestAction(
-                    action="approve",  # Changed from select_protocol to approve
+                    action="select_protocol",  # Keep select_protocol action
                     request_id=request_id,
                     protocol_name=endpoint.name,  # Use endpoint name as protocol
                 ).pack(),
@@ -86,7 +90,7 @@ def get_protocol_select_kb(request_id: int) -> InlineKeyboardMarkup:
             builder.button(
                 text=proto_label,
                 callback_data=RequestAction(
-                    action="approve",
+                    action="select_protocol",
                     request_id=request_id,
                     protocol_name=proto_name,
                 ).pack(),
