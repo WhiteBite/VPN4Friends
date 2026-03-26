@@ -62,15 +62,22 @@ async def list_protocols() -> list[ProtocolSchema]:
     This endpoint is used by the Mini App frontend to render protocol
     selection chips instead of relying on hardcoded values.
     """
-    return [
-        ProtocolSchema(
-            name=p.name,
-            label=p.label,
-            description=p.description,
-            recommended=p.recommended,
-        )
-        for p in settings.protocols
-    ]
+    # Use endpoints instead of protocols
+    protocols = []
+    seen = set()
+    for ep in settings.endpoints:
+        protocol_type = getattr(ep, "protocol", "vless")
+        if protocol_type not in seen and protocol_type != "mtproto":
+            seen.add(protocol_type)
+            protocols.append(
+                ProtocolSchema(
+                    name=protocol_type,
+                    label=protocol_type.upper(),
+                    description=f"{protocol_type} protocol",
+                    recommended=(protocol_type == "vless"),
+                )
+            )
+    return protocols
 
 
 @app.get("/me", response_model=MeResponse)
@@ -338,6 +345,38 @@ async def list_endpoints() -> list[EndpointSchema]:
             description=ep.description,
         )
         for ep in settings.endpoints
+    ]
+
+
+@app.get("/health")
+async def health_check() -> dict:
+    """Health check endpoint."""
+    return {"status": "ok"}
+
+
+@app.get("/ready")
+async def ready_check() -> dict:
+    """Readiness check endpoint."""
+    return {"ready": True}
+
+
+@app.get("/endpoints", response_model=list[EndpointSchema])
+async def list_endpoints() -> list[EndpointSchema]:
+    """Return available server endpoints.
+
+    This endpoint is used by the Mini App to show server selection.
+    """
+    return [
+        EndpointSchema(
+            name=ep.name,
+            label=ep.label,
+            host=ep.host,
+            port=ep.port,
+            protocol=getattr(ep, "protocol", "vless"),
+            description=ep.description,
+        )
+        for ep in settings.endpoints
+        if getattr(ep, "protocol", "vless") != "mtproto"
     ]
 
 

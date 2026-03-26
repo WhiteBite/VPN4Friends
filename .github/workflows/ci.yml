@@ -76,6 +76,9 @@ jobs:
               "ADMIN_IDS=\(.bot.admin_ids | join(","))",
               "MINIAPP_URL=\(.bot.miniapp_url // "")",
               
+              # API Public Domain for Caddy proxy
+              "API_PUBLIC_DOMAIN=vpn4friends-api.whitebite.ru",
+              
               # Finland Panel (also as legacy XUI vars for backward compatibility)
               "XUI_FINLAND_URL=\(.servers.finland.panel_url)",
               "XUI_FINLAND_LOGIN=\(.servers.finland.login)",
