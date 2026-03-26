@@ -100,7 +100,7 @@ class Settings(BaseSettings):
             if not isinstance(endpoints_data, list):
                 raise ValueError("ENDPOINTS_CONFIG must be a JSON array")
             self.endpoints = [ServerEndpoint(**e) for e in endpoints_data]
-        except (json.JSONDecodeError, ValueError) as e:
+        except (json.JSONDecodeError, ValueError):
             # Endpoints are optional — don't crash if not configured
             self.endpoints = []
         return self

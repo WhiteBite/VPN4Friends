@@ -19,7 +19,6 @@ from src.keyboards.admin_kb import (
     get_compact_requests_kb,
     get_compact_users_kb,
     get_protocol_select_kb,
-    get_request_action_kb,
     get_user_detail_kb,
 )
 from src.keyboards.callbacks import AdminPage, RequestAction, UserAction
@@ -37,9 +36,7 @@ router.callback_query.filter(AdminFilter(settings.admin_ids))
 # ============ HELPERS ============
 
 
-async def _send_mass_notification(
-    bot: Bot, users: list, text: str
-) -> tuple[int, int]:
+async def _send_mass_notification(bot: Bot, users: list, text: str) -> tuple[int, int]:
     """Send a message to multiple users with flood control.
 
     Returns (success_count, failed_count).
@@ -401,9 +398,7 @@ async def user_detail(
     from sqlalchemy import select
     from src.database.models import User
 
-    result = await session.execute(
-        select(User).where(User.id == callback_data.user_id)
-    )
+    result = await session.execute(select(User).where(User.id == callback_data.user_id))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -415,9 +410,7 @@ async def user_detail(
         proto = f"\n⚡ Протокол: {user.active_profile.protocol_name.upper()}"
 
     await callback.message.edit_text(
-        f"👤 <b>{user.display_name}</b>\n"
-        f"🆔 <code>{user.telegram_id}</code>"
-        f"{proto}",
+        f"👤 <b>{user.display_name}</b>\n🆔 <code>{user.telegram_id}</code>{proto}",
         reply_markup=get_user_detail_kb(user),
         parse_mode="HTML",
     )
@@ -435,9 +428,7 @@ async def user_stats(
     from sqlalchemy import select
     from src.database.models import User
 
-    result = await session.execute(
-        select(User).where(User.id == callback_data.user_id)
-    )
+    result = await session.execute(select(User).where(User.id == callback_data.user_id))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -476,9 +467,7 @@ async def revoke_user_vpn(
     from sqlalchemy import select
     from src.database.models import User
 
-    result = await session.execute(
-        select(User).where(User.id == callback_data.user_id)
-    )
+    result = await session.execute(select(User).where(User.id == callback_data.user_id))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -552,15 +541,11 @@ async def cmd_notify_update(message: Message, session: AsyncSession, bot: Bot) -
     )
     success, failed = await _send_mass_notification(bot, users, notify_text)
 
-    await message.answer(
-        f"✅ Отправлено!\n\n📨 Доставлено: {success}\n❌ Ошибок: {failed}"
-    )
+    await message.answer(f"✅ Отправлено!\n\n📨 Доставлено: {success}\n❌ Ошибок: {failed}")
 
 
 @router.callback_query(F.data == "admin_notify_update")
-async def admin_notify_update_btn(
-    callback: CallbackQuery, session: AsyncSession, bot: Bot
-) -> None:
+async def admin_notify_update_btn(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
     """Notify update via button — removed, redirect to broadcast."""
     # Use the general broadcast flow instead
     from src.handlers.messaging import BroadcastStates

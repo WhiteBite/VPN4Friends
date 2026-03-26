@@ -1,6 +1,6 @@
 """VPN Request repository for database operations."""
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,14 +45,14 @@ class RequestRepository:
     async def approve(self, request: VPNRequest, comment: str | None = None) -> None:
         """Approve VPN request."""
         request.status = RequestStatus.APPROVED
-        request.processed_at = datetime.now(timezone.utc)
+        request.processed_at = datetime.now(UTC)
         request.admin_comment = comment
         await self.session.commit()
 
     async def reject(self, request: VPNRequest, comment: str | None = None) -> None:
         """Reject VPN request."""
         request.status = RequestStatus.REJECTED
-        request.processed_at = datetime.now(timezone.utc)
+        request.processed_at = datetime.now(UTC)
         request.admin_comment = comment
         await self.session.commit()
 
