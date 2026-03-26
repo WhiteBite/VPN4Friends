@@ -37,23 +37,80 @@ jobs:
     needs: lint
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     steps:
-      - name: Deploy and Restart
+      - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # Переходим в директорию проекта, если ее нет - клонируем
-            cd /root/VPN4Friends || git clone https://github.com/${{ github.repository }}.git /root/VPN4Friends
-            cd /root/VPN4Friends
+            set -e
             
-            # Обновляем код из репозитория
+            echo "🚀 Starting deployment..."
+            
+            # Переходим в директорию проекта
+            cd /home/ubuntu/VPN4Friends || {
+              echo "📦 Cloning repository..."
+              git clone https://github.com/${{ github.repository }}.git /home/ubuntu/VPN4Friends
+              cd /home/ubuntu/VPN4Friends
+            }
+            
+            # Обновляем код
+            echo "📥 Pulling latest changes..."
             git pull
             
-            # Пересобираем и перезапускаем Docker-контейнер.
-            # Файл .env уже должен быть на сервере.
+            # Проверяем что jq установлен
+            if ! command -v jq &> /dev/null; then
+              echo "⚙️ Installing jq..."
+              sudo apt-get update && sudo apt-get install -y jq
+            fi
+            
+            # Генерируем .env из VPN_CONFIG JSON
+            echo "🔐 Generating .env from secrets..."
+            echo '${{ secrets.VPN_CONFIG }}' | jq -r '
+              # Bot
+              "BOT_TOKEN=\(.bot.token)",
+              "ADMIN_IDS=\(.bot.admin_ids | join(","))",
+              
+              # Finland Panel
+              "XUI_FINLAND_URL=\(.servers.finland.panel_url)",
+              "XUI_FINLAND_LOGIN=\(.servers.finland.login)",
+              "XUI_FINLAND_PASSWORD=\(.servers.finland.password)",
+              "XUI_FINLAND_PORT=9211",
+              
+              # Reality
+              "REALITY_UUID=\(.reality.uuid)",
+              "REALITY_PRIVATE_KEY=\(.reality.private_key)",
+              "REALITY_PUBLIC_KEY=\(.reality.public_key)",
+              "REALITY_SHORT_ID=\(.reality.short_id)",
+              
+              # MTProto
+              "MTROTO_PROXY_HOST=\(.mtproto.finland.host)",
+              "MTROTO_PROXY_PORT=\(.mtproto.finland.port)",
+              "MTROTO_PROXY_SECRET=\(.mtproto.finland.secret)",
+              
+              # Endpoints (JSON array)
+              "ENDPOINTS_CONFIG=\(.endpoints | @json)",
+              
+              # Database
+              "DATABASE_URL=sqlite+aiosqlite:////app/data/vpn_bot.db"
+            ' > .env
+            
+            echo "✅ .env generated"
+            
+            # Создаём директорию для базы
+            mkdir -p data
+            
+            # Пересобираем и перезапускаем
+            echo "🐳 Building and restarting containers..."
             docker compose up -d --build
             
-            # Очищаем старые образы
+            # Чистим старые образы
+            echo "🧹 Cleaning up..."
             docker image prune -f
+            
+            echo "✅ Deploy complete!"
+            echo ""
+            echo "To check status:"
+            echo "  docker compose ps"
+            echo "  docker logs vpn4friends --tail=50"

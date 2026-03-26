@@ -78,3 +78,7 @@ service-account*.json
 # Deployment scripts
 scripts/deploy-env.sh
 
+
+# VPN Config (contains secrets)
+vpn-config.json
+
