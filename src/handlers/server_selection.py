@@ -103,11 +103,11 @@ async def select_endpoint(callback: CallbackQuery, session: AsyncSession, bot: B
         return
 
     # For MTProto - just show the link
-    if endpoint.protocol == "mtproto":
+    if getattr(endpoint, "protocol", None) == "mtproto":
         mtproto_link = (
-            f"tg://proxy?server={endpoint.host}"
-            f"&port={endpoint.port}"
-            f"&secret={endpoint.panel_config.get('secret', '')}"
+            f"tg://proxy?server={settings.mtproto_proxy_host}"
+            f"&port={settings.mtproto_proxy_port}"
+            f"&secret={settings.mtproto_proxy_secret}"
         )
 
         await callback.message.edit_text(
