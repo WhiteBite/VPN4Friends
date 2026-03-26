@@ -168,16 +168,55 @@ git push origin master
 
 **Документация:** Хранится на сервере в `/home/ubuntu/VPN4Friends/docs/` (не коммитить в git)
 
-## 🛠️ Технологии
+## 🏗️ Архитектура
 
-- [aiogram 3](https://docs.aiogram.dev/) — Telegram Bot API
-- [SQLAlchemy 2](https://www.sqlalchemy.org/) — ORM
-- [aiosqlite](https://github.com/omnilib/aiosqlite) — Async SQLite
-- [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) — Конфигурация
-- [FastAPI](https://fastapi.tiangolo.com/) — REST API для Mini App
-- [Docker](https://www.docker.com/) — Контейнеризация
-- [GitHub Actions](https://github.com/features/actions) — CI/CD
-- [pytest](https://pytest.org/) — Тестирование
+Проект использует **Clean Architecture** с разделением на слои:
+
+```
+┌─────────────────────────────────────────────────────┐
+│              PRESENTATION LAYER                      │
+│  ┌──────────────┐         ┌─────────────────────┐   │
+│  │  Bot         │         │  REST API           │   │
+│  │  (aiogram)   │         │  (FastAPI)          │   │
+│  │  handlers/   │         │  api/routes/        │   │
+│  └──────┬───────┘         └──────────┬──────────┘   │
+└─────────┼─────────────────────────────┼─────────────┘
+          │                             │
+          └──────────────┬──────────────┘
+                         │
+┌────────────────────────▼────────────────────────────┐
+│              BUSINESS LOGIC LAYER                    │
+│  ┌──────────────────────────────────────────────┐  │
+│  │  services/                                    │  │
+│  │  ├── vpn_service.py  (VPN логика)             │  │
+│  │  ├── xui_service.py  (3X-UI API)              │  │
+│  │  └── preset_service.py (Presets)              │  │
+│  └──────────────────────────────────────────────┘  │
+└────────────────────────┬───────────────────────────┘
+                         │
+┌────────────────────────▼────────────────────────────┐
+│              DATA ACCESS LAYER                       │
+│  ┌──────────────────────────────────────────────┐  │
+│  │  database/                                     │  │
+│  │  ├── models.py        (SQLAlchemy ORM)        │  │
+│  │  ├── repositories/    (DB queries)            │  │
+│  │  └── session.py       (AsyncSession)          │  │
+│  └──────────────────────────────────────────────┘  │
+└────────────────────────┬───────────────────────────┘
+                         │
+┌────────────────────────▼────────────────────────────┐
+│              DATABASE (SQLite)                       │
+└─────────────────────────────────────────────────────┘
+```
+
+### Ключевые принципы:
+
+1. **Shared Business Logic** — сервисы используются и ботом, и API
+2. **Framework-agnostic** — сервисы не зависят от aiogram/FastAPI
+3. **Dependency Injection** — зависимости передаются через параметры
+4. **Repository Pattern** — доступ к БД изолирован в repositories
+
+---
 
 ## 🧪 Тестирование
 
@@ -194,7 +233,7 @@ pytest
 pytest --cov=src --cov-report=html
 
 # Запустить конкретный тест
-pytest tests/unit/test_vpn_service.py -v
+pytest tests/unit/test_repositories.py -v
 
 # Запустить integration тесты
 pytest tests/integration/ -v
@@ -206,12 +245,11 @@ pytest tests/integration/ -v
 tests/
 ├── conftest.py           # Fixtures и конфигурация
 ├── unit/                 # Unit тесты
-│   ├── test_vpn_service.py
-│   └── test_repositories.py
-├── integration/          # Integration тесты
-│   ├── test_api.py
-│   └── test_bot_handlers.py
-└── e2e/                  # End-to-End тесты (TODO)
+│   └── test_repositories.py  # 11 тестов
+└── integration/          # Integration тесты
+    ├── test_api.py       # API endpoints
+    ├── test_api_endpoints.py  # Comprehensive API tests
+    └── test_bot_handlers.py   # Bot handlers
 ```
 
 ### Покрытие кода
@@ -222,6 +260,37 @@ tests/
 pytest --cov=src --cov-report=html
 # Отчёт: htmlcov/index.html
 ```
+
+**Текущее покрытие:** ~20% (ядро протестировано, handlers требуют больше тестов)
+
+---
+
+## 📚 API Endpoints
+
+### Public Endpoints (Mini App)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/ready` | GET | Readiness check |
+| `/protocols` | GET | Список протоколов |
+| `/endpoints` | GET | Список серверов |
+| `/me` | GET | Профиль пользователя |
+| `/presets` | GET | Список presets |
+| `/openapi.json` | GET | OpenAPI схема |
+| `/docs` | GET | Swagger UI |
+
+### Authentication
+
+API использует **Telegram initData** для аутентификации. Клиент должен передать заголовок:
+
+```
+Authorization: Telegram <initData>
+```
+
+где `<initData>` — строка из [Telegram WebApp initData](https://core.telegram.org/bots/webapps#webappinitdata).
+
+---
 
 ## 📱 Приложения для подключения
 
