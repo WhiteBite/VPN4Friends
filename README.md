@@ -45,7 +45,7 @@ Telegram-бот для раздачи VPN друзьям с ручным одо�
     ▼         ▼
 ┌─────────────────────┐
 │  🇷🇺 Moscow Relay   │
-│  ***REMOVED***       │
+│  (VK Cloud)         │
 │  dokodemo-door      │
 │  Port 443 → FI:443  │
 │  Port 444 → FI:8444 │
@@ -55,15 +55,15 @@ Telegram-бот для раздачи VPN друзьям с ручным одо�
 
 **7 endpoints подключения:**
 
-| # | Название | Сервер | Порт | Протокол | Для кого |
-|---|----------|--------|------|----------|----------|
-| 1 | 🇳🇱 Netherlands Direct | 62YUN | 443 | VLESS | Старые юзеры |
-| 2 | 🇳🇱 Netherlands → Moscow | Moscow → NL | 445 | VLESS Reality | Обход ТСПУ |
-| 3 | ✈️ NL MTProto | 62YUN | 4443 | MTProto | Только Telegram |
-| 4 | 🇫🇮 Finland Direct | Finland | 443 | VLESS | Вне РФ |
-| 5 | 🇫🇮 Finland → Moscow (xHTTP) | Moscow → FI | 443 | VLESS Reality | **Рекомендуется для РФ** ⭐ |
-| 6 | 🇫🇮 Finland → Moscow (gRPC) | Moscow → FI | 444 | VLESS gRPC | Альтернатива |
-| 7 | ✈️ FI MTProto | Finland | 4443 | MTProto | Только Telegram |
+| # | Название | Маршрут | Порт | Протокол | Для кого |
+|---|----------|---------|------|----------|----------|
+| 1 | 🇳🇱 Netherlands Direct | Direct | 443 | VLESS | Старые юзеры |
+| 2 | 🇳🇱 Netherlands → Moscow | Relay | 445 | VLESS Reality | Обход ТСПУ |
+| 3 | ✈️ NL MTProto | Direct | 4443 | MTProto | Только Telegram |
+| 4 | 🇫🇮 Finland Direct | Direct | 443 | VLESS | Вне РФ |
+| 5 | 🇫🇮 Finland → Moscow (xHTTP) | Relay | 443 | VLESS Reality | **Рекомендуется для РФ** ⭐ |
+| 6 | 🇫🇮 Finland → Moscow (gRPC) | Relay | 444 | VLESS gRPC | Альтернатива |
+| 7 | ✈️ FI MTProto | Direct | 4443 | MTProto | Только Telegram |
 
 ## 🚀 Быстрый старт
 
@@ -103,8 +103,8 @@ python -m src.bot.app
 
 ```bash
 # Настрой GitHub Secrets:
-# - SERVER_HOST (Moscow IP)
-# - SERVER_USER (ubuntu)
+# - SERVER_HOST (IP или домен сервера)
+# - SERVER_USER (username)
 # - SSH_KEY (private key)
 
 # Задеплой
@@ -112,7 +112,7 @@ git push origin master
 # GitHub Actions автоматически зальёт на сервер
 ```
 
-**Полная инструкция:** [`docs/DEPLOY-INSTRUCTIONS.md`](docs/DEPLOY-INSTRUCTIONS.md)
+**Инструкция по деплою:** См. файлы на сервере в `/home/ubuntu/VPN4Friends/docs/`
 
 ## ⚙️ Настройка .env
 
@@ -130,7 +130,7 @@ git push origin master
   {
     "name":"finland_xhttp",
     "label":"🇫🇮 Финляндия (xHTTP)",
-    "host":"***REMOVED***",
+    "host":"YOUR_MOSCOW_IP",
     "port":443,
     "protocol":"vless",
     "security":"reality",
@@ -140,7 +140,7 @@ git push origin master
   {
     "name":"netherlands_direct",
     "label":"🇳🇱 Нидерланды (Direct)",
-    "host":"***REMOVED***",
+    "host":"YOUR_NL_IP",
     "port":443,
     "protocol":"vless",
     "panel_type":"3xui",
@@ -159,14 +159,14 @@ git push origin master
 │   ├── database/      # Модели и репозитории
 │   ├── services/      # Бизнес-логика (VPN, XUI API)
 │   └── utils/         # Утилиты
-├── docs/              # Документация
-│   ├── DEPLOY-INSTRUCTIONS.md
-│   ├── VPN-SETUP-FINAL.md
-│   └── QUICK-REFERENCE.md
-├── .env.example       # Пример конфигурации
+├── scripts/           # Скрипты деплоя
+│   └── deploy-env.sh  # Обновление .env на сервере
+├── .env.example       # Пример конфигурации (без секретов)
 ├── requirements.txt   # Зависимости
 └── README.md
 ```
+
+**Документация:** Хранится на сервере в `/home/ubuntu/VPN4Friends/docs/` (не коммитить в git)
 
 ## 🛠️ Технологии
 
@@ -188,9 +188,13 @@ git push origin master
 
 ## 📚 Документация
 
-- **[DEPLOY-INSTRUCTIONS.md](docs/DEPLOY-INSTRUCTIONS.md)** — Пошаговая инструкция по деплою
-- **[VPN-SETUP-FINAL.md](docs/VPN-SETUP-FINAL.md)** — Полная архитектура и настройка
-- **[QUICK-REFERENCE.md](docs/QUICK-REFERENCE.md)** — Быстрая шпаргалка
+**Вся документация хранится на сервере** (не коммитится в git для безопасности):
+
+- `/home/ubuntu/VPN4Friends/docs/DEPLOY-INSTRUCTIONS.md` — Инструкция по деплою
+- `/home/ubuntu/VPN4Friends/docs/VPN-SETUP-FINAL.md` — Архитектура и настройка
+- `/home/ubuntu/VPN4Friends/docs/QUICK-REFERENCE.md` — Шпаргалка
+
+**Почему не в git?** Документация содержит IP-адреса серверов и конфигурационные данные которые не должны быть публичными.
 
 ## 📄 Лицензия
 

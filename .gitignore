@@ -74,3 +74,7 @@ secrets/
 *.secret
 credentials.json
 service-account*.json
+
+# Deployment scripts
+scripts/deploy-env.sh
+
