@@ -74,6 +74,7 @@ jobs:
               # Bot
               "BOT_TOKEN=\(.bot.token)",
               "ADMIN_IDS=\(.bot.admin_ids | join(","))",
+              "MINIAPP_URL=\(.bot.miniapp_url // "")",
               
               # Finland Panel (also as legacy XUI vars for backward compatibility)
               "XUI_FINLAND_URL=\(.servers.finland.panel_url)",
