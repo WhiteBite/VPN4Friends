@@ -37,9 +37,22 @@ class TestVPNServiceCreateRequest:
             telegram_id=100002,
             username="hasvpn",
             full_name="Has VPN",
-            has_vpn=True,
         )
         db_session.add(user)
+        await db_session.commit()
+        await db_session.refresh(user)
+
+        # Create active VPN profile for user
+        from src.database.models import VpnProfile
+
+        profile = VpnProfile(
+            user_id=user.id,
+            server_id="finland_xhttp",
+            protocol_name="vless",
+            profile_data={"uuid": "test"},
+            is_active=True,
+        )
+        db_session.add(profile)
         await db_session.commit()
 
         service = VPNService(db_session)

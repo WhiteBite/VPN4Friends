@@ -73,6 +73,7 @@ class TestGenerateVlessUrl:
         """Test generating VLESS Reality URL with xtls-rprx-vision."""
         profile_data = {
             "uuid": "test-uuid-1234",
+            "email": "testuser@example.com",
             "host": "test.example.com",
             "port": 443,
             "reality": {
@@ -97,6 +98,7 @@ class TestGenerateVlessUrl:
         """Test generating VLESS gRPC URL."""
         profile_data = {
             "uuid": "test-uuid-5678",
+            "email": "grpcuser@example.com",
             "host": "grpc.example.com",
             "port": 8444,
             "reality": {
@@ -122,6 +124,7 @@ class TestGenerateVlessUrl:
 
         profile_data = {
             "uuid": "test-uuid-9999",
+            "email": "override@example.com",
             "host": "original.example.com",
             "port": 443,
             "reality": {
