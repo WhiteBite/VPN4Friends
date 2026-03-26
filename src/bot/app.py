@@ -9,7 +9,13 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher
-from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
+from aiogram.types import (
+    BotCommand,
+    BotCommandScopeAllPrivateChats,
+    BotCommandScopeChat,
+    MenuButtonWebApp,
+    WebAppInfo,
+)
 
 from src.bot.config import settings
 from src.bot.error_handler import router as error_router
@@ -149,6 +155,19 @@ async def main() -> None:
     # Set bot commands
     await setup_bot_commands(bot)
     logger.info("Bot commands registered")
+
+    # Set Mini App menu button
+    if settings.miniapp_url:
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="🚀 VPN Кабинет", web_app=WebAppInfo(url=settings.miniapp_url)
+            )
+        )
+        logger.info(f"Mini App menu button set to: {settings.miniapp_url}")
+    else:
+        # Set default menu button if no miniapp
+        await bot.set_chat_menu_button()
+        logger.info("Menu button reset to default")
 
     # Notify admins about startup
     await notify_admins_startup(bot)
