@@ -11,21 +11,30 @@ def get_server_list_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     # Group endpoints by region
+    # Use getattr for protocol since it's optional
     finland_endpoints = [
-        ep for ep in settings.endpoints if "finland" in ep.name.lower() and ep.protocol != "mtproto"
+        ep
+        for ep in settings.endpoints
+        if "finland" in ep.name.lower() and getattr(ep, "protocol", "vless") != "mtproto"
     ]
     nl_endpoints = [
-        ep for ep in settings.endpoints if "nether" in ep.name.lower() and ep.protocol != "mtproto"
+        ep
+        for ep in settings.endpoints
+        if "nether" in ep.name.lower()
+        or "germany" in ep.name.lower()
+        and getattr(ep, "protocol", "vless") != "mtproto"
     ]
-    mtproto_endpoints = [ep for ep in settings.endpoints if ep.protocol == "mtproto"]
+    mtproto_endpoints = [
+        ep for ep in settings.endpoints if getattr(ep, "protocol", None) == "mtproto"
+    ]
 
     # Finland section
     if finland_endpoints:
         builder.button(text="🇫🇮 Финляндия", callback_data="region_finland")
 
-    # Netherlands section
+    # Netherlands/Germany section
     if nl_endpoints:
-        builder.button(text="🇳🇱 Нидерланды", callback_data="region_netherlands")
+        builder.button(text="🇩🇪 Германия", callback_data="region_netherlands")
 
     # MTProto section
     if mtproto_endpoints:
@@ -72,10 +81,12 @@ def get_mtproto_options_kb() -> InlineKeyboardMarkup:
     """Get keyboard with MTProto options."""
     builder = InlineKeyboardBuilder()
 
-    mtproto_endpoints = [ep for ep in settings.endpoints if ep.protocol == "mtproto"]
+    mtproto_endpoints = [
+        ep for ep in settings.endpoints if getattr(ep, "protocol", None) == "mtproto"
+    ]
 
     for endpoint in mtproto_endpoints:
-        flag = "🇫🇮" if "finland" in endpoint.name.lower() else "🇳🇱"
+        flag = "🇫🇮" if "finland" in endpoint.name.lower() else "🇩🇪"
         builder.button(text=f"{flag} {endpoint.label}", callback_data=f"endpoint_{endpoint.name}")
 
     builder.button(text="⬅️ Назад", callback_data="back_to_servers")
