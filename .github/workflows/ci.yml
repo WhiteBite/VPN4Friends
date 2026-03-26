@@ -75,11 +75,15 @@ jobs:
               "BOT_TOKEN=\(.bot.token)",
               "ADMIN_IDS=\(.bot.admin_ids | join(","))",
               
-              # Finland Panel
+              # Finland Panel (also as legacy XUI vars for backward compatibility)
               "XUI_FINLAND_URL=\(.servers.finland.panel_url)",
               "XUI_FINLAND_LOGIN=\(.servers.finland.login)",
               "XUI_FINLAND_PASSWORD=\(.servers.finland.password)",
               "XUI_FINLAND_PORT=9211",
+              "XUI_API_URL=\(.servers.finland.panel_url)",
+              "XUI_USERNAME=\(.servers.finland.login)",
+              "XUI_PASSWORD=\(.servers.finland.password)",
+              "XUI_HOST=\(.servers.finland.ip)",
               
               # Reality
               "REALITY_UUID=\(.reality.uuid)",
