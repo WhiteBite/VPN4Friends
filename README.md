@@ -174,8 +174,54 @@ git push origin master
 - [SQLAlchemy 2](https://www.sqlalchemy.org/) — ORM
 - [aiosqlite](https://github.com/omnilib/aiosqlite) — Async SQLite
 - [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) — Конфигурация
+- [FastAPI](https://fastapi.tiangolo.com/) — REST API для Mini App
 - [Docker](https://www.docker.com/) — Контейнеризация
 - [GitHub Actions](https://github.com/features/actions) — CI/CD
+- [pytest](https://pytest.org/) — Тестирование
+
+## 🧪 Тестирование
+
+### Запуск тестов
+
+```bash
+# Установить зависимости для тестов
+pip install -r requirements-test.txt
+
+# Запустить все тесты
+pytest
+
+# Запустить с покрытием
+pytest --cov=src --cov-report=html
+
+# Запустить конкретный тест
+pytest tests/unit/test_vpn_service.py -v
+
+# Запустить integration тесты
+pytest tests/integration/ -v
+```
+
+### Структура тестов
+
+```
+tests/
+├── conftest.py           # Fixtures и конфигурация
+├── unit/                 # Unit тесты
+│   ├── test_vpn_service.py
+│   └── test_repositories.py
+├── integration/          # Integration тесты
+│   ├── test_api.py
+│   └── test_bot_handlers.py
+└── e2e/                  # End-to-End тесты (TODO)
+```
+
+### Покрытие кода
+
+Проект стремится к **80%+ покрытию** тестами. Отчёт о покрытии генерируется автоматически:
+
+```bash
+pytest --cov=src --cov-report=html
+# Отчёт: htmlcov/index.html
+```
 
 ## 📱 Приложения для подключения
 
