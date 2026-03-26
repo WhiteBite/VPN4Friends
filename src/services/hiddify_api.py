@@ -73,7 +73,7 @@ class HiddifyApi(PanelAPI):
             "usage_limit_GB": 0,  # unlimited
             "package_days": 0,  # unlimited
             "mode": "no_reset",
-            "comment": f"Created by VPN4Friends bot",
+            "comment": "Created by VPN4Friends bot",
         }
 
         url = self._url("/admin/user/")
@@ -124,7 +124,7 @@ class HiddifyApi(PanelAPI):
             pass
         return None
 
-    async def delete_client(self, inbound_id: int, email: str) -> bool:
+    async def delete_client(self, email: str) -> bool:
         """Delete a Hiddify user by name."""
         if not self._session:
             raise HiddifyApiError("Session not initialized")
@@ -155,7 +155,7 @@ class HiddifyApi(PanelAPI):
             "download": 0,  # Hiddify reports combined traffic
         }
 
-    async def get_protocol_settings(self, inbound_id: int) -> dict[str, Any]:
+    async def get_protocol_settings(self) -> dict[str, Any]:
         """Get protocol settings from Hiddify.
 
         Hiddify manages Reality/TLS settings automatically.
@@ -175,7 +175,7 @@ class HiddifyApi(PanelAPI):
             url = self._url("/admin/server_status/")
             async with self._session.get(url) as resp:
                 if resp.status == 200:
-                    status = await resp.json()
+                    await resp.json()
                     # Extract whatever we can from server status
                     settings_data["host"] = self._cfg.get("host", "")
         except Exception as e:

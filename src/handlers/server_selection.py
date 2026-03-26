@@ -125,15 +125,13 @@ async def select_endpoint(callback: CallbackQuery, session: AsyncSession, bot: B
     # For VLESS - check if user has VPN
     if not user.has_vpn:
         await callback.message.edit_text(
-            f"❌ <b>Нет VPN доступа</b>\n\nСначала получите доступ через главное меню.",
+            "❌ <b>Нет VPN доступа</b>\n\nСначала получите доступ через главное меню.",
             reply_markup=get_back_kb(),
             parse_mode="HTML",
         )
         return
 
     # Switch user's profile to selected endpoint
-    vpn_service = VPNService(session)
-
     # TODO: Implement profile switching logic
     # For now - show message that switching is in development
 

@@ -268,6 +268,7 @@ async def _notify_user_approved(callback, request, vpn_link, protocol_name):
 
     try:
         from aiogram.types import BufferedInputFile
+
         from src.utils.qr_generator import generate_qr_code
 
         qr_buffer = generate_qr_code(vpn_link)
@@ -396,6 +397,7 @@ async def user_detail(
     await callback.answer()
 
     from sqlalchemy import select
+
     from src.database.models import User
 
     result = await session.execute(select(User).where(User.id == callback_data.user_id))
@@ -426,6 +428,7 @@ async def user_stats(
     await callback.answer()
 
     from sqlalchemy import select
+
     from src.database.models import User
 
     result = await session.execute(select(User).where(User.id == callback_data.user_id))
@@ -465,6 +468,7 @@ async def revoke_user_vpn(
     await callback.answer()
 
     from sqlalchemy import select
+
     from src.database.models import User
 
     result = await session.execute(select(User).where(User.id == callback_data.user_id))
@@ -548,12 +552,8 @@ async def cmd_notify_update(message: Message, session: AsyncSession, bot: Bot) -
 async def admin_notify_update_btn(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
     """Notify update via button — removed, redirect to broadcast."""
     # Use the general broadcast flow instead
-    from src.handlers.messaging import BroadcastStates
-    from src.keyboards.messaging_kb import get_broadcast_target_kb
 
     await callback.answer()
-    # We'll use FSM from the callback context
-    state = callback.bot.get("fsm_context")
     await callback.message.edit_text(
         "📢 Для рассылки используй /broadcast",
         reply_markup=get_back_to_admin_kb(),
