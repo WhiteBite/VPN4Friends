@@ -48,12 +48,14 @@ jobs:
             
             echo "🚀 Starting deployment..."
             
-            # Переходим в директорию проекта
-            cd /home/ubuntu/VPN4Friends || {
+            # Проверяем есть ли репозиторий
+            if [ ! -d "/home/ubuntu/VPN4Friends/.git" ]; then
               echo "📦 Cloning repository..."
               git clone https://github.com/${{ github.repository }}.git /home/ubuntu/VPN4Friends
-              cd /home/ubuntu/VPN4Friends
-            }
+            fi
+            
+            # Переходим в директорию проекта
+            cd /home/ubuntu/VPN4Friends
             
             # Обновляем код
             echo "📥 Pulling latest changes..."
