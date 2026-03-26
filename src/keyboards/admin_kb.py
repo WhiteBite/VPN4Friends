@@ -58,19 +58,40 @@ def get_request_action_kb(request: VPNRequest) -> InlineKeyboardMarkup:
 
 
 def get_protocol_select_kb(request_id: int) -> InlineKeyboardMarkup:
-    """Get keyboard for admin to select a protocol for the user."""
+    """Get keyboard for admin to select a protocol for user."""
     from src.bot.config import settings
 
     builder = InlineKeyboardBuilder()
-    for protocol in settings.protocols:
-        builder.button(
-            text=protocol.label,
-            callback_data=RequestAction(
-                action="select_protocol",
-                request_id=request_id,
-                protocol_name=protocol.name,
-            ).pack(),
-        )
+
+    # Use endpoints instead of protocols
+    # Filter out mtproto endpoints (they don't need admin approval)
+    for endpoint in settings.endpoints:
+        if endpoint.protocol and endpoint.protocol.lower() != "mtproto":
+            builder.button(
+                text=endpoint.label,
+                callback_data=RequestAction(
+                    action="approve",  # Changed from select_protocol to approve
+                    request_id=request_id,
+                    protocol_name=endpoint.name,  # Use endpoint name as protocol
+                ).pack(),
+            )
+
+    # If no endpoints, show default protocols
+    if not builder.buttons:
+        for proto_name, proto_label in [
+            ("finland_xhttp", "🇫🇮 Финляндия xHTTP"),
+            ("finland_grpc", "🇫🇮 Финляндия gRPC"),
+            ("finland_direct", "🇫🇮 Финляндия Direct"),
+        ]:
+            builder.button(
+                text=proto_label,
+                callback_data=RequestAction(
+                    action="approve",
+                    request_id=request_id,
+                    protocol_name=proto_name,
+                ).pack(),
+            )
+
     builder.button(text="⬅️ Назад", callback_data="admin_requests")
     builder.adjust(1)
     return builder.as_markup()
