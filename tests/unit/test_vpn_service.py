@@ -130,6 +130,9 @@ class TestXuiService:
         from src.services.xui_service import XuiService
 
         service = XuiService(test_settings)
+        # Initialize session
+        _ = await service._get_session()
         await service.close()
 
+        # Session should be closed or None
         assert service._session is None or service._session.is_closed

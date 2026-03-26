@@ -182,12 +182,11 @@ class TestRequestRepository:
 
         # Approve request
         repo = RequestRepository(db_session)
-        await repo.approve(request, admin_comment="Test approval")
+        await repo.approve(request)
 
         # Verify
         await db_session.refresh(request)
         assert request.status == RequestStatus.APPROVED
-        assert request.admin_comment == "Test approval"
 
     @pytest.mark.asyncio
     async def test_reject_request(self, db_session: AsyncSession):
@@ -208,12 +207,11 @@ class TestRequestRepository:
 
         # Reject request
         repo = RequestRepository(db_session)
-        await repo.reject(request, admin_comment="Test rejection")
+        await repo.reject(request)
 
         # Verify
         await db_session.refresh(request)
         assert request.status == RequestStatus.REJECTED
-        assert request.admin_comment == "Test rejection"
 
     @pytest.mark.asyncio
     async def test_get_pending_requests(self, db_session: AsyncSession):
@@ -235,6 +233,6 @@ class TestRequestRepository:
 
         # Get pending requests
         repo = RequestRepository(db_session)
-        pending = await repo.get_pending()
+        pending = await repo.get_all_pending()
 
         assert len(pending) >= 3

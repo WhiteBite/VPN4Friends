@@ -82,8 +82,9 @@ class VPNService:
             await self.request_repo.approve(request)
             return False, "У пользователя уже есть активный VPN."
 
-        protocol = settings.get_protocol(protocol_name)
-        if not protocol:
+        # Get endpoint configuration
+        endpoint = settings.get_endpoint(protocol_name)
+        if not endpoint:
             return False, f"Протокол '{protocol_name}' не настроен."
 
         # BUG-2 FIX: Immediately mark as approved to prevent race condition
@@ -91,17 +92,23 @@ class VPNService:
         await self.request_repo.approve(request)
 
         try:
-            async with XUIApi() as api:
+            # Get panel for this endpoint
+            panel = get_panel_for_server(protocol_name)
+            async with panel:
                 client_name = generate_client_name(user.username, user.telegram_id)
-                client_data = await api.create_client(
-                    inbound_id=protocol.inbound_id, email=client_name, protocol=protocol.name
+                client_data = await panel.create_client(
+                    inbound_id=endpoint.panel_config.get("inbound_id", 1),
+                    email=client_name,
+                    protocol=endpoint.name,
                 )
                 if not client_data:
                     # Rollback: revert request status
                     await self.request_repo.revert_to_pending(request)
                     return False, "Ошибка создания профиля в 3X-UI"
 
-                protocol_settings = await api.get_protocol_settings(protocol.inbound_id)
+                protocol_settings = await panel.get_protocol_settings(
+                    endpoint.panel_config.get("inbound_id", 1)
+                )
         except Exception as e:
             logger.error(f"Failed to create client for request {request_id}: {e}")
             await self.request_repo.revert_to_pending(request)
@@ -110,10 +117,10 @@ class VPNService:
         full_profile_data = {**client_data, **protocol_settings}
 
         profile = await self.user_repo.create_vpn_profile(
-            user=user, protocol_name=protocol.name, profile_data=full_profile_data
+            user=user, protocol_name=endpoint.name, profile_data=full_profile_data
         )
 
-        vpn_link = generate_vpn_link(protocol.name, profile.profile_data, profile.settings)
+        vpn_link = generate_vpn_link(endpoint.name, profile.profile_data, profile.settings)
         if not vpn_link:
             return False, "Не удалось сгенерировать ссылку для VPN."
 
