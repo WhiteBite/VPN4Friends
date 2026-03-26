@@ -66,19 +66,20 @@ def get_protocol_select_kb(request_id: int) -> InlineKeyboardMarkup:
     # Use endpoints instead of protocols
     # Filter out mtproto endpoints (they don't need admin approval)
     for endpoint in settings.endpoints:
-        if (
-            hasattr(endpoint, "protocol")
-            and endpoint.protocol
-            and endpoint.protocol.lower() != "mtproto"
-        ):
-            builder.button(
-                text=endpoint.label,
-                callback_data=RequestAction(
-                    action="select_protocol",  # Keep select_protocol action
-                    request_id=request_id,
-                    protocol_name=endpoint.name,  # Use endpoint name as protocol
-                ).pack(),
-            )
+        # Check if endpoint has protocol field or skip mtproto
+        endpoint_protocol = getattr(endpoint, "protocol", None)
+        if endpoint_protocol and endpoint_protocol.lower() == "mtproto":
+            continue  # Skip MTProto
+
+        # Show all other endpoints
+        builder.button(
+            text=endpoint.label,
+            callback_data=RequestAction(
+                action="select_protocol",
+                request_id=request_id,
+                protocol_name=endpoint.name,
+            ).pack(),
+        )
 
     # If no endpoints, show default protocols
     if not builder.buttons:
