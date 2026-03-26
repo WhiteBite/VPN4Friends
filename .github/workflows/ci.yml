@@ -48,18 +48,19 @@ jobs:
             
             echo "🚀 Starting deployment..."
             
-            # Проверяем есть ли репозиторий
-            if [ ! -d "/home/ubuntu/VPN4Friends/.git" ]; then
-              echo "📦 Cloning repository..."
-              git clone https://github.com/${{ github.repository }}.git /home/ubuntu/VPN4Friends
-            fi
-            
             # Переходим в директорию проекта
             cd /home/ubuntu/VPN4Friends
             
-            # Обновляем код
-            echo "📥 Pulling latest changes..."
-            git pull
+            # Если это git repo - делаем pull, иначе - чистим и клонируем
+            if [ -d ".git" ]; then
+              echo "📥 Pulling latest changes..."
+              git fetch origin
+              git reset --hard origin/master
+            else
+              echo "📦 Not a git repo, cleaning and cloning..."
+              rm -rf /home/ubuntu/VPN4Friends/*
+              git clone https://github.com/${{ github.repository }}.git .
+            fi
             
             # Проверяем что jq установлен
             if ! command -v jq &> /dev/null; then
