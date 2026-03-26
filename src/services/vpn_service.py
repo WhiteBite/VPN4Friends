@@ -120,8 +120,11 @@ class VPNService:
             user=user, protocol_name=endpoint.name, profile_data=full_profile_data
         )
 
-        vpn_link = generate_vpn_link(endpoint.name, profile.profile_data, profile.settings)
+        # Get actual protocol type (vless, trojan, etc) from endpoint
+        protocol_type = getattr(endpoint, "protocol", "vless") or "vless"
+        vpn_link = generate_vpn_link(protocol_type, profile.profile_data, profile.settings)
         if not vpn_link:
+            logger.error(f"Failed to generate VPN link for protocol {protocol_type}")
             return False, "Не удалось сгенерировать ссылку для VPN."
 
         logger.info(f"Approved request {request_id} for user {user.telegram_id}")
