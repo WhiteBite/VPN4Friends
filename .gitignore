@@ -82,3 +82,7 @@ scripts/deploy-env.sh
 # VPN Config (contains secrets)
 vpn-config.json
 
+
+# Local credentials backup (NEVER commit)
+BACKUP-CREDENTIALS.txt
+
