@@ -9,9 +9,7 @@ from src.keyboards.callbacks import AdminPage, RequestAction, UserAction
 USERS_PER_PAGE = 5
 
 
-def get_admin_main_kb(
-    pending_count: int = 0, vpn_count: int = 0
-) -> InlineKeyboardMarkup:
+def get_admin_main_kb(pending_count: int = 0, vpn_count: int = 0) -> InlineKeyboardMarkup:
     """Get main admin panel keyboard with counters."""
     builder = InlineKeyboardBuilder()
 
@@ -78,9 +76,7 @@ def get_protocol_select_kb(request_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_compact_users_kb(
-    users: list[User], page: int = 0
-) -> InlineKeyboardMarkup:
+def get_compact_users_kb(users: list[User], page: int = 0) -> InlineKeyboardMarkup:
     """Compact user list with pagination and detail buttons."""
     builder = InlineKeyboardBuilder()
 

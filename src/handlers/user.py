@@ -269,8 +269,7 @@ async def request_vpn(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
         return
 
     await callback.message.edit_text(
-        "✅ Заявка отправлена!\n\n"
-        "Даня получит уведомление. Обычно одобряю быстро ⚡",
+        "✅ Заявка отправлена!\n\nДаня получит уведомление. Обычно одобряю быстро ⚡",
         reply_markup=get_back_kb(),
     )
 

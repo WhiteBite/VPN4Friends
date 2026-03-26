@@ -16,7 +16,6 @@ from src.keyboards.server_kb import (
     get_server_list_kb,
 )
 from src.keyboards.user_kb import get_back_kb
-from src.services.vpn_service import VPNService
 
 logger = logging.getLogger(__name__)
 router = Router(name="server_selection")

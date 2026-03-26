@@ -38,6 +38,7 @@ def format_bytes(b: int) -> str:
         b /= 1024
     return f"{b:.1f} PiB"
 
+
 app = FastAPI(
     title="VPN4Friends Mini App API",
     version="1.0.0",
@@ -376,4 +377,3 @@ async def select_endpoint_route(
         success=True,
         message=f"Точка входа изменена на '{endpoint.label}'.",
     )
-

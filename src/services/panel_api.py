@@ -11,12 +11,10 @@ class PanelAPI(ABC):
     """
 
     @abstractmethod
-    async def __aenter__(self) -> "PanelAPI":
-        ...
+    async def __aenter__(self) -> "PanelAPI": ...
 
     @abstractmethod
-    async def __aexit__(self, *args: Any) -> None:
-        ...
+    async def __aexit__(self, *args: Any) -> None: ...
 
     @abstractmethod
     async def create_client(

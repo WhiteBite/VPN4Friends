@@ -43,4 +43,3 @@ def get_broadcast_confirm_kb() -> InlineKeyboardMarkup:
     builder.button(text="❌ Отмена", callback_data="cancel_action")
     builder.adjust(2)
     return builder.as_markup()
-

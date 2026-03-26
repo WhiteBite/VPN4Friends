@@ -99,7 +99,9 @@ class XUIApi(PanelAPI):
         async with self._session.post(url, json=data) as resp:
             if resp.status != 200:
                 body = await resp.text()
-                logger.error(f"update_inbound({inbound_id}) failed: HTTP {resp.status}, body={body}")
+                logger.error(
+                    f"update_inbound({inbound_id}) failed: HTTP {resp.status}, body={body}"
+                )
                 return False
 
             result = await resp.json()
