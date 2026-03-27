@@ -3,8 +3,6 @@
    Glassmorphism, Neon glow, Bouncy Interactions
    ======================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
-
 :root {
   --bg: #090B0F; /* Deep premium black/blue */
   --bg-secondary: rgba(22, 25, 34, 0.7); /* Translucent */
@@ -20,9 +18,9 @@
   --card: rgba(255, 255, 255, 0.03);
   --card-hover: rgba(255, 255, 255, 0.08);
   --neon-blue: #0EA5E9;
-  --neon-blue-glow: rgba(14, 165, 233, 0.5);
+  --neon-blue-glow: rgba(14, 165, 233, 0.6);
 
-  --font: 'Outfit', -apple-system, system-ui, sans-serif;
+  --font: 'Inter', -apple-system, system-ui, sans-serif;
   --r: 16px;
   --r-lg: 24px;
   --r-pill: 100px;
@@ -361,8 +359,8 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 
 .server-card--active {
   border-color: #0EA5E9;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(59, 130, 246, 0.2));
-  box-shadow: 0 4px 16px var(--neon-blue-glow);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25), rgba(59, 130, 246, 0.25));
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.35), inset 0 0 10px rgba(14, 165, 233, 0.2);
 }
 
 .server-card__icon { font-size: 28px; }
@@ -380,12 +378,29 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
   font-size: 16px;
   font-weight: 700;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .server-card__desc {
   font-size: 12px;
   color: var(--text-hint);
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.server-card__tag {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
 }
 
 .server-card__actions {
@@ -395,9 +410,9 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 }
 
 .server-card__check {
-  font-size: 16px;
-  color: #0EA5E9;
-  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-icon--copy {
