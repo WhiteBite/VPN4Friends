@@ -57,9 +57,14 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
             onClick={() => onSelect(ep.name)}
             disabled={busy || isActive}
           >
+            <div className={`server-card__radio ${isActive ? 'server-card__radio--active' : ''}`}>
+              {isActive && <IconCheck />}
+            </div>
+            
             <span className="server-card__icon" style={{ fontSize: '28px' }}>
               {getFlagEmoji(ep.label)}
             </span>
+            
             <div className="server-card__text">
               <span className="server-card__label">
                 {parsed.name}
@@ -72,18 +77,16 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
                 )}
               </span>
             </div>
-            {isActive && (
-              <div className="server-card__actions">
-                <span className="server-card__check"><IconCheck /></span>
-                <div 
-                  className="btn-icon btn-icon--copy" 
-                  onClick={(e) => { e.stopPropagation(); onCopy(); }}
-                  title="Скопировать"
-                >
-                  <IconCopy />
-                </div>
+            
+            <div className="server-card__actions">
+              <div 
+                className="btn-icon btn-icon--copy" 
+                onClick={(e) => { e.stopPropagation(); onCopy(ep.name); }}
+                title="Скопировать"
+              >
+                <IconCopy />
               </div>
-            )}
+            </div>
           </button>
         );
       })}

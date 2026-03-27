@@ -159,15 +159,25 @@ function App() {
     }
   };
 
-  const handleSelectEndpoint = async (name) => {
+  const handleSelectEndpoint = async (name, andCopy = false) => {
     setBusy('endpoint');
     try {
-      await safeFetch(() => selectEndpoint(name), { success: true });
-      setCurrentEndpoint(name);
-      await refreshLink();
-      showToast('Точка входа изменена.', 'success');
+      if (name !== currentEndpoint) {
+        await safeFetch(() => selectEndpoint(name), { success: true });
+        setCurrentEndpoint(name);
+        const linkData = await safeFetch(fetchLink, { link: MOCK_DATA.link });
+        setVpnLink(linkData.link);
+        showToast('Точка входа изменена.', 'success');
+        
+        if (andCopy) {
+           await navigator.clipboard.writeText(linkData.link);
+           setTimeout(() => showToast('Ссылка скопирована!', 'success'), 300);
+        }
+      } else if (andCopy) {
+         handleCopy();
+      }
     } catch {
-      showToast('Не удалось сменить точку входа.', 'error');
+      showToast('Ошибка смены точки входа.', 'error');
     } finally {
       setBusy('');
     }
@@ -260,7 +270,7 @@ function App() {
                  endpoints={endpoints}
                  currentEndpoint={currentEndpoint}
                  onSelect={handleSelectEndpoint}
-                 onCopy={handleCopy}
+                 onCopy={(name) => handleSelectEndpoint(name, true)}
                  busy={busy === 'endpoint'}
                />
             ) : (
