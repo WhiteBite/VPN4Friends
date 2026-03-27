@@ -12,19 +12,19 @@ export default function BottomNav({ activeTab, onTabChange }) {
       </button>
 
       <button
-        className={`nav-item ${activeTab === 'stats' ? 'nav-item--active' : ''}`}
-        onClick={() => onTabChange('stats')}
+        className={`nav-item ${activeTab === 'locations' ? 'nav-item--active' : ''}`}
+        onClick={() => onTabChange('locations')}
       >
-        <div className="nav-icon">📊</div>
-        <div className="nav-label">Статистика</div>
+        <div className="nav-icon">🌍</div>
+        <div className="nav-label">Локации</div>
       </button>
 
       <button
-        className={`nav-item ${activeTab === 'settings' ? 'nav-item--active' : ''}`}
-        onClick={() => onTabChange('settings')}
+        className={`nav-item ${activeTab === 'profile' ? 'nav-item--active' : ''}`}
+        onClick={() => onTabChange('profile')}
       >
-        <div className="nav-icon">⚙️</div>
-        <div className="nav-label">Настройки</div>
+        <div className="nav-icon">📊</div>
+        <div className="nav-label">Профиль</div>
       </button>
     </div>
   );

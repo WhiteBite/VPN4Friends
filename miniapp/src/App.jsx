@@ -64,6 +64,7 @@ function App() {
   const [vpnLink, setVpnLink] = useState(null);
   const [busy, setBusy] = useState('');
   const [activeTab, setActiveTab] = useState('home');
+  const [showSettings, setShowSettings] = useState(false);
 
   // Toast
   const [toast, setToast] = useState({ message: '', type: 'info', visible: false });
@@ -246,36 +247,52 @@ function App() {
               link={vpnLink}
               onCopy={handleCopy}
             />
-            {me?.profile?.has_profile && (
+          </div>
+        )}
+
+        {activeTab === 'locations' && (
+          <div className="tab-pane fade-in">
+            {me?.profile?.has_profile ? (
                <ServerSelector
                  endpoints={endpoints}
                  current={currentEndpoint}
                  onSelect={handleSelectEndpoint}
                  busy={busy === 'endpoint'}
                />
+            ) : (
+              <div className="empty-state">У тебя пока нет профиля VPN.</div>
             )}
           </div>
         )}
 
-        {activeTab === 'stats' && (
+        {activeTab === 'profile' && (
           <div className="tab-pane fade-in">
             <StatsCard
               visible={true}
               onError={(msg) => showToast(msg, 'error')}
             />
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className="tab-pane fade-in">
-             <SettingsPanel
-              visible={true}
-              profile={me?.profile}
-              protocols={protocols}
-              onSwitchProtocol={handleSwitchProtocol}
-              onUpdateSni={handleUpdateSni}
-              busy={!!busy}
-            />
+            {me?.profile?.has_profile && (
+              <div className="settings-accordion">
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--full"
+                  onClick={() => setShowSettings((v) => !v)}
+                  style={{ marginBottom: showSettings ? '8px' : '0' }}
+                >
+                  {showSettings ? '▲ Скрыть продвинутые настройки' : '⚙️ Продвинутые настройки 🛠'}
+                </button>
+                {showSettings && (
+                  <SettingsPanel
+                    visible={true}
+                    profile={me?.profile}
+                    protocols={protocols}
+                    onSwitchProtocol={handleSwitchProtocol}
+                    onUpdateSni={handleUpdateSni}
+                    busy={!!busy}
+                  />
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
