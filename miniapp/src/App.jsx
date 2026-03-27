@@ -258,7 +258,7 @@ function App() {
             {me?.profile?.has_profile ? (
                <ServerSelector
                  endpoints={endpoints}
-                 current={currentEndpoint}
+                 currentEndpoint={currentEndpoint}
                  onSelect={handleSelectEndpoint}
                  onCopy={handleCopy}
                  busy={busy === 'endpoint'}

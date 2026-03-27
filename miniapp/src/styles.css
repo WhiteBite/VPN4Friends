@@ -546,17 +546,17 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 
 .toast {
   position: fixed;
-  bottom: 110px; /* Safe space above bottom nav and safe-area */
+  top: 20px; /* Safe space from top nav bar */
   left: 50%;
-  transform: translateX(-50%) translateY(100px);
+  transform: translateX(-50%) translateY(-100px); /* start above screen */
   padding: 10px 20px;
   border-radius: var(--r-pill);
   font-size: 13px;
   font-weight: 500;
-  z-index: 300;
+  z-index: 1000; /* above everything */
   pointer-events: none;
   white-space: nowrap;
-  transition: transform 0.3s var(--ease);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* bouncy drop */
   box-shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
 
