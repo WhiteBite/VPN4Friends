@@ -129,6 +129,10 @@ jobs:
               "DATABASE_URL=sqlite+aiosqlite:////app/data/vpn_bot.db"
             ' > .env
             
+            # Дописываем CLOUDFLARE_TUNNEL_TOKEN из отдельного секрета,
+            # чтобы не светить его в коде и не перегружать основной VPN_CONFIG JSON.
+            echo "CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}" >> .env
+            
             echo "✅ .env generated"
             
             # Создаём директорию для базы

@@ -2,7 +2,9 @@
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
 from src.api.dependencies import get_current_user
 from src.api.schemas import (
@@ -43,6 +45,20 @@ app = FastAPI(
     title="VPN4Friends Mini App API",
     version="1.0.0",
 )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    headers = getattr(exc, "headers", None) or {}
+    headers["Access-Control-Allow-Origin"] = "*"
+    headers["Access-Control-Allow-Methods"] = "*"
+    headers["Access-Control-Allow-Headers"] = "*"
+    return JSONResponse(
+        {"detail": exc.detail},
+        status_code=exc.status_code,
+        headers=headers,
+    )
+
 
 # Allow Mini App frontend to call this API from the browser.
 # For now we allow all origins; this can be restricted later
@@ -387,9 +403,10 @@ async def select_endpoint_route(
             message="Нет активного VPN-профиля.",
         )
 
-    if not active_profile.settings:
-        active_profile.settings = {}
-    active_profile.settings["endpoint"] = payload.endpoint
+    # Reassign the dictionary to trigger SQLAlchemy's change detection
+    new_settings = dict(active_profile.settings or {})
+    new_settings["endpoint"] = payload.endpoint
+    active_profile.settings = new_settings
 
     from src.database.repositories.user_repo import UserRepository
 

@@ -21,13 +21,10 @@ services:
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
   api_proxy:
-    image: caddy:2
-    container_name: vpn4friends-api-proxy
+    image: cloudflare/cloudflared:latest
+    container_name: vpn4friends-api-tunnel
     restart: unless-stopped
+    command: tunnel run
     environment:
-      - API_PUBLIC_DOMAIN=${API_PUBLIC_DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy_data:/data
-      - ./caddy_config:/config
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     network_mode: "host"
