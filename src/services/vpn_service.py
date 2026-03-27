@@ -191,10 +191,14 @@ class VPNService:
             return None
 
         # The profile_data in DB already contains all necessary info; merge with settings
+        endpoint_name = (active_profile.settings or {}).get("endpoint")
+        endpoint = settings.get_endpoint(endpoint_name) if endpoint_name else None
+
         return generate_vpn_link(
             active_profile.protocol_name,
             active_profile.profile_data,
             active_profile.settings,
+            endpoint=endpoint,
         )
 
     async def get_pending_requests(self) -> list[VPNRequest]:

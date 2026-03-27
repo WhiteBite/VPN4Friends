@@ -33,6 +33,13 @@ class ServerEndpoint(BaseModel):
     panel_config: dict = {}  # Panel-specific credentials
     protocol: str = "vless"  # Protocol type: "vless", "mtproto", etc.
 
+    # Extra parameters for relays or advanced endpoints
+    transport: str | None = None
+    security: str | None = None
+    sni: str | None = None
+    flow: str | None = None
+    serviceName: str | None = None
+
 
 class Settings(BaseSettings):
     """Bot configuration loaded from environment variables."""

@@ -135,14 +135,18 @@ async def select_endpoint(callback: CallbackQuery, session: AsyncSession, bot: B
         return
 
     # Switch user's profile to selected endpoint
-    # TODO: Implement profile switching logic
-    # For now - show message that switching is in development
+    active_profile = user.active_profile
+    if not active_profile.settings:
+        active_profile.settings = {}
+    active_profile.settings["endpoint"] = endpoint.name
+
+    await user_repo.update_vpn_profile(active_profile)
 
     await callback.message.edit_text(
-        f"⏳ <b>Переключение на {endpoint.label}</b>\n\n"
-        f"Функция в разработке...\n\n"
-        f"Пока вы можете использовать текущий VPN через главное меню.",
-        reply_markup=get_back_to_servers_kb(),
+        f"✅ <b>Локация успешно изменена</b>\n\n"
+        f"Текущий режим: <b>{endpoint.label}</b>\n\n"
+        f"Теперь ссылки для подключения будут сгенерированы для этой локации. Перейдите в главное меню, чтобы получить обновленную ссылку.",
+        reply_markup=get_back_kb(),
         parse_mode="HTML",
     )
 

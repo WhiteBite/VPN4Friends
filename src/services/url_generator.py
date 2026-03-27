@@ -79,25 +79,48 @@ def generate_vless_url(
 
     spider_x_encoded = quote(spider_x, safe="")
 
+    # Default transport parameters
+    transport = "tcp"
+    security = "reality"
+    flow_param = "xtls-rprx-vision"
+    service_name = ""
+
     # Endpoint override takes priority over profile_data and settings
     if endpoint:
         host = endpoint.host
         port = endpoint.port
+        if getattr(endpoint, "sni", None):
+            sni = endpoint.sni
+        if getattr(endpoint, "transport", None):
+            transport = endpoint.transport
+        if getattr(endpoint, "security", None):
+            security = endpoint.security
+        if getattr(endpoint, "flow", None):
+            flow_param = endpoint.flow
+        if getattr(endpoint, "serviceName", None):
+            service_name = endpoint.serviceName
     else:
         host = profile_data.get("host", settings.xui_host)
         port = profile_data["port"]
 
-    return (
-        f"vless://{profile_data['client_id']}@{host}:{port}"
-        f"?type=tcp&security=reality"
-        f"&pbk={public_key}"
-        f"&fp={fingerprint}"
-        f"&sni={sni}"
-        f"&sid={short_id}"
-        f"&spx={spider_x_encoded}"
-        f"&flow=xtls-rprx-vision"
-        f"#{fragment}"
-    )
+    url_params = [
+        f"type={transport}",
+        f"security={security}",
+        f"pbk={public_key}",
+        f"fp={fingerprint}",
+        f"sni={sni}",
+        f"sid={short_id}",
+        f"spx={spider_x_encoded}",
+    ]
+
+    if flow_param and transport == "tcp":
+        url_params.append(f"flow={flow_param}")
+    if service_name and transport in ("grpc", "ws"):
+        url_params.append(f"serviceName={service_name}")
+
+    query_string = "&".join(url_params)
+
+    return f"vless://{profile_data['client_id']}@{host}:{port}?{query_string}#{fragment}"
 
 
 def generate_shadowsocks_url(profile_data: dict[str, Any]) -> str:
