@@ -179,10 +179,16 @@ def generate_vpn_link(
             m_secret = endpoint.panel_config["secret"]
         return f"tg://proxy?server={m_host}&port={m_port}&secret={m_secret}"
 
-    if protocol_name == "vless":
+    protocol_name_lower = protocol_name.lower()
+
+    # Map legacy protocols to new standard names
+    if "finland_xhttp" in protocol_name_lower or "reality" in protocol_name_lower:
+        protocol_name_lower = "vless"
+
+    if protocol_name_lower == "vless":
         prepared = merge_profile_settings(profile_data, settings_overrides)
         return generate_vless_url(prepared, endpoint=endpoint)
-    if protocol_name == "shadowsocks":
+    if protocol_name_lower == "shadowsocks":
         return generate_shadowsocks_url(profile_data)
     # Add other protocols here
     return None
