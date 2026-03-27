@@ -12,11 +12,10 @@ import { getTelegram } from './telegram';
 
 import ConnectionCard from './components/ConnectionCard';
 import ServerSelector from './components/ServerSelector';
-import QuickActions from './components/QuickActions';
-import QRModal from './components/QRModal';
 import StatsCard from './components/StatsCard';
 import SettingsPanel from './components/SettingsPanel';
 import Toast from './components/Toast';
+import BottomNav from './components/BottomNav';
 
 // Mock data for development (when API is not available)
 const MOCK_DATA = {
@@ -64,9 +63,7 @@ function App() {
   const [currentEndpoint, setCurrentEndpoint] = useState(null);
   const [vpnLink, setVpnLink] = useState(null);
   const [busy, setBusy] = useState('');
-  const [showQR, setShowQR] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState('home');
 
   // Toast
   const [toast, setToast] = useState({ message: '', type: 'info', visible: false });
@@ -228,7 +225,7 @@ function App() {
   return (
     <div className="app" data-theme={colorScheme}>
       {/* Header */}
-      <header className="header">
+      <header className="header" style={{ marginBottom: activeTab !== 'home' ? '12px' : '0' }}>
         <div className="header-icon">🛡</div>
         <div className="header-text">
           <div className="title">VPN4Friends</div>
@@ -240,63 +237,50 @@ function App() {
         </div>
       </header>
 
-      {/* Connection Status */}
-      <ConnectionCard
-        profile={me?.profile}
-        endpoint={activeEndpoint}
-        link={vpnLink}
-        onCopy={handleCopy}
-      />
+      <div className="tab-content" style={{ paddingBottom: '70px' }}>
+        {activeTab === 'home' && (
+          <div className="tab-pane fade-in">
+            <ConnectionCard
+              profile={me?.profile}
+              endpoint={activeEndpoint}
+              link={vpnLink}
+              onCopy={handleCopy}
+            />
+            {me?.profile?.has_profile && (
+               <ServerSelector
+                 endpoints={endpoints}
+                 current={currentEndpoint}
+                 onSelect={handleSelectEndpoint}
+                 busy={busy === 'endpoint'}
+               />
+            )}
+          </div>
+        )}
 
-      {/* Quick Actions */}
-      <QuickActions
-        hasProfile={me?.profile?.has_profile}
-        onCopy={handleCopy}
-        onQR={() => setShowQR(true)}
-        onStats={() => setShowStats((v) => !v)}
-      />
+        {activeTab === 'stats' && (
+          <div className="tab-pane fade-in">
+            <StatsCard
+              visible={true}
+              onError={(msg) => showToast(msg, 'error')}
+            />
+          </div>
+        )}
 
-      {/* Server Selection */}
-      <ServerSelector
-        endpoints={endpoints}
-        current={currentEndpoint}
-        onSelect={handleSelectEndpoint}
-        busy={busy === 'endpoint'}
-      />
+        {activeTab === 'settings' && (
+          <div className="tab-pane fade-in">
+             <SettingsPanel
+              visible={true}
+              profile={me?.profile}
+              protocols={protocols}
+              onSwitchProtocol={handleSwitchProtocol}
+              onUpdateSni={handleUpdateSni}
+              busy={!!busy}
+            />
+          </div>
+        )}
+      </div>
 
-      {/* Stats (lazy) */}
-      <StatsCard
-        visible={showStats}
-        onError={(msg) => showToast(msg, 'error')}
-      />
-
-      {/* Settings Toggle */}
-      {me?.profile?.has_profile && (
-        <button
-          type="button"
-          className="btn btn--ghost btn--full"
-          onClick={() => setShowSettings((v) => !v)}
-        >
-          {showSettings ? '▲ Скрыть настройки' : '⚙️ Расширенные настройки'}
-        </button>
-      )}
-
-      {/* Settings Panel */}
-      <SettingsPanel
-        visible={showSettings}
-        profile={me?.profile}
-        protocols={protocols}
-        onSwitchProtocol={handleSwitchProtocol}
-        onUpdateSni={handleUpdateSni}
-        busy={!!busy}
-      />
-
-      {/* QR Modal */}
-      <QRModal
-        link={vpnLink}
-        visible={showQR}
-        onClose={() => setShowQR(false)}
-      />
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Toast */}
       <Toast

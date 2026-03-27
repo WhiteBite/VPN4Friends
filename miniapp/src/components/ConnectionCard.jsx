@@ -1,4 +1,5 @@
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function ConnectionCard({ profile, endpoint, onCopy, link }) {
   const hasProfile = profile?.has_profile;
@@ -12,7 +13,7 @@ export default function ConnectionCard({ profile, endpoint, onCopy, link }) {
           <div className="empty-icon">🔐</div>
           <div className="empty-title">Нет VPN</div>
           <div className="empty-text">
-            Запроси доступ у бота — после одобрения здесь появится ссылка
+            Запроси доступ у бота — после одобрения здесь появится QR-код
           </div>
         </div>
       </section>
@@ -25,7 +26,7 @@ export default function ConnectionCard({ profile, endpoint, onCopy, link }) {
         <span className="hero-protocol">{label}</span>
       </div>
 
-      {/* Relay visualization (only if relay endpoint) */}
+      {/* Relay visualization */}
       {endpoint?.is_relay && (
         <div className="relay-chain">
           <span className="relay-node">🇷🇺 Москва</span>
@@ -34,19 +35,30 @@ export default function ConnectionCard({ profile, endpoint, onCopy, link }) {
         </div>
       )}
 
-      {/* VPN Link */}
-      {link && (
-        <>
-          <div className="link-box" onClick={onCopy}>
-            <div className="link-box__text">{link}</div>
+      {/* Big QR Code & Action */}
+      {link ? (
+        <div className="hero-action-area">
+          <div className="qr-box">
+             <QRCodeSVG
+                value={link}
+                size={180}
+                bgColor="transparent"
+                fgColor="var(--text)"
+                level="M"
+                includeMargin={false}
+              />
           </div>
-          <div className="link-box__hint">
-            Вставь в v2rayN, Hiddify или Streisand
-          </div>
+          
           <button className="btn-copy-main" onClick={onCopy}>
-            📋 Скопировать ссылку
+            <span className="btn-icon">📋</span>
+            Скопировать ссылку
           </button>
-        </>
+        </div>
+      ) : (
+        <div className="hero-action-area">
+          <div className="skeleton skeleton--box" style={{ height: 180, width: 180, margin: '0 auto 16px', borderRadius: '16px' }}></div>
+          <div className="skeleton skeleton--box" style={{ height: 48, borderRadius: '12px' }}></div>
+        </div>
       )}
     </section>
   );

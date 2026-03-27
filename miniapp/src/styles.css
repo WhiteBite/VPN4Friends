@@ -438,85 +438,11 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 
 .btn--full { width: 100%; }
 
-/* ---- Modal ---- */
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-  padding: 24px;
-  animation: fade-in 0.2s;
-}
-
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-
-.modal {
-  background: var(--bg-secondary);
-  border-radius: var(--r-lg);
-  max-width: 320px;
-  width: 100%;
-  overflow: hidden;
-  animation: modal-up 0.3s var(--ease);
-}
-
-@keyframes modal-up {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.modal__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  border-bottom: 1px solid var(--separator);
-}
-
-.modal__title { font-weight: 600; font-size: 16px; }
-
-.modal__close {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--card);
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-hint);
-}
-
-.modal__body {
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.qr-container {
-  padding: 20px;
-  background: white;
-  border-radius: var(--r);
-}
-
-.qr-hint {
-  font-size: 13px;
-  color: var(--text-hint);
-  text-align: center;
-}
-
 /* ---- Toast ---- */
 
 .toast {
   position: fixed;
-  bottom: 24px;
+  bottom: 80px; /* Above bottom nav */
   left: 50%;
   transform: translateX(-50%) translateY(100px);
   padding: 10px 20px;
@@ -535,6 +461,99 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 .toast--success { background: var(--accent); color: #000; }
 .toast--error { background: var(--destructive); color: #fff; }
 .toast--info { background: var(--btn); color: var(--btn-text); }
+
+/* ---- Tabs Layout ---- */
+.tab-content {
+  position: relative;
+  width: 100%;
+}
+
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fade-in {
+  animation: fade-in 0.2s var(--ease);
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Bottom Navigation ---- */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(28, 28, 30, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--separator);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 16px;
+  padding-bottom: env(safe-area-inset-bottom, 24px);
+  z-index: 100;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text-hint);
+  padding: 8px 12px;
+  border-radius: var(--r);
+  transition: all 0.2s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-item:active {
+  background: var(--card);
+}
+
+.nav-item--active {
+  color: var(--btn);
+}
+
+.nav-icon {
+  font-size: 22px;
+}
+
+.nav-label {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ---- QR & Hero Actions ---- */
+
+.hero-action-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.qr-box {
+  background: white;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon {
+  font-size: 18px;
+}
 
 /* ---- Skeletons ---- */
 
