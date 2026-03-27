@@ -118,9 +118,9 @@ jobs:
               "REALITY_SHORT_ID=\(.reality.short_id)",
               
               # MTProto
-              "MTROTO_PROXY_HOST=\(.mtproto.finland.host)",
-              "MTROTO_PROXY_PORT=\(.mtproto.finland.port)",
-              "MTROTO_PROXY_SECRET=\(.mtproto.finland.secret)",
+              "MTPROTO_PROXY_HOST=\(.mtproto.finland.host)",
+              "MTPROTO_PROXY_PORT=\(.mtproto.finland.port)",
+              "MTPROTO_PROXY_SECRET=\(.mtproto.finland.secret)",
               
               # Endpoints (JSON array)
               "ENDPOINTS_CONFIG=\(.endpoints | @json)",

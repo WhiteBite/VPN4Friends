@@ -121,7 +121,7 @@ git push origin master
 | `BOT_TOKEN` | Токен от @BotFather |
 | `ADMIN_IDS` | Твой Telegram ID (через запятую если несколько) |
 | `ENDPOINTS_CONFIG` | JSON с конфигурацией серверов (7 endpoint'ов) |
-| `MTROTO_PROXY_*` | Настройки MTProto для Telegram |
+| `MTPROTO_PROXY_*` | Настройки MTProto для Telegram |
 | `REALITY_*` | Параметры Reality из настроек inbound |
 
 **Пример `ENDPOINTS_CONFIG`:**

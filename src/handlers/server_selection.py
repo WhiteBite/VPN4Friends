@@ -19,9 +19,9 @@ from src.keyboards.server_kb import (
 from src.keyboards.user_kb import get_back_kb
 
 # MTProto settings (loaded directly from env vars)
-MTROTO_HOST = os.getenv("MTPROTO_PROXY_HOST", "")
-MTROTO_PORT = os.getenv("MTPROTO_PROXY_PORT", "0")
-MTROTO_SECRET = os.getenv("MTPROTO_PROXY_SECRET", "")
+MTPROTO_HOST = os.getenv("MTPROTO_PROXY_HOST", "")
+MTPROTO_PORT = os.getenv("MTPROTO_PROXY_PORT", "0")
+MTPROTO_SECRET = os.getenv("MTPROTO_PROXY_SECRET", "")
 
 logger = logging.getLogger(__name__)
 router = Router(name="server_selection")
@@ -110,7 +110,9 @@ async def select_endpoint(callback: CallbackQuery, session: AsyncSession, bot: B
 
     # For MTProto - just show the link
     if getattr(endpoint, "protocol", None) == "mtproto":
-        mtproto_link = f"tg://proxy?server={MTROTO_HOST}&port={MTROTO_PORT}&secret={MTROTO_SECRET}"
+        mtproto_link = (
+            f"tg://proxy?server={MTPROTO_HOST}&port={MTPROTO_PORT}&secret={MTPROTO_SECRET}"
+        )
 
         await callback.message.edit_text(
             f"✈️ <b>Telegram Proxy</b>\n\n"
