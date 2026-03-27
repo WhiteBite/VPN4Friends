@@ -31,6 +31,7 @@ class ServerEndpoint(BaseModel):
     description: str = ""
     panel_type: str = "3xui"  # "3xui" or "hiddify"
     panel_config: dict = {}  # Panel-specific credentials
+    protocol: str = "vless"  # Protocol type: "vless", "mtproto", etc.
 
 
 class Settings(BaseSettings):
@@ -69,16 +70,35 @@ class Settings(BaseSettings):
     # Database (absolute path for Docker)
     database_url: str = "sqlite+aiosqlite:////app/data/vpn_bot.db"
 
-    # MTProto Proxy for Telegram
-    mtproto_proxy_host: str = ""
-    mtproto_proxy_port: int = 0
-    mtproto_proxy_secret: str = ""
-
     model_config = {
-        "env_file": ".env",
         "env_file_encoding": "utf-8",
         "extra": "ignore",
+        "env_prefix": "",
     }
+
+    @field_validator("mtproto_proxy_host", mode="before")
+    @classmethod
+    def load_mtproto_host(cls, v):
+        import os
+
+        return v or os.getenv("MTPROTO_PROXY_HOST", "")
+
+    @field_validator("mtproto_proxy_port", mode="before")
+    @classmethod
+    def load_mtproto_port(cls, v):
+        import os
+
+        if v is not None and v != 0:
+            return v
+        port_str = os.getenv("MTPROTO_PROXY_PORT", "0")
+        return int(port_str) if port_str else 0
+
+    @field_validator("mtproto_proxy_secret", mode="before")
+    @classmethod
+    def load_mtproto_secret(cls, v):
+        import os
+
+        return v or os.getenv("MTPROTO_PROXY_SECRET", "")
 
     @model_validator(mode="after")
     def parse_protocols_config(self) -> "Settings":

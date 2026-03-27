@@ -1,9 +1,16 @@
 """User keyboards."""
 
+import os
+
 from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.bot.config import settings
+
+# MTProto settings (loaded directly from env vars)
+MTROTO_HOST = os.getenv("MTPROTO_PROXY_HOST", settings.mtproto_proxy_host)
+MTROTO_PORT = os.getenv("MTPROTO_PROXY_PORT", str(settings.mtproto_proxy_port))
+MTROTO_SECRET = os.getenv("MTPROTO_PROXY_SECRET", settings.mtproto_proxy_secret)
 
 
 def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboardMarkup:
@@ -15,11 +22,7 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
         builder.button(text="📊 Статистика", callback_data="my_stats")
         builder.button(text="🌐 Выбрать сервер", callback_data="choose_server")
         # MTProto Proxy button for Telegram
-        mtproto_link = (
-            f"tg://proxy?server={settings.mtproto_proxy_host}"
-            f"&port={settings.mtproto_proxy_port}"
-            f"&secret={settings.mtproto_proxy_secret}"
-        )
+        mtproto_link = f"tg://proxy?server={MTROTO_HOST}&port={MTROTO_PORT}&secret={MTROTO_SECRET}"
         builder.button(text="📡 Telegram Proxy", url=mtproto_link)
         if settings.miniapp_url:
             builder.button(
