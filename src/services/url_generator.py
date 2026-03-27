@@ -67,8 +67,8 @@ def generate_vless_url(
     """
 
     remark = profile_data.get("remark", "")
-    email = profile_data["email"]
-    fragment = f"{remark}-{email}" if remark else email
+    email = profile_data.get("email", "")
+    fragment = f"{remark}-{email}" if remark and email else (remark or email)
 
     reality = profile_data.get("reality", {})
     public_key = reality.get("public_key", "")
@@ -101,7 +101,7 @@ def generate_vless_url(
             service_name = endpoint.serviceName
     else:
         host = profile_data.get("host", settings.xui_host)
-        port = profile_data["port"]
+        port = profile_data.get("port", 443)
 
     url_params = [
         f"type={transport}",
