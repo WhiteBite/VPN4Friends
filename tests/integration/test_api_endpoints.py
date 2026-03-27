@@ -1,7 +1,7 @@
 """Integration tests for FastAPI endpoints."""
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 
 
 class TestHealthEndpoints:
@@ -66,11 +66,11 @@ class TestMeEndpoint:
     @pytest.mark.asyncio
     async def test_get_me_unauthorized(self, api_client: AsyncClient):
         """Test getting user profile without Telegram auth."""
-        # Without proper Telegram initData, should return 401 or handle gracefully
+        # Without proper Telegram initData, returns 422 (validation error)
         response = await api_client.get("/me")
 
-        # Either returns 401 or handles gracefully with empty profile
-        assert response.status_code in [200, 401]
+        # 422 = validation error (missing/invalid auth header)
+        assert response.status_code == 422
 
 
 class TestPresetsEndpoints:
@@ -81,8 +81,8 @@ class TestPresetsEndpoints:
         """Test listing presets without auth."""
         response = await api_client.get("/presets")
 
-        # Should return 401 or empty list
-        assert response.status_code in [200, 401]
+        # 422 = validation error (missing/invalid auth header)
+        assert response.status_code == 422
 
 
 class TestAPIRoot:
@@ -90,13 +90,12 @@ class TestAPIRoot:
 
     @pytest.mark.asyncio
     async def test_api_root(self, api_client: AsyncClient):
-        """Test API root returns OpenAPI info."""
+        """Test API root returns 404 (no route configured for root)."""
         response = await api_client.get("/")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert "title" in data
-        assert data["title"] == "VPN4Friends Mini App API"
+        # Root path (/) is not configured - returns 404
+        # OpenAPI docs available at /docs, schema at /openapi.json
+        assert response.status_code == 404
 
 
 class TestOpenAPISchema:
