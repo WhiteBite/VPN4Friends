@@ -332,22 +332,6 @@ async def get_stats(
     )
 
 
-@app.get("/endpoints", response_model=list[EndpointSchema])
-async def list_endpoints() -> list[EndpointSchema]:
-    """Return available server endpoints (relay, direct, etc.)."""
-    return [
-        EndpointSchema(
-            name=ep.name,
-            label=ep.label,
-            host=ep.host,
-            port=ep.port,
-            is_relay=ep.is_relay,
-            description=ep.description,
-        )
-        for ep in settings.endpoints
-    ]
-
-
 @app.get("/health")
 async def health_check() -> dict:
     """Health check endpoint."""
