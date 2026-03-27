@@ -2,18 +2,23 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
+from pathlib import Path
 from typing import Any
 
 import pytest
 import pytest_asyncio
+
+# Load test environment variables before importing settings
+from dotenv import load_dotenv
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.api.main import app
-from src.bot.config import Settings
-from src.database.models import Base
-from src.database.session import session_factory
+test_env_path = Path(__file__).parent.parent / ".env.test"
+load_dotenv(test_env_path, override=True)
 
+from src.api.main import app  # noqa: E402
+from src.bot.config import Settings  # noqa: E402
+from src.database.models import Base  # noqa: E402
 
 # Test database URL (in-memory SQLite)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
