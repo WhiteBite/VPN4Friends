@@ -356,7 +356,7 @@ async def list_endpoints() -> list[EndpointSchema]:
             label=ep.label,
             host=ep.host,
             port=ep.port,
-            protocol=getattr(ep, "protocol", "vless"),
+            is_relay=ep.is_relay,
             description=ep.description,
         )
         for ep in settings.endpoints
