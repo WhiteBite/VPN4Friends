@@ -166,6 +166,19 @@ def generate_vpn_link(
 
     If *endpoint* is provided, it overrides the host/port in the generated URL.
     """
+    if endpoint and getattr(endpoint, "protocol", None) == "mtproto":
+        # Check if the MTProto details are provided via env variables or endpoint config
+        # Assuming MTPROTO_HOST etc are not needed if we have them in the endpoint kwargs
+        # But we'll use the hardcoded format for now or extract from endpoint host/port
+        import os
+
+        m_host = os.getenv("MTPROTO_HOST", endpoint.host)
+        m_port = os.getenv("MTPROTO_PORT", str(endpoint.port))
+        m_secret = os.getenv("MTPROTO_SECRET", "")
+        if "secret" in endpoint.panel_config:
+            m_secret = endpoint.panel_config["secret"]
+        return f"tg://proxy?server={m_host}&port={m_port}&secret={m_secret}"
+
     if protocol_name == "vless":
         prepared = merge_profile_settings(profile_data, settings_overrides)
         return generate_vless_url(prepared, endpoint=endpoint)

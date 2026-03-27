@@ -16,6 +16,7 @@ from src.keyboards.user_kb import (
     get_back_kb,
     get_confirm_delete_kb,
     get_link_kb,
+    get_locations_kb,
     get_stats_kb,
     get_user_main_kb,
 )
@@ -66,26 +67,10 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
         )
         return
 
-    if user.has_vpn:
-        # Returning user with VPN — show link immediately
-        vpn_service = VPNService(session)
-        vpn_link = await vpn_service.get_active_vpn_link(user)
-
-        if vpn_link:
-            proto = user.active_profile.protocol_name.upper()
-            await message.answer(
-                f"👋 Привет, <b>{user.full_name}</b>!\n\n"
-                f"⚡ {proto}\n\n"
-                f"🔗 Твоя ссылка:\n"
-                f"<code>{vpn_link}</code>",
-                reply_markup=get_user_main_kb(user.has_vpn, has_pending),
-                parse_mode="HTML",
-            )
-            return
-
-    # Returning user without VPN or link fetch failed
+    # Returning user without VPN or with VPN
+    status_emoji = "✅ У вас активный VPN" if user.has_vpn else "👋 С возвращением"
     await message.answer(
-        f"👋 С возвращением, <b>{user.full_name}</b>!",
+        f"{status_emoji}, <b>{user.full_name}</b>!",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
         parse_mode="HTML",
     )
@@ -164,27 +149,40 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
         await message.answer("❌ Нет VPN. Отправь заявку через /start")
         return
 
-    vpn_service = VPNService(session)
-    vpn_link = await vpn_service.get_active_vpn_link(user)
-    if not vpn_link:
-        await message.answer("❌ Не удалось получить ссылку.")
-        return
+    # For MTProto, we just generate URL without hitting any DB info
+    # For VLESS/Shadowsocks, it relies on User profile_data
+    from src.services.url_generator import generate_vpn_link
 
-    qr_buffer = generate_qr_code(vpn_link)
-    qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
-    proto = user.active_profile.protocol_name.upper()
+    messages: list[str] = [
+        f"🔗 <b>Пакет ваших ссылок ({user.active_profile.protocol_name.upper()}):</b>\n\n"
+        "<i>Нажмите на любую ссылку, чтобы её скопировать. "
+        "Для получения QR-кода используйте кнопки ниже.</i>\n"
+    ]
 
-    await message.answer_photo(
-        photo=qr_photo,
-        caption=(
-            f"🔗 <b>{proto} ссылка:</b>\n\n"
-            f"<code>{vpn_link}</code>\n\n"
-            f"📷 Или отсканируй QR выше"
-            f"{get_dns_instructions()}\n\n"
-            f"{APP_LINKS}"
-        ),
-        reply_markup=get_link_kb(),
+    for ep in settings.endpoints:
+        try:
+            vpn_link = generate_vpn_link(
+                protocol_name=user.active_profile.protocol_name,
+                profile_data=user.active_profile.profile_data,
+                settings_overrides=user.active_profile.settings,
+                endpoint=ep,
+            )
+        except Exception as e:
+            logger.error(f"Error generating link for {ep.name}: {e}")
+            continue
+
+        if vpn_link:
+            proto = getattr(ep, "protocol", user.active_profile.protocol_name).upper()
+            icon = "✈️" if proto == "MTPROTO" else "🌍"
+            messages.append(f"{icon} <b>{ep.label} ({proto})</b>\n<code>{vpn_link}</code>\n")
+
+    full_text = "\n".join(messages)
+
+    await message.answer(
+        full_text,
+        reply_markup=get_locations_kb(),
         parse_mode="HTML",
+        disable_web_page_preview=True,
     )
 
 
@@ -307,27 +305,99 @@ async def my_link(callback: CallbackQuery, session: AsyncSession) -> None:
         await callback.message.edit_text("❌ Нет VPN.", reply_markup=get_back_kb())
         return
 
-    vpn_service = VPNService(session)
-    vpn_link = await vpn_service.get_active_vpn_link(user)
+    await callback.answer("⏳ Собираю ссылки...")
+
+    # For MTProto, we just generate URL without hitting any DB info
+    # For VLESS/Shadowsocks, it relies on User profile_data
+    from src.services.url_generator import generate_vpn_link
+
+    messages: list[str] = [
+        f"🔗 <b>Пакет ваших ссылок ({user.active_profile.protocol_name.upper()}):</b>\n\n"
+        "<i>Нажмите на любую ссылку, чтобы её скопировать. "
+        "Для получения QR-кода используйте кнопки ниже.</i>\n"
+    ]
+
+    for ep in settings.endpoints:
+        try:
+            vpn_link = generate_vpn_link(
+                protocol_name=user.active_profile.protocol_name,
+                profile_data=user.active_profile.profile_data,
+                settings_overrides=user.active_profile.settings,
+                endpoint=ep,
+            )
+        except Exception as e:
+            logger.error(f"Error generating link for {ep.name}: {e}")
+            continue
+
+        if vpn_link:
+            proto = getattr(ep, "protocol", user.active_profile.protocol_name).upper()
+            icon = "✈️" if proto == "MTPROTO" else "🌍"
+            messages.append(f"{icon} <b>{ep.label} ({proto})</b>\n<code>{vpn_link}</code>\n")
+
+    full_text = "\n".join(messages)
+
+    await callback.message.edit_text(
+        full_text,
+        reply_markup=get_locations_kb(),
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
+
+
+@router.callback_query(F.data.startswith("get_link:"))
+async def generate_specific_link(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Generate link and QR code for a specific server location."""
+    endpoint_name = callback.data.split(":")[1]
+
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(
+        callback.fromuser.id if hasattr(callback, "fromuser") else callback.from_user.id
+    )
+    if not user or not user.active_profile:
+        await callback.answer("❌ Нет профиля.", show_alert=True)
+        return
+
+    endpoint = settings.get_endpoint(endpoint_name)
+    if not endpoint:
+        await callback.answer("❌ Сервер не найден.", show_alert=True)
+        return
+
+    await callback.answer("⏳ Создаю ссылку...")
+
+    # For MTProto, we just generate URL without hitting any DB info
+    # For VLESS/Shadowsocks, it relies on User profile_data
+    from src.services.url_generator import generate_vpn_link
+
+    try:
+        vpn_link = generate_vpn_link(
+            protocol_name=user.active_profile.protocol_name,
+            profile_data=user.active_profile.profile_data,
+            settings_overrides=user.active_profile.settings,
+            endpoint=endpoint,
+        )
+    except Exception as e:
+        logger.error(f"Error generating link for {endpoint.name}: {e}")
+        vpn_link = None
+
     if not vpn_link:
-        await callback.message.edit_text("❌ Ошибка получения ссылки.", reply_markup=get_back_kb())
+        await callback.message.edit_text("❌ Ошибка генерации ссылки.", reply_markup=get_back_kb())
         return
 
     qr_buffer = generate_qr_code(vpn_link)
     qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
-    proto = user.active_profile.protocol_name.upper()
+    proto = getattr(endpoint, "protocol", user.active_profile.protocol_name).upper()
 
     await callback.message.delete()
     await callback.message.answer_photo(
         photo=qr_photo,
         caption=(
-            f"🔗 <b>{proto} ссылка:</b>\n\n"
+            f"🔗 <b>{endpoint.label} ({proto})</b>\n\n"
             f"<code>{vpn_link}</code>\n\n"
             f"📷 Или отсканируй QR выше"
             f"{get_dns_instructions()}\n\n"
             f"{APP_LINKS}"
         ),
-        reply_markup=get_link_kb(),
+        reply_markup=get_link_kb(endpoint.name),
         parse_mode="HTML",
     )
 
@@ -394,10 +464,12 @@ async def confirm_delete_vpn(callback: CallbackQuery, session: AsyncSession) -> 
         await callback.message.edit_text("❌ Ошибка.", reply_markup=get_back_kb())
 
 
-@router.callback_query(F.data == "refresh_link")
+@router.callback_query(F.data.startswith("refresh_link:"))
 async def refresh_link(callback: CallbackQuery, session: AsyncSession) -> None:
     """Refresh VPN link."""
     await callback.answer("🔄 Обновляю...")
+
+    endpoint_name = callback.data.split(":")[1]
 
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
@@ -406,8 +478,35 @@ async def refresh_link(callback: CallbackQuery, session: AsyncSession) -> None:
         await callback.message.answer("❌ Нет VPN.", reply_markup=get_back_kb())
         return
 
-    vpn_service = VPNService(session)
-    vpn_link = await vpn_service.get_active_vpn_link(user)
+    endpoint = (
+        settings.get_endpoint(endpoint_name)
+        if endpoint_name and endpoint_name != "default"
+        else None
+    )
+
+    if not endpoint:
+        # Fallback to general menu if endpoint not found
+        await callback.message.delete()
+        await callback.message.answer(
+            "🌍 <b>Выберите локацию для подключения:</b>",
+            reply_markup=get_locations_kb(),
+            parse_mode="HTML",
+        )
+        return
+
+    from src.services.url_generator import generate_vpn_link
+
+    try:
+        vpn_link = generate_vpn_link(
+            protocol_name=user.active_profile.protocol_name,
+            profile_data=user.active_profile.profile_data,
+            settings_overrides=user.active_profile.settings,
+            endpoint=endpoint,
+        )
+    except Exception as e:
+        logger.error(f"Error refreshing link for {endpoint.name}: {e}")
+        vpn_link = None
+
     if not vpn_link:
         await callback.message.delete()
         await callback.message.answer("❌ Ошибка.", reply_markup=get_back_kb())
@@ -415,18 +514,18 @@ async def refresh_link(callback: CallbackQuery, session: AsyncSession) -> None:
 
     qr_buffer = generate_qr_code(vpn_link)
     qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
-    proto = user.active_profile.protocol_name.upper()
+    proto = getattr(endpoint, "protocol", user.active_profile.protocol_name).upper()
 
     await callback.message.delete()
     await callback.message.answer_photo(
         photo=qr_photo,
         caption=(
-            f"🔗 <b>{proto} ссылка:</b>\n\n"
+            f"🔗 <b>{endpoint.label} ({proto})</b>\n\n"
             f"<code>{vpn_link}</code>\n\n"
             f"📷 Или отсканируй QR выше\n\n"
             f"{APP_LINKS}"
         ),
-        reply_markup=get_link_kb(),
+        reply_markup=get_link_kb(endpoint.name),
         parse_mode="HTML",
     )
 

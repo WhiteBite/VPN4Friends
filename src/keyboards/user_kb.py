@@ -18,21 +18,18 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
     builder = InlineKeyboardBuilder()
 
     if has_vpn:
-        builder.button(text="🔗 Моя ссылка", callback_data="my_link")
+        # User clicks this to see all available VPN options (VLESS nodes, MTProto, etc)
+        builder.button(text="🔗 Мой VPN", callback_data="my_link")
         builder.button(text="📊 Статистика", callback_data="my_stats")
-        builder.button(text="🌐 Выбрать сервер", callback_data="choose_server")
-        # MTProto Proxy button for Telegram
-        mtproto_link = (
-            f"tg://proxy?server={MTPROTO_HOST}&port={MTPROTO_PORT}&secret={MTPROTO_SECRET}"
-        )
-        builder.button(text="📡 Telegram Proxy", url=mtproto_link)
+
         if settings.miniapp_url:
             builder.button(
                 text="⚙️ Настройки",
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
-        builder.adjust(2, 1, 1, 2)
+
+        builder.adjust(2, 1, 1)
     elif has_pending:
         builder.button(text="⏳ Заявка на рассмотрении", callback_data="pending_info")
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
@@ -69,10 +66,13 @@ def get_confirm_delete_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_link_kb() -> InlineKeyboardMarkup:
+def get_link_kb(endpoint_name: str | None = None) -> InlineKeyboardMarkup:
     """Get keyboard for link page."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="🔄 Обновить", callback_data="refresh_link")
+
+    refresh_data = f"refresh_link:{endpoint_name}" if endpoint_name else "refresh_link:default"
+    builder.button(text="🔄 Обновить", callback_data=refresh_data)
+
     builder.button(text="🏠 Меню", callback_data="back_to_menu_new")
     if settings.miniapp_url:
         builder.button(
@@ -80,4 +80,22 @@ def get_link_kb() -> InlineKeyboardMarkup:
             web_app=WebAppInfo(url=settings.miniapp_url),
         )
     builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def get_locations_kb() -> InlineKeyboardMarkup:
+    """Get keyboard with all available server locations."""
+    builder = InlineKeyboardBuilder()
+
+    for endpoint in settings.endpoints:
+        builder.button(
+            text=endpoint.label,
+            callback_data=f"get_link:{endpoint.name}",
+        )
+
+    # We construct the MTProto proxy link button inside user.py, or we can just make it part of endpoints if it has name="finland_mtproto" etc.
+    # Since MTProto endpoints are already in settings.endpoints, the loop above naturally handles them!
+
+    builder.button(text="⬅️ Опции и другие протоколы", callback_data="back_to_menu")
+    builder.adjust(1)
     return builder.as_markup()
