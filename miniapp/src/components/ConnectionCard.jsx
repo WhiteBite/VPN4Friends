@@ -43,11 +43,12 @@ export default function ConnectionCard({ profile, endpoint, onCopy, link }) {
                 value={link}
                 size={180}
                 bgColor="transparent"
-                fgColor="var(--text)"
+                fgColor="#090B0F"
                 level="M"
                 includeMargin={false}
               />
           </div>
+          <div className="qr-hint">Отсканируй или нажми "Скопировать" ↓</div>
           
           <button className="btn-copy-main" onClick={onCopy}>
             <span className="btn-icon">📋</span>

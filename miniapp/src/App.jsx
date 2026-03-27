@@ -71,6 +71,9 @@ function App() {
 
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type, visible: true });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }));
+    }, 3000);
   }, []);
 
   const hideToast = useCallback(() => {
@@ -257,6 +260,7 @@ function App() {
                  endpoints={endpoints}
                  current={currentEndpoint}
                  onSelect={handleSelectEndpoint}
+                 onCopy={handleCopy}
                  busy={busy === 'endpoint'}
                />
             ) : (
@@ -271,28 +275,6 @@ function App() {
               visible={true}
               onError={(msg) => showToast(msg, 'error')}
             />
-            {me?.profile?.has_profile && (
-              <div className="settings-accordion">
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--full"
-                  onClick={() => setShowSettings((v) => !v)}
-                  style={{ marginBottom: showSettings ? '8px' : '0' }}
-                >
-                  {showSettings ? '▲ Скрыть продвинутые настройки' : '⚙️ Продвинутые настройки 🛠'}
-                </button>
-                {showSettings && (
-                  <SettingsPanel
-                    visible={true}
-                    profile={me?.profile}
-                    protocols={protocols}
-                    onSwitchProtocol={handleSwitchProtocol}
-                    onUpdateSni={handleUpdateSni}
-                    busy={!!busy}
-                  />
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>

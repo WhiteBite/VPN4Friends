@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ServerSelector({ endpoints, currentEndpoint, onSelect, busy }) {
+export default function ServerSelector({ endpoints, currentEndpoint, onSelect, onCopy, busy }) {
   if (!endpoints?.length) return null;
 
   return (
@@ -19,7 +19,17 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, b
             <span className="server-card__label">{ep.label}</span>
             <span className="server-card__desc">{ep.description || (ep.is_relay ? 'Оптимально' : 'Прямое')}</span>
           </div>
-          {currentEndpoint === ep.name && <span className="server-card__check">✔</span>}
+          {currentEndpoint === ep.name && (
+            <div className="server-card__actions">
+              <span className="server-card__check">✔</span>
+              <div 
+                className="btn-icon btn-icon--copy" 
+                onClick={(e) => { e.stopPropagation(); onCopy(); }}
+              >
+                📋
+              </div>
+            </div>
+          )}
         </button>
       ))}
     </div>
