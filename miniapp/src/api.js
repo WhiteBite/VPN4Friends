@@ -5,6 +5,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 async function apiRequest(path, options = {}) {
   const initData = getInitData();
 
+  // If initData is empty and we are not in mock dev mode, we cannot authenticate the user.
+  if (!initData && !import.meta.env.DEV) {
+    throw new Error('Telegram не передал данные профиля (initData пуст). Перезапустите бота через /start и нажмите кнопку в меню.');
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
