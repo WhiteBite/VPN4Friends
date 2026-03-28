@@ -68,7 +68,11 @@ def generate_vless_url(
 
     remark = profile_data.get("remark", "")
     email = profile_data.get("email", "")
-    fragment = f"{remark}-{email}" if remark and email else (remark or email)
+
+    if endpoint and getattr(endpoint, "label", None):
+        fragment = f"{endpoint.label} | {email}" if email else endpoint.label
+    else:
+        fragment = f"{remark}-{email}" if remark and email else (remark or email)
 
     reality = profile_data.get("reality", {})
     public_key = reality.get("public_key") or settings.reality_public_key
