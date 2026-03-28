@@ -185,10 +185,30 @@ def generate_vpn_link(
 
         m_host = os.getenv("MTPROTO_HOST", endpoint.host)
         m_port = os.getenv("MTPROTO_PORT", str(endpoint.port))
-        m_secret = os.getenv("MTPROTO_SECRET", "")
-        if "secret" in endpoint.panel_config:
-            m_secret = endpoint.panel_config["secret"]
+        m_secret = os.getenv("MTPROTO_SECRET", getattr(endpoint, "secret", ""))
+
+        # If secret is embedded in panel_config
+        if hasattr(endpoint, "panel_config") and isinstance(endpoint.panel_config, dict):
+            m_secret = endpoint.panel_config.get("secret", m_secret)
+
         return f"tg://proxy?server={m_host}&port={m_port}&secret={m_secret}"
+
+    if endpoint and getattr(endpoint, "protocol", None) == "socks":
+        import os
+        from urllib.parse import quote
+
+        s_host = getattr(endpoint, "host", "")
+        s_port = getattr(endpoint, "port", "")
+
+        s_user = ""
+        s_pass = ""
+
+        if hasattr(endpoint, "panel_config") and isinstance(endpoint.panel_config, dict):
+            s_user = endpoint.panel_config.get("user", "")
+            s_pass = endpoint.panel_config.get("pass", "")
+
+        auth_qs = f"&user={quote(s_user)}&pass={quote(s_pass)}" if s_user and s_pass else ""
+        return f"tg://socks?server={s_host}&port={s_port}{auth_qs}"
 
     protocol_name_lower = protocol_name.lower()
 

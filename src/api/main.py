@@ -396,9 +396,11 @@ async def list_endpoints() -> list[EndpointSchema]:
             port=ep.port,
             is_relay=ep.is_relay,
             description=ep.description,
+            category=getattr(ep, "category", "vpn"),
+            country=getattr(ep, "country", "Unknown"),
+            transport=getattr(ep, "transport", "vless") or "vless",
         )
         for ep in settings.endpoints
-        if getattr(ep, "protocol", "vless") != "mtproto"
     ]
 
 

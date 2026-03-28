@@ -33,6 +33,10 @@ class ServerEndpoint(BaseModel):
     panel_config: dict = {}  # Panel-specific credentials
     protocol: str = "vless"  # Protocol type: "vless", "mtproto", etc.
 
+    # Categorization fields for the UI
+    category: str = "vpn"  # "vpn", "telegram"
+    country: str = "Финляндия"  # "Финляндия", "Германия", "Нидерланды"
+
     # Extra parameters for relays or advanced endpoints
     transport: str | None = None
     security: str | None = None

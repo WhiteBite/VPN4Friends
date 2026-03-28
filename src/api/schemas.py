@@ -118,6 +118,9 @@ class EndpointSchema(BaseModel):
     port: int
     is_relay: bool
     description: str
+    category: str = "vpn"
+    country: str = "Unknown"
+    transport: str = "vless"
 
 
 class SelectEndpointRequest(BaseModel):
