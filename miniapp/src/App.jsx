@@ -7,6 +7,7 @@ import {
   selectEndpoint,
   switchProtocol,
   updateSni,
+  requestVpn,
 } from './api';
 import { getTelegram } from './telegram';
 
@@ -16,13 +17,17 @@ import StatsCard from './components/StatsCard';
 import SettingsPanel from './components/SettingsPanel';
 import Toast from './components/Toast';
 import BottomNav from './components/BottomNav';
+import AdminPanel from './components/AdminPanel';
+import Card from './ui/Card';
+import Button from './ui/Button';
 
 // Mock data for development (when API is not available)
 const MOCK_DATA = {
   me: {
-    user: { full_name: 'Даня', username: 'danya' },
+    user: { full_name: 'Даня', username: 'danya', is_admin: true },
     profile: {
-      has_profile: true,
+      has_profile: false,
+      request_status: null,
       protocol: 'vless',
       label: 'VLESS Reality',
       sni: 'google.com',
@@ -211,6 +216,19 @@ function App() {
     }
   };
 
+  const handleRequestVpn = async () => {
+    setBusy('request');
+    try {
+      const resp = await safeFetch(() => requestVpn(), { success: true, message: 'Mock Заявка отправлена' });
+      showToast(resp.message || 'Заявка отправлена!', 'success');
+      await refreshMe();
+    } catch (err) {
+      showToast(err.message || 'Ошибка отправки заявки.', 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+
   // ----- Render -----
 
   const activeEndpoint = endpoints.find((ep) => ep.name === currentEndpoint) || null;
@@ -259,6 +277,8 @@ function App() {
               endpoint={activeEndpoint}
               link={vpnLink}
               onCopy={handleCopy}
+              onRequest={handleRequestVpn}
+              isBusy={busy === 'request'}
             />
           </div>
         )}
@@ -274,7 +294,13 @@ function App() {
                  busy={busy === 'endpoint'}
                />
             ) : (
-              <div className="empty-state">У тебя пока нет профиля VPN.</div>
+              <Card>
+                <div className="empty-state">
+                  <div className="empty-icon">📍</div>
+                  <div className="empty-title">Нет локаций</div>
+                  <div className="empty-text">У тебя пока нет активного профиля VPN для выбора локации.</div>
+                </div>
+              </Card>
             )}
           </div>
         )}
@@ -285,11 +311,42 @@ function App() {
               visible={true}
               onError={(msg) => showToast(msg, 'error')}
             />
+            <SettingsPanel
+              visible={true}
+              profile={me?.profile}
+              protocols={protocols}
+              onSwitchProtocol={handleSwitchProtocol}
+              onUpdateSni={handleUpdateSni}
+              busy={busy === 'protocol' || busy === 'sni'}
+            />
+            <Card style={{ marginTop: '16px' }}>
+              <div className="card-title">💬 Поддержка</div>
+              <Button
+                variant="secondary"
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '15px' }}
+                onClick={() => {
+                  const tg = getTelegram();
+                  if (tg?.openTelegramLink) {
+                    tg.openTelegramLink('https://t.me/whitebites'); // Replace with actual admin username or take from config
+                  } else {
+                    window.open('https://t.me/whitebites', '_blank');
+                  }
+                }}
+              >
+                Написать администратору
+              </Button>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'admin' && me?.user?.is_admin && (
+          <div className="tab-pane fade-in">
+            <AdminPanel onError={(msg) => showToast(msg, 'error')} onSuccess={(msg) => showToast(msg, 'success')} />
           </div>
         )}
       </div>
 
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} isAdmin={Boolean(me?.user?.is_admin)} />
 
       {/* Toast */}
       <Toast

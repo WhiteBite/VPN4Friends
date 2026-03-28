@@ -40,6 +40,12 @@ class ServerEndpoint(BaseModel):
     flow: str | None = None
     serviceName: str | None = None
 
+    # Reality-specific overrides
+    pbk: str | None = None
+    sid: str | None = None
+    fp: str | None = None
+    spx: str | None = None
+
 
 class Settings(BaseSettings):
     """Bot configuration loaded from environment variables."""
@@ -66,6 +72,10 @@ class Settings(BaseSettings):
     xui_password: str
     xui_host: str
 
+    # Global Reality Keys
+    reality_public_key: str = ""
+    reality_short_id: str = ""
+
     # Protocols configuration (JSON string from .env)
     protocols_config: str = "[]"
     protocols: list[Protocol] = []
@@ -83,6 +93,7 @@ class Settings(BaseSettings):
     mtproto_proxy_secret: str = ""
 
     model_config = {
+        "env_file": ".env",
         "env_file_encoding": "utf-8",
         "extra": "ignore",
         "env_prefix": "",

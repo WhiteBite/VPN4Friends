@@ -1,6 +1,7 @@
 """VPN service for business logic."""
 
 import logging
+import uuid
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,30 +92,27 @@ class VPNService:
         # (double-click on "Approve" button)
         await self.request_repo.approve(request)
 
-        try:
-            # Get panel for this endpoint
-            panel = get_panel_for_server(protocol_name)
-            async with panel:
-                client_name = generate_client_name(user.username, user.telegram_id)
-                client_data = await panel.create_client(
-                    inbound_id=endpoint.panel_config.get("inbound_id", 1),
-                    email=client_name,
-                    protocol=endpoint.name,
-                )
-                if not client_data:
-                    # Rollback: revert request status
-                    await self.request_repo.revert_to_pending(request)
-                    return False, "Ошибка создания профиля в 3X-UI"
+        client_name = generate_client_name(user.username, user.telegram_id)
+        client_id = str(uuid.uuid4())
 
-                protocol_settings = await panel.get_protocol_settings(
-                    endpoint.panel_config.get("inbound_id", 1)
-                )
+        # We need a stable profile_data to store in the DB.
+        # It won't have the exact server keys since they are overridden in URL gen.
+        full_profile_data = {
+            "client_id": client_id,
+            "email": client_name,
+            "protocol": endpoint.name,
+            "remark": "VPN4Friends",
+        }
+
+        try:
+            synced_any = await self.sync_client_to_all_panels(client_name, client_id, "vless")
+            if not synced_any:
+                await self.request_repo.revert_to_pending(request)
+                return False, "Ошибка создания профиля: ни одна панель не доступна"
         except Exception as e:
             logger.error(f"Failed to create client for request {request_id}: {e}")
             await self.request_repo.revert_to_pending(request)
             return False, "Ошибка создания профиля в 3X-UI"
-
-        full_profile_data = {**client_data, **protocol_settings}
 
         profile = await self.user_repo.create_vpn_profile(
             user=user, protocol_name=endpoint.name, profile_data=full_profile_data
@@ -147,24 +145,82 @@ class VPNService:
             return False
 
         email = active_profile.profile_data.get("email")
-        inbound_id = active_profile.profile_data.get("inbound_id")
 
-        # BUG-4 FIX: Log warning if 3x-ui deletion fails
-        if email and inbound_id:
-            try:
-                async with XUIApi() as api:
-                    deleted = await api.delete_client(inbound_id, email)
-                    if not deleted:
-                        logger.warning(
-                            f"Failed to delete client '{email}' from 3x-ui inbound {inbound_id} "
-                            f"(may be a ghost client)"
-                        )
-            except Exception as e:
-                logger.error(f"Error deleting client '{email}' from 3x-ui: {e}")
+        if email:
+            logger.info(f"Revoking VPN for user {user.telegram_id} across all panels...")
+            await self.remove_client_from_all_panels(email)
 
         await self.user_repo.delete_active_profile(user)
         logger.info(f"Revoked VPN for user {user.telegram_id}")
         return True
+
+    async def sync_client_to_all_panels(self, email: str, client_id: str, protocol: str) -> bool:
+        """Broadcast user creation to all configured VPN panels."""
+        success_count = 0
+        seen_urls = set()
+
+        # Include default XUIApi
+        panels_to_sync = [XUIApi()]
+        seen_urls.add(settings.xui_api_url)
+
+        for ep in settings.endpoints:
+            if ep.panel_config and ep.panel_type == "3xui":
+                api_url = ep.panel_config.get("api_url")
+                if api_url and api_url not in seen_urls:
+                    panels_to_sync.append(XUIApi(ep.panel_config))
+                    seen_urls.add(api_url)
+            elif ep.panel_config and ep.panel_type == "hiddify":
+                from src.services.hiddify_api import HiddifyApi
+
+                api_url = ep.panel_config.get("api_url")
+                if api_url and api_url not in seen_urls:
+                    panels_to_sync.append(HiddifyApi(ep.panel_config))
+                    seen_urls.add(api_url)
+
+        for panel in panels_to_sync:
+            try:
+                async with panel:
+                    res = await panel.add_client_to_all_inbounds(email, client_id, protocol)
+                    if res > 0:
+                        success_count += 1
+            except Exception as e:
+                logger.error(f"Error syncing {email} to panel: {e}")
+
+        return success_count > 0
+
+    async def remove_client_from_all_panels(self, email: str) -> bool:
+        """Broadcast user deletion to all configured VPN panels."""
+        seen_urls = set()
+
+        # Include default XUIApi
+        panels_to_sync = [XUIApi()]
+        seen_urls.add(settings.xui_api_url)
+
+        for ep in settings.endpoints:
+            if ep.panel_config and ep.panel_type == "3xui":
+                api_url = ep.panel_config.get("api_url")
+                if api_url and api_url not in seen_urls:
+                    panels_to_sync.append(XUIApi(ep.panel_config))
+                    seen_urls.add(api_url)
+            elif ep.panel_config and ep.panel_type == "hiddify":
+                from src.services.hiddify_api import HiddifyApi
+
+                api_url = ep.panel_config.get("api_url")
+                if api_url and api_url not in seen_urls:
+                    panels_to_sync.append(HiddifyApi(ep.panel_config))
+                    seen_urls.add(api_url)
+
+        deleted = False
+        for panel in panels_to_sync:
+            try:
+                async with panel:
+                    res = await panel.remove_client_from_all_inbounds(email)
+                    if res > 0:
+                        deleted = True
+            except Exception as e:
+                logger.error(f"Error removing {email} from panel: {e}")
+
+        return deleted
 
     async def get_user_stats(self, user: User) -> dict[str, Any] | None:
         """Get traffic statistics for the user's active profile."""
@@ -176,12 +232,40 @@ class VPNService:
         if not email:
             return None
 
-        async with XUIApi() as api:
-            traffic_data = await api.get_client_traffic(email)
+        total_up = 0
+        total_down = 0
+
+        panels_to_check = [XUIApi()]
+        seen_urls = {settings.xui_api_url}
+
+        for ep in settings.endpoints:
+            if ep.panel_config and ep.panel_type == "3xui":
+                api_url = ep.panel_config.get("api_url")
+                if api_url and api_url not in seen_urls:
+                    panels_to_check.append(XUIApi(ep.panel_config))
+                    seen_urls.add(api_url)
+            elif ep.panel_config and ep.panel_type == "hiddify":
+                from src.services.hiddify_api import HiddifyApi
+
+                api_url = ep.panel_config.get("api_url")
+                if api_url and api_url not in seen_urls:
+                    panels_to_check.append(HiddifyApi(ep.panel_config))
+                    seen_urls.add(api_url)
+
+        for panel in panels_to_check:
+            try:
+                async with panel:
+                    traffic = await panel.get_client_traffic(email)
+                    if traffic:
+                        total_up += traffic.get("upload", 0)
+                        total_down += traffic.get("download", 0)
+            except Exception as e:
+                logger.error(f"Error getting stats for {email} from panel: {e}")
 
         return {
             "protocol": active_profile.protocol_name,
-            **traffic_data,
+            "upload": total_up,
+            "download": total_down,
         }
 
     async def get_active_vpn_link(self, user: User) -> str | None:

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
+from src.api.admin import router as admin_router
 from src.api.dependencies import get_current_user
 from src.api.schemas import (
     CreatePresetRequest,
@@ -70,6 +71,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(admin_router)
+
 
 @app.get("/protocols", response_model=list[ProtocolSchema])
 async def list_protocols() -> list[ProtocolSchema]:
@@ -104,7 +107,11 @@ async def get_me(
     """Get consolidated state for the current user."""
     preset_service = PresetService(session)
 
-    user_schema = UserSchema(full_name=user.full_name, username=user.username)
+    user_schema = UserSchema(
+        full_name=user.full_name,
+        username=user.username,
+        is_admin=user.is_admin,
+    )
 
     # Get profile info
     active_profile = user.active_profile
@@ -117,13 +124,28 @@ async def get_me(
 
         profile_schema = ProfileSchema(
             has_profile=True,
+            request_status="approved",
             protocol=active_profile.protocol_name,
             label=active_profile.label,
             sni=active_profile.settings.get("sni") if active_profile.settings else None,
             available_snis=available_snis,
         )
     else:
-        profile_schema = ProfileSchema(has_profile=False)
+        # Check if there is an active request
+        from sqlalchemy import select
+
+        from src.database.models import VPNRequest
+
+        req = await session.execute(
+            select(VPNRequest)
+            .where(VPNRequest.user_id == user.id)
+            .order_by(VPNRequest.created_at.desc())
+            .limit(1)
+        )
+        latest_req = req.scalar_one_or_none()
+        request_status = latest_req.status.value if latest_req else None
+
+        profile_schema = ProfileSchema(has_profile=False, request_status=request_status)
 
     # Get presets info
     presets = await preset_service.get_user_presets(user)
@@ -416,4 +438,57 @@ async def select_endpoint_route(
     return GenericResponse(
         success=True,
         message=f"Точка входа изменена на '{endpoint.label}'.",
+    )
+
+
+@app.post("/me/request", response_model=GenericResponse)
+async def request_vpn_endpoint(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> GenericResponse:
+    """Submit a new VPN request for the current user."""
+    from aiogram import Bot
+
+    from src.bot.config import settings
+    from src.database.repositories import RequestRepository
+    from src.keyboards.admin_kb import get_request_action_kb
+
+    req_repo = RequestRepository(session)
+    if await req_repo.has_pending(user):
+        return GenericResponse(
+            success=False,
+            message="Ваша заявка уже на рассмотрении.",
+        )
+
+    # They might already have a profile
+    if user.has_vpn:
+        return GenericResponse(
+            success=False,
+            message="У вас уже есть активный VPN профиль.",
+        )
+
+    request = await req_repo.create(user)
+
+    # Notify admins
+    # Create bot instance just to emit the message
+    bot = Bot(token=settings.bot_token)
+    for admin_id in settings.admin_ids:
+        try:
+            display_name = user.username and f"@{user.username}" or user.full_name
+            await bot.send_message(
+                admin_id,
+                f"🔔 <b>Новая заявка (из WebApp)!</b>\n\n"
+                f"👤 {display_name}\n"
+                f"🆔 <code>{user.telegram_id}</code>",
+                reply_markup=get_request_action_kb(request),
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass  # Fail silently if bot cannot reach admin
+
+    await bot.session.close()
+
+    return GenericResponse(
+        success=True,
+        message="Заявка успешно отправлена!",
     )

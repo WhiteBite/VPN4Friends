@@ -1,4 +1,5 @@
 import React from 'react';
+import Card from '../ui/Card';
 
 export default function SettingsPanel({
   visible,
@@ -15,7 +16,7 @@ export default function SettingsPanel({
     : [];
 
   return (
-    <section className="card">
+    <Card>
       <div className="card-title">⚙️ Настройки</div>
 
       {/* Protocol Selection */}
@@ -59,6 +60,6 @@ export default function SettingsPanel({
           </div>
         </>
       )}
-    </section>
+    </Card>
   );
 }

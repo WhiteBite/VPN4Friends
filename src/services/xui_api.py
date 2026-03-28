@@ -133,7 +133,7 @@ class XUIApi(PanelAPI):
         return base_template
 
     async def create_client(
-        self, inbound_id: int, email: str, protocol: str
+        self, inbound_id: int, email: str, protocol: str, client_id: str | None = None
     ) -> dict[str, Any] | None:
         """Create a new client in the specified inbound.
 
@@ -158,7 +158,7 @@ class XUIApi(PanelAPI):
                     "inbound_id": inbound_id,
                 }
 
-        client_id = str(uuid.uuid4())
+        client_id = client_id or str(uuid.uuid4())
         new_client = self._get_client_template(protocol, client_id, email)
 
         clients.append(new_client)
@@ -175,6 +175,37 @@ class XUIApi(PanelAPI):
             }
         return None
 
+    async def add_client_to_all_inbounds(
+        self, email: str, client_id: str, protocol: str = "vless"
+    ) -> int:
+        """Add a client to all enabled inbounds matching the protocol.
+
+        Returns the number of inbounds successfully updated.
+        """
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        url = self._build_url("/api/inbounds/list")
+        async with self._session.get(url) as resp:
+            if resp.status != 200:
+                return 0
+            result = await resp.json()
+            if not result.get("success"):
+                return 0
+            inbounds = result.get("obj", [])
+
+        success_count = 0
+        for inbound in inbounds:
+            if not inbound.get("enable"):
+                continue
+            if inbound.get("protocol") != protocol:
+                continue
+            res = await self.create_client(inbound["id"], email, protocol, client_id)
+            if res:
+                success_count += 1
+
+        return success_count
+
     async def delete_client(self, inbound_id: int, email: str) -> bool:
         """Delete a client from the specified inbound by email."""
         inbound = await self.get_inbound(inbound_id)
@@ -190,6 +221,39 @@ class XUIApi(PanelAPI):
         inbound["settings"] = json.dumps(settings_data)
 
         return await self.update_inbound(inbound_id, inbound)
+
+    async def remove_client_from_all_inbounds(self, email: str) -> int:
+        """Remove a client by email from all enabled inbounds.
+
+        Returns the number of inbounds successfully updated.
+        """
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        url = self._build_url("/api/inbounds/list")
+        async with self._session.get(url) as resp:
+            if resp.status != 200:
+                return 0
+            result = await resp.json()
+            if not result.get("success"):
+                return 0
+            inbounds = result.get("obj", [])
+
+        success_count = 0
+        for inbound in inbounds:
+            if not inbound.get("enable"):
+                continue
+
+            # Check if client exists before calling delete
+            settings_str = inbound.get("settings", "{}")
+            if email not in settings_str:
+                continue
+
+            # Could fail if client isn't really there, but delete_client handles it gracefully
+            if await self.delete_client(inbound["id"], email):
+                success_count += 1
+
+        return success_count
 
     async def get_client_traffic(self, email: str) -> dict[str, int]:
         """Get client traffic statistics."""

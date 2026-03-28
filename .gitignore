@@ -86,3 +86,4 @@ vpn-config.json
 # Local credentials backup (NEVER commit)
 BACKUP-CREDENTIALS.txt
 
+data/

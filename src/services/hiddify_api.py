@@ -54,7 +54,7 @@ class HiddifyApi(PanelAPI):
         return f"{base}/api/v2{path}"
 
     async def create_client(
-        self, inbound_id: int, email: str, protocol: str
+        self, inbound_id: int, email: str, protocol: str, client_id: str | None = None
     ) -> dict[str, Any] | None:
         """Create a new user in Hiddify.
 
@@ -65,7 +65,7 @@ class HiddifyApi(PanelAPI):
         if not self._session:
             raise HiddifyApiError("Session not initialized")
 
-        client_uuid = str(uuid.uuid4())
+        client_uuid = client_id or str(uuid.uuid4())
 
         payload = {
             "uuid": client_uuid,
@@ -124,7 +124,7 @@ class HiddifyApi(PanelAPI):
             pass
         return None
 
-    async def delete_client(self, email: str) -> bool:
+    async def delete_client(self, _inbound_id: int, email: str) -> bool:
         """Delete a Hiddify user by name."""
         if not self._session:
             raise HiddifyApiError("Session not initialized")
@@ -140,6 +140,20 @@ class HiddifyApi(PanelAPI):
         except Exception as e:
             logger.error(f"Hiddify delete_client error: {e}")
             return False
+
+    async def add_client_to_all_inbounds(
+        self, email: str, client_id: str, protocol: str = "vless"
+    ) -> int:
+        """Hiddify creates users globally, so we just call create_client."""
+        res = await self.create_client(
+            inbound_id=1, email=email, protocol=protocol, client_id=client_id
+        )
+        return 1 if res else 0
+
+    async def remove_client_from_all_inbounds(self, email: str) -> int:
+        """Hiddify deletes users globally, so we just call delete_client."""
+        res = await self.delete_client(inbound_id=1, email=email)
+        return 1 if res else 0
 
     async def get_client_traffic(self, email: str) -> dict[str, Any] | None:
         """Get traffic stats for a Hiddify user."""

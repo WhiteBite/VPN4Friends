@@ -88,6 +88,48 @@ export function updateSni(sni) {
   });
 }
 
+// ----- VPN Requests & Admin -----
+
+export function requestVpn() {
+  return apiRequest('/me/request', { method: 'POST' });
+}
+
+export function fetchAdminRequests() {
+  return apiRequest('/admin/requests');
+}
+
+export function approveRequest(id) {
+  return apiRequest(`/admin/requests/${id}/approve`, { method: 'POST' });
+}
+
+export function rejectRequest(id) {
+  return apiRequest(`/admin/requests/${id}/reject`, { method: 'POST' });
+}
+
+export function sendAdminBroadcast(payload) {
+  return apiRequest('/admin/broadcast', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+// ----- Support Chats -----
+
+export function fetchAdminChats() {
+  return apiRequest('/admin/chats');
+}
+
+export function fetchChatHistory(userId) {
+  return apiRequest(`/admin/chats/${userId}`);
+}
+
+export function sendChatReply(userId, text) {
+  return apiRequest(`/admin/chats/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+}
+
 // ----- Presets -----
 
 export function listPresets() {

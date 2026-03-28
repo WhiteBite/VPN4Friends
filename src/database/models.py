@@ -11,6 +11,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     String,
+    Text,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -48,6 +49,9 @@ class User(Base):
         back_populates="user", lazy="selectin", cascade="all, delete-orphan"
     )
     presets: Mapped[list["ConnectionPreset"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    support_messages: Mapped[list["SupportMessage"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -128,3 +132,19 @@ class ConnectionPreset(Base):
     # Relationships
     user: Mapped["User"] = relationship(back_populates="presets")
     profile: Mapped["VpnProfile"] = relationship()
+
+
+class SupportMessage(Base):
+    """Messages sent between user and admin via bot support."""
+
+    __tablename__ = "support_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    is_from_admin: Mapped[bool] = mapped_column(default=False)
+    text: Mapped[str] = mapped_column(Text)
+    is_read: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    # Relationships
+    user: Mapped["User"] = relationship(back_populates="support_messages")

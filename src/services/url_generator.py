@@ -71,10 +71,12 @@ def generate_vless_url(
     fragment = f"{remark}-{email}" if remark and email else (remark or email)
 
     reality = profile_data.get("reality", {})
-    public_key = reality.get("public_key", "")
+    public_key = reality.get("public_key") or settings.reality_public_key
     fingerprint = reality.get("fingerprint", "chrome")
     sni = reality.get("sni", "")
-    short_id = reality.get("short_id", "")
+    short_id = reality.get("short_id")
+    if short_id is None:
+        short_id = settings.reality_short_id
     spider_x = reality.get("spider_x", "/")
 
     spider_x_encoded = quote(spider_x, safe="")
@@ -99,6 +101,15 @@ def generate_vless_url(
             flow_param = endpoint.flow
         if getattr(endpoint, "serviceName", None):
             service_name = endpoint.serviceName
+        if getattr(endpoint, "pbk", None):
+            public_key = endpoint.pbk
+        if getattr(endpoint, "sid", None) is not None:
+            short_id = endpoint.sid
+        if getattr(endpoint, "fp", None):
+            fingerprint = endpoint.fp
+        if getattr(endpoint, "spx", None):
+            spider_x = endpoint.spx
+            spider_x_encoded = quote(spider_x, safe="")
     else:
         host = profile_data.get("host", settings.xui_host)
         port = profile_data.get("port", 443)

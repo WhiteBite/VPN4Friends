@@ -10,6 +10,7 @@ class UserSchema(BaseModel):
 
     full_name: str
     username: str | None
+    is_admin: bool = False
 
 
 class PresetSchema(BaseModel):
@@ -25,6 +26,7 @@ class ProfileSchema(BaseModel):
     """VPN profile information."""
 
     has_profile: bool
+    request_status: str | None = None
     protocol: str | None = None
     label: str | None = None
     sni: str | None = None

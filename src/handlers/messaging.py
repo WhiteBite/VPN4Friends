@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bot.config import settings
 from src.bot.middlewares.admin import AdminFilter
-from src.database.repositories import UserRepository
+from src.database.repositories import SupportRepository, UserRepository
 from src.keyboards.messaging_kb import (
     get_broadcast_target_kb,
     get_cancel_kb,
@@ -76,6 +76,11 @@ async def process_feedback(
     if not user:
         await message.answer("❌ Ошибка. Попробуй /start")
         return
+
+    # Save to database
+    support_repo = SupportRepository(session)
+    await support_repo.save_message(user_id=user.id, text=message.text, is_from_admin=False)
+    await session.commit()
 
     # Send to all admins
     for admin_id in settings.admin_ids:
@@ -173,12 +178,15 @@ async def preview_broadcast(
 
     count = len(users)
 
-    await state.update_data(broadcast_text=message.text)
+    await state.update_data(
+        from_chat_id=message.chat.id,
+        message_id=message.message_id,
+        is_html=message.text is not None or message.caption is not None,
+    )
     await state.set_state(BroadcastStates.confirm_broadcast)
 
     await message.answer(
-        f"📢 <b>Предпросмотр рассылки</b>\n\n"
-        f"{message.text}\n\n"
+        f"📢 <b>Предпросмотр рассылки готов. Сообщение выше будет переслано.</b>\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"👥 Получателей: <b>{count}</b>",
         reply_markup=get_broadcast_confirm_kb(),
@@ -200,8 +208,13 @@ async def confirm_broadcast(
     await callback.answer()
     data = await state.get_data()
     target = data.get("target", "all")
-    text = data.get("broadcast_text", "")
+    from_chat_id = data.get("from_chat_id")
+    message_id = data.get("message_id")
     await state.clear()
+
+    if not from_chat_id or not message_id:
+        await callback.message.edit_text("❌ Ошибка получения сообщения.")
+        return
 
     user_repo = UserRepository(session)
     if target == "all":
@@ -219,10 +232,10 @@ async def confirm_broadcast(
 
     for user in users:
         try:
-            await bot.send_message(
-                user.telegram_id,
-                f"📢 <b>Объявление:</b>\n\n{text}",
-                parse_mode="HTML",
+            await bot.copy_message(
+                chat_id=user.telegram_id,
+                from_chat_id=from_chat_id,
+                message_id=message_id,
             )
             success += 1
         except Exception as e:
@@ -292,6 +305,7 @@ async def process_dm_user_id(message: Message, state: FSMContext) -> None:
 async def process_dm_message(
     message: Message,
     state: FSMContext,
+    session: AsyncSession,
     bot: Bot,
 ) -> None:
     """Send direct message to user."""
@@ -305,6 +319,13 @@ async def process_dm_message(
         return
 
     try:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(user_id)
+        if user:
+            support_repo = SupportRepository(session)
+            await support_repo.save_message(user_id=user.id, text=message.text, is_from_admin=True)
+            await session.commit()
+
         from src.keyboards.user_reply_kb import get_reply_to_admin_kb
 
         await bot.send_message(

@@ -1,5 +1,6 @@
 from src.database.repositories.preset_repo import PresetRepository
 from src.database.repositories.request_repo import RequestRepository
+from src.database.repositories.support_repo import SupportRepository
 from src.database.repositories.user_repo import UserRepository
 
-__all__ = ["UserRepository", "RequestRepository", "PresetRepository"]
+__all__ = ["UserRepository", "RequestRepository", "PresetRepository", "SupportRepository"]

@@ -18,7 +18,7 @@ class PanelAPI(ABC):
 
     @abstractmethod
     async def create_client(
-        self, inbound_id: int, email: str, protocol: str
+        self, inbound_id: int, email: str, protocol: str, client_id: str | None = None
     ) -> dict[str, Any] | None:
         """Create a new VPN client.
 
@@ -30,6 +30,24 @@ class PanelAPI(ABC):
     @abstractmethod
     async def delete_client(self, inbound_id: int, email: str) -> bool:
         """Delete a VPN client by email."""
+        ...
+
+    @abstractmethod
+    async def add_client_to_all_inbounds(
+        self, email: str, client_id: str, protocol: str = "vless"
+    ) -> int:
+        """Add a client to all enabled inbounds matching the protocol.
+
+        Returns the number of inbounds successfully updated.
+        """
+        ...
+
+    @abstractmethod
+    async def remove_client_from_all_inbounds(self, email: str) -> int:
+        """Remove a client by email from all enabled inbounds.
+
+        Returns the number of inbounds successfully updated.
+        """
         ...
 
     @abstractmethod

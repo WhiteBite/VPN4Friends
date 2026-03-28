@@ -138,7 +138,7 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
   margin-bottom: 24px;
 }
 
-.hero-status__badge {
+.badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -149,14 +149,14 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
   box-shadow: 0 0 12px rgba(0,0,0,0.2);
 }
 
-.hero-status__badge--active {
+.badge--success {
   background: rgba(16, 185, 129, 0.15);
   color: var(--accent);
   border: 1px solid rgba(16, 185, 129, 0.3);
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
-.hero-status__badge--inactive {
+.badge--error {
   background: rgba(239, 68, 68, 0.15);
   color: var(--destructive);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -578,21 +578,28 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 
 .toast {
   position: fixed;
-  top: 20px; /* Safe space from top nav bar */
+  top: calc(20px + env(safe-area-inset-top, 0px)); /* Push slightly closer to top */
   left: 50%;
-  transform: translateX(-50%) translateY(-100px); /* start above screen */
-  padding: 10px 20px;
+  transform: translateX(-50%) translateY(-150px); /* start higher above screen */
+  opacity: 0;
+  padding: 12px 20px;
   border-radius: var(--r-pill);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   z-index: 1000; /* above everything */
   pointer-events: none;
-  white-space: nowrap;
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* bouncy drop */
+  width: max-content;
+  max-width: 90%;
+  text-align: center;
+  word-break: break-word;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
   box-shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
 
-.toast--visible { transform: translateX(-50%) translateY(0); }
+.toast--visible { 
+  transform: translateX(-50%) translateY(0); 
+  opacity: 1;
+}
 
 .toast--success { background: var(--accent); color: #000; }
 .toast--error { background: var(--destructive); color: #fff; }
@@ -632,8 +639,8 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 8px 16px;
-  padding-bottom: env(safe-area-inset-bottom, 24px);
+  padding: 12px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   z-index: 100;
 }
 
@@ -711,3 +718,87 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 .empty-icon { font-size: 48px; margin-bottom: 12px; }
 .empty-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
 .empty-text { font-size: 14px; color: var(--text-hint); line-height: 1.5; max-width: 240px; margin: 0 auto; }
+
+/* ---- Hero Location & QR ---- */
+
+.hero-location {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px;
+  border-radius: var(--r);
+  margin-bottom: 24px;
+}
+
+.location-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2);
+}
+
+.location-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.location-label {
+  font-size: 12px;
+  color: var(--text-hint);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.location-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.qr-toggle-container {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.btn-text-muted {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: color 0.2s var(--ease);
+}
+
+.btn-text-muted:hover {
+  color: var(--text);
+}
+
+.qr-wrapper {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.3s ease;
+}
+
+.qr-wrapper--open {
+  max-height: 300px;
+  opacity: 1;
+  margin-top: 16px;
+}
