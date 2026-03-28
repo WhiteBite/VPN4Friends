@@ -120,11 +120,18 @@ async def get_me(
     # Get profile info
     active_profile = user.active_profile
     if active_profile:
-        async with XUIApi() as api:
-            protocol_settings = await api.get_protocol_settings(
-                active_profile.profile_data.get("inbound_id")
-            )
-            available_snis = protocol_settings.get("reality", {}).get("sni_options", [])
+        available_snis = ["max.ru", "vk.com", "www.google.com"]
+        inbound_id = active_profile.profile_data.get("inbound_id")
+
+        if inbound_id is not None:
+            try:
+                async with XUIApi() as api:
+                    protocol_settings = await api.get_protocol_settings(inbound_id)
+                    found_snis = protocol_settings.get("reality", {}).get("sni_options", [])
+                    if found_snis:
+                        available_snis = found_snis
+            except Exception:
+                pass
 
         profile_schema = ProfileSchema(
             has_profile=True,
