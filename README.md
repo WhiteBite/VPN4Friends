@@ -1,316 +1,129 @@
-# 🔐 VPN Bot для друзей
+# 🔐 VPN4Friends
 
-**Multi-Server VPN Relay System** — Netherlands (62YUN) + Finland + Moscow Relay
+**Telegram-бот и Mini App для управления личным VPN-сервисом.**
 
-Telegram-бот для раздачи VPN друзьям с ручным одобрением заявок. Интеграция с панелью 3X-UI. Обход ТСПУ через Moscow relay.
+Современное решение для раздачи VPN (VLESS, Reality, gRPC, Shadowsocks, Telegram Proxies) друзьям и близким. Включает удобное управление через инлайн-меню и потрясающий интерфейс Telegram Mini App (Glassmorphism, плавная анимация, динамические конфиги).
 
-## ✨ Возможности
+---
 
-### Для пользователей
-- 🔗 **Выбор сервера** — 🇫🇮 Финляндия или 🇳🇱 Нидерланды
-- 🌐 **Обход ТСПУ** — relay через Москву (маскировка под VK трафик)
-- 🔑 Отправить заявку на VPN
-- 📊 Статистика трафика
-- ✉️ Написать админу
-- ✈️ **Telegram Proxy** — нативный MTProto для Telegram
+## ✨ Ключевые возможности
 
-### Для админа
-- ✅ Одобрить/отклонить заявки
-- 👥 Список пользователей с VPN
-- 📊 Статистика по каждому пользователю
-- 📢 Рассылка сообщений
-- ✉️ Личные сообщения пользователям
-- 🗑️ Отозвать VPN
+### 📱 Для пользователей (Mini App)
+- 🚀 **Красивый дашборд** — управление своим профилем внутри приложения Telegram.
+- 🔗 **Поддержка любых протоколов** — генерация ссылок для VLESS, xHTTP/TCP, gRPC, Shadowsocks и нативных Telegram-прокси (MTProto / SOCKS5).
+- 🌍 **Динамический список локаций** — удобная группировка серверов по странам с подсказками по протоколам (какой протокол для чего нужен).
+- 📊 **Мониторинг трафика** — просмотр своей статистики в реальном времени.
 
-## 🌍 Архитектура
+### 🛡️ Для администратора
+- ✅ **Ручное одобрение заявок** — новые пользователи запрашивают доступ прямо через бота (или Mini App), а админ решает, одобрять их или нет.
+- ⚙️ **Безопасная конфигурация** — все серверы и секреты вынесены в **один JSON-объект**, который легко хранится в GitHub Secrets и раскатывается через CI/CD (никакого хардкода).
+- 📢 **Броадкасты и обратная связь** — встроенные рассылки и функции общения поддержки.
+- 🔄 **Интеграция с X-UI** — автоматическое создание клиентов в [3X-UI](https://github.com/MHSanaei/3x-ui) при получении доступа. Поддержка каскадных серверов (Relay) для обхода DPI.
 
+---
+
+## 🌍 Архитектура и Динамические конфиги
+
+Проект спроектирован так, чтобы вы могли добавлять неограниченное количество серверов, локаций и маршрутов **без изменения исходного кода фронтенда или бэкенда**. Вся конфигурация пробрасывается через JSON в переменную окружения `ENDPOINTS_CONFIG`.
+
+### Пример добавления новой локации (через JSON):
+```json
+[
+  {
+    "name": "germany_direct",
+    "label": "🇩🇪 Германия (Direct)",
+    "category": "vpn",
+    "country": "Германия",
+    "host": "de.example.com",
+    "port": 443,
+    "protocol": "vless",
+    "transport": "reality"
+  },
+  {
+    "name": "finland_tg_socks",
+    "label": "FI SOCKS5 Proxy",
+    "category": "telegram",
+    "country": "Финляндия",
+    "host": "fi.example.com",
+    "port": 1080,
+    "protocol": "socks",
+    "transport": "socks",
+    "panel_config": {
+      "user": "telegram",
+      "pass": "your_secure_password"
+    }
+  }
+]
 ```
-┌─────────────────┐
-│   Client        │
-└────────┬────────┘
-         │
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-┌─────────┐ ┌──────────────┐
-│ 🇳🇱 NL   │ │ 🇫🇮 Finland │
-│ Direct  │ │ Direct       │
-└─────────┘ └──────────────┘
-    ▲         ▲
-    │         │
-    └────┬────┘
-         │
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-┌─────────────────────┐
-│  🇷🇺 Moscow Relay   │
-│  (VK Cloud)         │
-│  dokodemo-door      │
-│  Port 443 → FI:443  │
-│  Port 444 → FI:8444 │
-│  Port 445 → NL:443  │
-└─────────────────────┘
-```
+*Выше описанные данные автоматически парсятся приложением: бэкенд включает их в API, а UI группирует их во вкладках (VPN / Telegram) и по странам.*
 
-**7 endpoints подключения:**
-
-| # | Название | Маршрут | Порт | Протокол | Для кого |
-|---|----------|---------|------|----------|----------|
-| 1 | 🇳🇱 Netherlands Direct | Direct | 443 | VLESS | Старые юзеры |
-| 2 | 🇳🇱 Netherlands → Moscow | Relay | 445 | VLESS Reality | Обход ТСПУ |
-| 3 | ✈️ NL MTProto | Direct | 4443 | MTProto | Только Telegram |
-| 4 | 🇫🇮 Finland Direct | Direct | 443 | VLESS | Вне РФ |
-| 5 | 🇫🇮 Finland → Moscow (xHTTP) | Relay | 443 | VLESS Reality | **Рекомендуется для РФ** ⭐ |
-| 6 | 🇫🇮 Finland → Moscow (gRPC) | Relay | 444 | VLESS gRPC | Альтернатива |
-| 7 | ✈️ FI MTProto | Direct | 4443 | MTProto | Только Telegram |
+---
 
 ## 🚀 Быстрый старт
 
 ### Требования
 - Python 3.11+
-- Панель [3X-UI](https://github.com/MHSanaei/3x-ui) с настроенным inbound (Reality)
-- Telegram бот от [@BotFather](https://t.me/BotFather)
-- Docker и Docker Compose (для деплоя)
+- Node.js 18+ (для сборки Mini App по желанию)
+- Поднятая панель [3X-UI](https://github.com/MHSanaei/3x-ui)
+- Токен Telegram бота от [@BotFather](https://t.me/BotFather)
 
 ### Установка (локально)
 
 ```bash
-# Клонируй репозиторий
-git clone https://github.com/your-username/vpn-friends-bot.git
-cd vpn-friends-bot
+# Клонируйте репозиторий
+git clone https://github.com/your-username/VPN4Friends.git
+cd VPN4Friends
 
-# Создай виртуальное окружение
+# Создайте и активируйте виртуальное окружение
 python -m venv .venv
+source .venv/bin/activate  # Для Linux/Mac
+# .venv\Scripts\activate   # Для Windows
 
-# Активируй (Windows)
-.venv\Scripts\activate
-# Или Linux/Mac
-source .venv/bin/activate
-
-# Установи зависимости
+# Установите зависимости
 pip install -r requirements.txt
 
-# Скопируй и настрой конфиг
-cp .env.example .env
-# Отредактируй .env своими данными
+# Скопируйте пример конфига
+cp vpn-config.example.json vpn-config.json
+# Заполните vpn-config.json вашими реальными серверами, ключами и настройками X-UI.
 
-# Запусти бота
+# Запустите скрипт трансформации (или используйте jq на сервере), 
+# чтобы перевести JSON в переменные среды .env
+# Запустите бота:
 python -m src.bot.app
 ```
 
-### Деплой (Docker + CI/CD)
+---
 
-```bash
-# Настрой GitHub Secrets:
-# - SERVER_HOST (IP или домен сервера)
-# - SERVER_USER (username)
-# - SSH_KEY (private key)
+## 📦 Деплой через GitHub Actions (CI/CD)
 
-# Задеплой
-git push origin master
-# GitHub Actions автоматически зальёт на сервер
-```
+Этот проект настроен для автоматического деплоя на ваш VPS без хранения приватных ключей в самом репозитории.
 
-**Инструкция по деплою:** См. файлы на сервере в `/home/ubuntu/VPN4Friends/docs/`
-
-## ⚙️ Настройка .env
-
-| Переменная | Описание |
-|------------|----------|
-| `BOT_TOKEN` | Токен от @BotFather |
-| `ADMIN_IDS` | Твой Telegram ID (через запятую если несколько) |
-| `ENDPOINTS_CONFIG` | JSON с конфигурацией серверов (7 endpoint'ов) |
-| `MTPROTO_PROXY_*` | Настройки MTProto для Telegram |
-| `REALITY_*` | Параметры Reality из настроек inbound |
-
-**Пример `ENDPOINTS_CONFIG`:**
-```json
-[
-  {
-    "name":"finland_xhttp",
-    "label":"🇫🇮 Финляндия (xHTTP)",
-    "host":"YOUR_MOSCOW_IP",
-    "port":443,
-    "protocol":"vless",
-    "security":"reality",
-    "sni":"max.ru",
-    "flow":"xtls-rprx-vision"
-  },
-  {
-    "name":"netherlands_direct",
-    "label":"🇳🇱 Нидерланды (Direct)",
-    "host":"YOUR_NL_IP",
-    "port":443,
-    "protocol":"vless",
-    "panel_type":"3xui",
-    "panel_config": {...}
-  }
-]
-```
-
-## 📁 Структура проекта
-
-```
-├── src/
-│   ├── bot/           # Конфиг, middleware, точка входа
-│   ├── handlers/      # Обработчики команд (user, admin, server_selection)
-│   ├── keyboards/     # Клавиатуры (user, server selection)
-│   ├── database/      # Модели и репозитории
-│   ├── services/      # Бизнес-логика (VPN, XUI API)
-│   └── utils/         # Утилиты
-├── scripts/           # Скрипты деплоя
-│   └── deploy-env.sh  # Обновление .env на сервере
-├── .env.example       # Пример конфигурации (без секретов)
-├── requirements.txt   # Зависимости
-└── README.md
-```
-
-**Документация:** Хранится на сервере в `/home/ubuntu/VPN4Friends/docs/` (не коммитить в git)
-
-## 🏗️ Архитектура
-
-Проект использует **Clean Architecture** с разделением на слои:
-
-```
-┌─────────────────────────────────────────────────────┐
-│              PRESENTATION LAYER                      │
-│  ┌──────────────┐         ┌─────────────────────┐   │
-│  │  Bot         │         │  REST API           │   │
-│  │  (aiogram)   │         │  (FastAPI)          │   │
-│  │  handlers/   │         │  api/routes/        │   │
-│  └──────┬───────┘         └──────────┬──────────┘   │
-└─────────┼─────────────────────────────┼─────────────┘
-          │                             │
-          └──────────────┬──────────────┘
-                         │
-┌────────────────────────▼────────────────────────────┐
-│              BUSINESS LOGIC LAYER                    │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  services/                                    │  │
-│  │  ├── vpn_service.py  (VPN логика)             │  │
-│  │  ├── xui_service.py  (3X-UI API)              │  │
-│  │  └── preset_service.py (Presets)              │  │
-│  └──────────────────────────────────────────────┘  │
-└────────────────────────┬───────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────┐
-│              DATA ACCESS LAYER                       │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  database/                                     │  │
-│  │  ├── models.py        (SQLAlchemy ORM)        │  │
-│  │  ├── repositories/    (DB queries)            │  │
-│  │  └── session.py       (AsyncSession)          │  │
-│  └──────────────────────────────────────────────┘  │
-└────────────────────────┬───────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────┐
-│              DATABASE (SQLite)                       │
-└─────────────────────────────────────────────────────┘
-```
-
-### Ключевые принципы:
-
-1. **Shared Business Logic** — сервисы используются и ботом, и API
-2. **Framework-agnostic** — сервисы не зависят от aiogram/FastAPI
-3. **Dependency Injection** — зависимости передаются через параметры
-4. **Repository Pattern** — доступ к БД изолирован в repositories
+1. Убедитесь, что ваш файл с секретами (`vpn-config.json`) добавлен в `.gitignore`!
+2. Перейдите в настройки вашего форка в GitHub: **Settings -> Secrets and variables -> Actions**
+3. Создайте следующие секреты:
+   - `SERVER_HOST` — IP-адрес вашего сервера для бота.
+   - `SERVER_USER` — Имя пользователя (например, `ubuntu`).
+   - `SSH_KEY` — Ваш приватный SSH ключ для доступа.
+   - `VPN_CONFIG` — Полное содержимое предварительно заполненного файла `vpn-config.json` (весь текст!).
+4. При каждом пуше в ветку `master` GitHub Actions автоматически:
+   - Соберёт и проверит код (линтеры + тесты).
+   - Зайдет на сервер по SSH.
+   - С помощью `jq` перегонит `VPN_CONFIG` из JSON в файл `.env`.
+   - Перезапустит сервисы приложения.
 
 ---
 
-## 🧪 Тестирование
+## 📱 Рекомендуемые клиенты для подключения
+Боту уже известны и понятны все современные VPN-клиенты. Сгенерированные ссылки (VLESS / Shadowsocks) безопасны к импорту и автоматически декодируют красивые имена:
 
-### Запуск тестов
-
-```bash
-# Установить зависимости для тестов
-pip install -r requirements-test.txt
-
-# Запустить все тесты
-pytest
-
-# Запустить с покрытием
-pytest --cov=src --cov-report=html
-
-# Запустить конкретный тест
-pytest tests/unit/test_repositories.py -v
-
-# Запустить integration тесты
-pytest tests/integration/ -v
-```
-
-### Структура тестов
-
-```
-tests/
-├── conftest.py           # Fixtures и конфигурация
-├── unit/                 # Unit тесты
-│   └── test_repositories.py  # 11 тестов
-└── integration/          # Integration тесты
-    ├── test_api.py       # API endpoints
-    ├── test_api_endpoints.py  # Comprehensive API tests
-    └── test_bot_handlers.py   # Bot handlers
-```
-
-### Покрытие кода
-
-Проект стремится к **80%+ покрытию** тестами. Отчёт о покрытии генерируется автоматически:
-
-```bash
-pytest --cov=src --cov-report=html
-# Отчёт: htmlcov/index.html
-```
-
-**Текущее покрытие:** ~20% (ядро протестировано, handlers требуют больше тестов)
+| Платформа | Приложение |
+|-----------|------------|
+| iOS | [V2RayTun](https://apps.apple.com/app/v2raytun/id6476628951), [Streisand](https://apps.apple.com/app/streisand/id6450534064) |
+| Android | [v2rayNG](https://github.com/2dust/v2rayNG/releases), [Hiddify](https://github.com/hiddify/hiddify-app) |
+| Windows/Mac | [Hiddify](https://github.com/hiddify/hiddify-app), [v2rayN](https://github.com/2dust/v2rayN) |
 
 ---
-
-## 📚 API Endpoints
-
-### Public Endpoints (Mini App)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/ready` | GET | Readiness check |
-| `/protocols` | GET | Список протоколов |
-| `/endpoints` | GET | Список серверов |
-| `/me` | GET | Профиль пользователя |
-| `/presets` | GET | Список presets |
-| `/openapi.json` | GET | OpenAPI схема |
-| `/docs` | GET | Swagger UI |
-
-### Authentication
-
-API использует **Telegram initData** для аутентификации. Клиент должен передать заголовок:
-
-```
-Authorization: Telegram <initData>
-```
-
-где `<initData>` — строка из [Telegram WebApp initData](https://core.telegram.org/bots/webapps#webappinitdata).
-
----
-
-## 📱 Приложения для подключения
-
-| Платформа | Приложение | Для чего |
-|-----------|------------|----------|
-| iOS | [V2RayTun](https://apps.apple.com/app/v2raytun/id6476628951) | VLESS/gRPC |
-| Android | [V2RayNG](https://github.com/2dust/v2rayNG) | VLESS/gRPC |
-| Windows/Mac | [Hiddify](https://github.com/hiddify/hiddify-app) | VLESS/gRPC |
-| Telegram | Встроенный прокси | MTProto |
-
-## 📚 Документация
-
-**Вся документация хранится на сервере** (не коммитится в git для безопасности):
-
-- `/home/ubuntu/VPN4Friends/docs/DEPLOY-INSTRUCTIONS.md` — Инструкция по деплою
-- `/home/ubuntu/VPN4Friends/docs/VPN-SETUP-FINAL.md` — Архитектура и настройка
-- `/home/ubuntu/VPN4Friends/docs/QUICK-REFERENCE.md` — Шпаргалка
-
-**Почему не в git?** Документация содержит IP-адреса серверов и конфигурационные данные которые не должны быть публичными.
 
 ## 📄 Лицензия
 
-MIT
+MIT License
