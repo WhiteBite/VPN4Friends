@@ -28,15 +28,24 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
-
         builder.adjust(2, 1, 1)
     elif has_pending:
         builder.button(text="⏳ Заявка на рассмотрении", callback_data="pending_info")
+        if settings.miniapp_url:
+            builder.button(
+                text="🚀 Мой Кабинет",
+                web_app=WebAppInfo(url=settings.miniapp_url),
+            )
         builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
-        builder.adjust(1, 1)
+        builder.adjust(1, 1, 1)
     else:
         builder.button(text="🔑 Попросить VPN", callback_data="request_vpn")
-        builder.adjust(1)
+        if settings.miniapp_url:
+            builder.button(
+                text="🚀 Открыть Приложение",
+                web_app=WebAppInfo(url=settings.miniapp_url),
+            )
+        builder.adjust(1, 1)
 
     return builder.as_markup()
 
