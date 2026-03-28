@@ -135,7 +135,10 @@ def generate_vless_url(
 
     query_string = "&".join(url_params)
 
-    return f"vless://{profile_data['client_id']}@{host}:{port}?{query_string}#{fragment}"
+    # URL-encode the fragment for strict clients
+    fragment_encoded = quote(fragment)
+
+    return f"vless://{profile_data['client_id']}@{host}:{port}?{query_string}#{fragment_encoded}"
 
 
 def generate_shadowsocks_url(profile_data: dict[str, Any]) -> str:
@@ -164,7 +167,8 @@ def generate_shadowsocks_url(profile_data: dict[str, Any]) -> str:
     # urlsafe base64 without padding
     userinfo_b64 = base64.urlsafe_b64encode(userinfo.encode("utf-8")).decode("utf-8").rstrip("=")
 
-    return f"ss://{userinfo_b64}#{fragment}"
+    fragment_encoded = quote(fragment)
+    return f"ss://{userinfo_b64}#{fragment_encoded}"
 
 
 def generate_vpn_link(
