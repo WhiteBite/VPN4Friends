@@ -71,11 +71,17 @@ async def get_current_user(
     user = await user_repo.get_by_telegram_id(telegram_id)
 
     if not user:
-        # In a real scenario, we might create the user here
-        # For now, we assume the user must have interacted with the bot first
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found. Please start the bot first.",
+        # User opened the Mini App without typing /start in the bot.
+        # Auto-create their account so they can use the app seamlessly.
+        first_name = user_data.get("first_name", "")
+        last_name = user_data.get("last_name", "")
+        full_name = f"{first_name} {last_name}".strip() or "Unknown"
+
+        user, _ = await user_repo.get_or_create(
+            telegram_id=telegram_id,
+            full_name=full_name,
+            username=user_data.get("username"),
+            is_admin=telegram_id in settings.admin_ids,
         )
 
     return user
