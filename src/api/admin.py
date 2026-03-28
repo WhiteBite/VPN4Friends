@@ -143,7 +143,12 @@ async def approve_request(
         raise HTTPException(status_code=404, detail="Pending request not found")
 
     vpn_service = VPNService(session)
-    await vpn_service.approve_request(request)
+    # Use default protocol (first available endpoint)
+    default_protocol = settings.endpoints[0].protocol if settings.endpoints else "vless"
+    success, message = await vpn_service.approve_request(request_id, default_protocol)
+
+    if not success:
+        return GenericResponse(success=False, message=message)
 
     # Notify user
     try:
