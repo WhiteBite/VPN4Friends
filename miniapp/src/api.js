@@ -100,19 +100,19 @@ export function requestVpn() {
 }
 
 export function fetchAdminRequests() {
-  return apiRequest('/admin/requests');
+  return apiRequest('/staff/requests');
 }
 
 export function approveRequest(id) {
-  return apiRequest(`/admin/requests/${id}/approve`, { method: 'POST' });
+  return apiRequest(`/staff/requests/${id}/approve`, { method: 'POST' });
 }
 
 export function rejectRequest(id) {
-  return apiRequest(`/admin/requests/${id}/reject`, { method: 'POST' });
+  return apiRequest(`/staff/requests/${id}/reject`, { method: 'POST' });
 }
 
 export function sendAdminBroadcast(payload) {
-  return apiRequest('/admin/broadcast', {
+  return apiRequest('/staff/broadcast', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -121,15 +121,15 @@ export function sendAdminBroadcast(payload) {
 // ----- Support Chats -----
 
 export function fetchAdminChats() {
-  return apiRequest('/admin/chats');
+  return apiRequest('/staff/chats');
 }
 
 export function fetchChatHistory(userId) {
-  return apiRequest(`/admin/chats/${userId}`);
+  return apiRequest(`/staff/chats/${userId}`);
 }
 
 export function sendChatReply(userId, text) {
-  return apiRequest(`/admin/chats/${userId}`, {
+  return apiRequest(`/staff/chats/${userId}`, {
     method: 'POST',
     body: JSON.stringify({ text }),
   });

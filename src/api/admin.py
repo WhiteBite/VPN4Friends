@@ -17,7 +17,7 @@ from src.services.vpn_service import VPNService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/staff", tags=["admin"])
 
 
 class ChatPreviewSchema(BaseModel):
