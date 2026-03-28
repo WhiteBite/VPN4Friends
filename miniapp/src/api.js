@@ -95,8 +95,11 @@ export function updateSni(sni) {
 
 // ----- VPN Requests & Admin -----
 
-export function requestVpn() {
-  return apiRequest('/me/request', { method: 'POST' });
+export function requestVpn(comment = '') {
+  return apiRequest('/me/request', { 
+    method: 'POST',
+    body: JSON.stringify({ comment }),
+  });
 }
 
 export function fetchAdminRequests() {
@@ -154,4 +157,13 @@ export function deletePreset(id) {
 
 export function getPresetConfig(id) {
   return apiRequest(`/presets/${id}/config`);
+}
+
+// ----- Support/Help -----
+
+export function sendSupportMessage(text) {
+  return apiRequest('/support', {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
 }

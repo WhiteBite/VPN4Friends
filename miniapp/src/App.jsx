@@ -218,10 +218,10 @@ function App() {
     }
   };
 
-  const handleRequestVpn = async () => {
+  const handleRequestVpn = async (comment = '') => {
     setBusy('request');
     try {
-      const resp = await safeFetch(() => requestVpn(), { success: true, message: 'Mock Заявка отправлена' });
+      const resp = await safeFetch(() => requestVpn(comment), { success: true, message: 'Mock Заявка отправлена' });
       showToast(resp.message || 'Заявка отправлена!', 'success');
       await refreshMe();
     } catch (err) {

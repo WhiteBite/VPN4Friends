@@ -49,6 +49,7 @@ class AdminRequestSchema(BaseModel):
     username: str | None
     status: str
     created_at: datetime
+    user_comment: str | None = None
 
 
 class BroadcastRequestSchema(BaseModel):
@@ -119,6 +120,7 @@ async def get_requests(
             username=req.user.username,
             status=req.status.value,
             created_at=req.created_at,
+            user_comment=req.user_comment,
         )
         for req in requests
     ]

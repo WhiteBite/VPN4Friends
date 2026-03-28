@@ -1,5 +1,7 @@
 """Main FastAPI application for the Mini App backend."""
 
+import contextlib
+
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,8 +20,10 @@ from src.api.schemas import (
     PresetSchema,
     ProfileSchema,
     ProtocolSchema,
+    RequestVPNSchema,
     SelectEndpointRequest,
     StatsResponse,
+    SupportMessageRequest,
     SwitchProtocolRequest,
     SwitchProtocolResponse,
     UpdateSNIRequest,
@@ -158,6 +162,41 @@ async def get_me(
         profile=profile_schema,
         presets=presets_schema,
     )
+
+
+@app.post("/support", response_model=GenericResponse)
+async def send_support_message(
+    payload: SupportMessageRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> GenericResponse:
+    """Send a support message to admins."""
+    from aiogram import Bot
+
+    from src.bot.config import settings
+    from src.database.repositories.support_repo import SupportRepository
+
+    repo = SupportRepository(session)
+    await repo.save_message(user.id, payload.text)
+
+    # Notify admins
+    bot = Bot(token=settings.bot_token.get_secret_value())
+    try:
+        if settings.admin_ids:
+            for admin_id in settings.admin_ids:
+                with contextlib.suppress(Exception):
+                    await bot.send_message(
+                        admin_id,
+                        f"📩 <b>Новое обращение в поддержку (через Mini App)</b>\n"
+                        f"👤 {user.full_name} (@{user.username or 'без_юзернейма'})\n\n"
+                        f"💬 {payload.text}",
+                        parse_mode="HTML",
+                    )
+    finally:
+        await bot.session.close()
+
+    await session.commit()
+    return GenericResponse(success=True, message="Сообщение отправлено!")
 
 
 @app.post("/me/protocol", response_model=SwitchProtocolResponse)
@@ -445,6 +484,7 @@ async def select_endpoint_route(
 
 @app.post("/me/request", response_model=GenericResponse)
 async def request_vpn_endpoint(
+    payload: RequestVPNSchema,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> GenericResponse:
@@ -469,19 +509,25 @@ async def request_vpn_endpoint(
             message="У вас уже есть активный VPN профиль.",
         )
 
-    request = await req_repo.create(user)
+    request = await req_repo.create(user, user_comment=payload.comment)
 
     # Notify admins
     # Create bot instance just to emit the message
-    bot = Bot(token=settings.bot_token)
+    bot = Bot(token=settings.bot_token.get_secret_value())
     for admin_id in settings.admin_ids:
         try:
             display_name = user.username and f"@{user.username}" or user.full_name
-            await bot.send_message(
-                admin_id,
+            msg_text = (
                 f"🔔 <b>Новая заявка (из WebApp)!</b>\n\n"
                 f"👤 {display_name}\n"
-                f"🆔 <code>{user.telegram_id}</code>",
+                f"🆔 <code>{user.telegram_id}</code>"
+            )
+            if payload.comment:
+                msg_text += f"\n💬 <b>Комментарий:</b> {payload.comment}"
+
+            await bot.send_message(
+                admin_id,
+                msg_text,
                 reply_markup=get_request_action_kb(request),
                 parse_mode="HTML",
             )

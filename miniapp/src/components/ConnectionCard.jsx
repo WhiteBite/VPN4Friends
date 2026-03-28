@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
 import Card from '../ui/Card';
@@ -8,9 +8,72 @@ import { IconLock, IconCopy, IconCheckCircle, IconGlobe } from '../ui/Icons';
 
 export default function ConnectionCard({ profile, endpoint, onCopy, link, onRequest, isBusy }) {
   const hasProfile = profile?.has_profile;
+  const [comment, setComment] = useState('');
+  const [showForm, setShowForm] = useState(false);
+
+  const handleSubmitRequest = () => {
+    onRequest(comment);
+  };
 
   if (!hasProfile) {
     const status = profile?.request_status;
+
+    // Common request form (used in both "no status" and "rejected" states)
+    const renderRequestForm = () => {
+      if (!showForm) {
+        return (
+          <Button 
+            variant="primary" 
+            style={{ width: '100%', padding: '16px', borderRadius: 'var(--r-pill)', fontSize: '16px', fontWeight: '600' }}
+            onClick={() => setShowForm(true)}
+            isLoading={isBusy}
+          >
+            {status === 'rejected' ? 'Запросить повторно' : 'Запросить доступ'}
+          </Button>
+        );
+      }
+
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Напишите, зачем вам VPN (необязательно)..."
+            rows={3}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-elevated)',
+              color: 'var(--text)',
+              fontSize: '14px',
+              resize: 'none',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              style={{ flex: 1, padding: '14px', borderRadius: 'var(--r-pill)', fontSize: '15px' }}
+              onClick={() => { setShowForm(false); setComment(''); }}
+              disabled={isBusy}
+            >
+              Назад
+            </Button>
+            <Button
+              variant="primary"
+              style={{ flex: 1, padding: '14px', borderRadius: 'var(--r-pill)', fontSize: '15px', fontWeight: '600' }}
+              onClick={handleSubmitRequest}
+              isLoading={isBusy}
+            >
+              Отправить
+            </Button>
+          </div>
+        </div>
+      );
+    };
 
     return (
       <Card hero>
@@ -27,9 +90,10 @@ export default function ConnectionCard({ profile, endpoint, onCopy, link, onRequ
             <>
               <div className="empty-icon">❌</div>
               <div className="empty-title">Заявка отклонена</div>
-              <div className="empty-text">
-                К сожалению, модератор отклонил ваш запрос на доступ.
+              <div className="empty-text" style={{ marginBottom: '16px' }}>
+                К сожалению, модератор отклонил ваш запрос. Вы можете отправить заявку повторно.
               </div>
+              {renderRequestForm()}
             </>
           ) : (
             <>
@@ -38,14 +102,7 @@ export default function ConnectionCard({ profile, endpoint, onCopy, link, onRequ
               <div className="empty-text" style={{ marginBottom: '24px' }}>
                 Чтобы получить свой личный VPN и начать пользоваться сервисом, отправь заявку.
               </div>
-              <Button 
-                variant="primary" 
-                style={{ width: '100%', padding: '16px', borderRadius: 'var(--r-pill)', fontSize: '16px', fontWeight: '600' }}
-                onClick={onRequest}
-                isLoading={isBusy}
-              >
-                Запросить доступ
-              </Button>
+              {renderRequestForm()}
             </>
           )}
         </div>

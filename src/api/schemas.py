@@ -45,6 +45,14 @@ class SwitchProtocolRequest(BaseModel):
     protocol: str
 
 
+class RequestVPNSchema(BaseModel):
+    comment: str | None = None
+
+
+class SupportMessageRequest(BaseModel):
+    text: str
+
+
 class UpdateSNIRequest(BaseModel):
     sni: str
 

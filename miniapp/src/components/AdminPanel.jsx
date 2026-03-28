@@ -166,6 +166,20 @@ export default function AdminPanel({ onError, onSuccess }) {
               </div>
             </div>
             
+            {req.user_comment && (
+              <div style={{ 
+                padding: '8px 12px', 
+                marginBottom: '12px',
+                background: 'var(--bg)', 
+                borderRadius: '8px', 
+                fontSize: '13px', 
+                color: 'var(--text-muted)',
+                borderLeft: '3px solid var(--accent)'
+              }}>
+                💬 {req.user_comment}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '8px' }}>
               <Button 
                 variant="primary" 
