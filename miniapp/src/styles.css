@@ -18,7 +18,7 @@
   --card: rgba(255, 255, 255, 0.03);
   --card-hover: rgba(255, 255, 255, 0.08);
   --neon-blue: #0EA5E9;
-  --neon-blue-glow: rgba(14, 165, 233, 0.6);
+  --neon-blue-glow: rgba(14, 165, 233, 0.25);
 
   --font: 'Inter', -apple-system, system-ui, sans-serif;
   --r: 16px;
