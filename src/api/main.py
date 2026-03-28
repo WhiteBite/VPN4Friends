@@ -180,7 +180,7 @@ async def send_support_message(
     await repo.save_message(user.id, payload.text)
 
     # Notify admins
-    bot = Bot(token=settings.bot_token.get_secret_value())
+    bot = Bot(token=settings.bot_token)
     try:
         if settings.admin_ids:
             for admin_id in settings.admin_ids:
@@ -513,7 +513,7 @@ async def request_vpn_endpoint(
 
     # Notify admins
     # Create bot instance just to emit the message
-    bot = Bot(token=settings.bot_token.get_secret_value())
+    bot = Bot(token=settings.bot_token)
     for admin_id in settings.admin_ids:
         try:
             display_name = user.username and f"@{user.username}" or user.full_name
