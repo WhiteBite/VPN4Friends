@@ -52,9 +52,10 @@ const isDev = import.meta.env.DEV;
 async function safeFetch(fetcher, fallback) {
   try {
     return await fetcher();
-  } catch {
+  } catch (err) {
     if (isDev && fallback !== undefined) return fallback;
-    throw new Error('API unavailable');
+    // Preserve the original error message if it exists, otherwise use 'API unavailable'
+    throw new Error(err?.message || 'API unavailable');
   }
 }
 
