@@ -24,12 +24,19 @@ async function apiRequest(path, options = {}) {
     headers,
   });
 
+  let data;
+  try {
+    const text = await response.clone().text();
+    if (text) data = JSON.parse(text);
+  } catch {
+    // Ignore non-json body
+  }
+
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
-    try {
-      const body = await response.json();
-      message = body.detail || body.message || message;
-    } catch {
+    if (data) {
+      message = data.detail || data.message || message;
+    } else {
       try {
         message = await response.text() || message;
       } catch {
@@ -39,7 +46,11 @@ async function apiRequest(path, options = {}) {
     throw new Error(message);
   }
 
-  return response.json();
+  if (data && data.success === false) {
+    throw new Error(data.message || 'Ошибка выполнения');
+  }
+
+  return Object.keys(data || {}).length > 0 ? data : null;
 }
 
 // ----- User state -----
