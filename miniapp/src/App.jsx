@@ -18,6 +18,7 @@ import SettingsPanel from './components/SettingsPanel';
 import Toast from './components/Toast';
 import BottomNav from './components/BottomNav';
 import AdminPanel from './components/AdminPanel';
+import SupportForm from './components/SupportForm';
 import Card from './ui/Card';
 import Button from './ui/Button';
 
@@ -320,23 +321,10 @@ function App() {
               onUpdateSni={handleUpdateSni}
               busy={busy === 'protocol' || busy === 'sni'}
             />
-            <Card style={{ marginTop: '16px' }}>
-              <div className="card-title">💬 Поддержка</div>
-              <Button
-                variant="secondary"
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', fontSize: '15px' }}
-                onClick={() => {
-                  const tg = getTelegram();
-                  if (tg?.openTelegramLink) {
-                    tg.openTelegramLink('https://t.me/whitebites'); // Replace with actual admin username or take from config
-                  } else {
-                    window.open('https://t.me/whitebites', '_blank');
-                  }
-                }}
-              >
-                Написать администратору
-              </Button>
-            </Card>
+            <SupportForm 
+              onError={(msg) => showToast(msg, 'error')} 
+              onSuccess={(msg) => showToast(msg, 'success')} 
+            />
           </div>
         )}
 

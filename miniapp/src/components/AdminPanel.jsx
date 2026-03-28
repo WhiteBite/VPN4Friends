@@ -17,6 +17,7 @@ export default function AdminPanel({ onError, onSuccess }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
+  const [rejectConfirmId, setRejectConfirmId] = useState(null);
 
   // Broadcast state
   const [broadcastText, setBroadcastText] = useState('');
@@ -67,6 +68,7 @@ export default function AdminPanel({ onError, onSuccess }) {
 
   const handleApprove = async (id) => {
     setProcessing(id);
+    setRejectConfirmId(null);
     try {
       if (!isDev) {
         await approveRequest(id);
@@ -81,7 +83,11 @@ export default function AdminPanel({ onError, onSuccess }) {
   };
 
   const handleReject = async (id) => {
-    if (!window.confirm('Точно отклонить заявку?')) return;
+    if (rejectConfirmId !== id) {
+      setRejectConfirmId(id);
+      return;
+    }
+    
     setProcessing(id);
     try {
       if (!isDev) {
@@ -89,6 +95,7 @@ export default function AdminPanel({ onError, onSuccess }) {
       }
       setRequests((prev) => prev.filter((r) => r.id !== id));
       onSuccess('Заявка отклонена');
+      setRejectConfirmId(null);
     } catch (err) {
       onError(err.message || 'Ошибка отклонения');
     } finally {
@@ -169,12 +176,19 @@ export default function AdminPanel({ onError, onSuccess }) {
                 Одобрить
               </Button>
               <Button 
-                variant="secondary" 
-                style={{ flex: 1, padding: '10px', fontSize: '14px', borderRadius: '8px', background: 'var(--surface)' }}
+                variant={rejectConfirmId === req.id ? "danger" : "secondary"} 
+                style={{ 
+                  flex: 1, 
+                  padding: '10px', 
+                  fontSize: '14px', 
+                  borderRadius: '8px', 
+                  background: rejectConfirmId === req.id ? 'var(--error, #ff4d4f)' : 'var(--surface)',
+                  color: rejectConfirmId === req.id ? '#fff' : 'inherit'
+                }}
                 onClick={() => handleReject(req.id)}
                 disabled={processing === req.id}
               >
-                Отклонить
+                {rejectConfirmId === req.id ? 'Точно?' : 'Отклонить'}
               </Button>
             </div>
           </div>
