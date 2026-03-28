@@ -1,6 +1,7 @@
 """Application configuration using pydantic-settings."""
 
 import json
+from typing import Any
 
 from pydantic import BaseModel, field_validator, model_validator
 from pydantic_settings import BaseSettings
@@ -58,17 +59,6 @@ class Settings(BaseSettings):
     bot_token: str
     admin_ids: list[int] = []
     miniapp_url: str = ""
-
-    @model_validator(mode="after")
-    def get_admin_ids_from_env(self) -> "Settings":
-        """Force-load admin_ids from environment variable to bypass parsing issues."""
-        import os
-
-        admin_ids_str = os.getenv("ADMIN_IDS")
-        if admin_ids_str:
-            self.admin_ids = [int(x.strip()) for x in admin_ids_str.split(",") if x.strip()]
-        return self
-
     # 3X-UI Panel
     xui_api_url: str
     xui_base_path: str = "/panel"
@@ -130,9 +120,28 @@ class Settings(BaseSettings):
 
     @field_validator("admin_ids", mode="before")
     @classmethod
-    def parse_admin_ids(cls, value: str) -> list[int]:
+    def parse_admin_ids(cls, value: Any) -> list[int]:
+        if not value:
+            return []
+
+        # If it's already a list, clean up each string element before int conversion
+        if isinstance(value, list):
+            import re
+
+            cleaned_ints = []
+            for item in value:
+                # Extract numbers from string representation like '[1234]'
+                nums = re.findall(r"\d+", str(item))
+                cleaned_ints.extend([int(n) for n in nums])
+            return cleaned_ints
+
         if isinstance(value, str):
-            return [int(x.strip()) for x in value.split(",") if x.strip()]
+            import re
+
+            # Extract all numbers using regex, this handles "123, 456", "[123, 456]" and '"[123]"'
+            numbers = re.findall(r"\d+", str(value))
+            return [int(n) for n in numbers]
+
         return []
 
     def get_protocol(self, protocol_name: str) -> Protocol | None:

@@ -50,9 +50,20 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest tests/unit/ tests/integration/test_api_endpoints.py -v --tb=short
-          # Allow some tests to fail (auth tests)
-          exit 0
+          pytest tests/unit/ tests/integration/ -v --tb=short
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        working-directory: ./miniapp
+        run: npm ci || npm install
+
+      - name: Run vitest
+        working-directory: ./miniapp
+        run: npx vitest run
 
   deploy:
     runs-on: ubuntu-latest

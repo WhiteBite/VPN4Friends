@@ -1,15 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  fetchMe,
-  fetchProtocols,
-  fetchLink,
-  fetchEndpoints,
-  selectEndpoint,
-  switchProtocol,
-  updateSni,
-  requestVpn,
-} from './api';
 import { getTelegram } from './telegram';
+import { useVPN } from './hooks/useVPN';
+import { useWebSocket } from './hooks/useWebSocket';
 
 import ConnectionCard from './components/ConnectionCard';
 import ServerSelector from './components/ServerSelector';
@@ -22,54 +14,11 @@ import SupportForm from './components/SupportForm';
 import Card from './ui/Card';
 import Button from './ui/Button';
 
-// Mock data for development (when API is not available)
-const MOCK_DATA = {
-  me: {
-    user: { full_name: 'Даня', username: 'danya', is_admin: true },
-    profile: {
-      has_profile: false,
-      request_status: null,
-      protocol: 'vless',
-      label: 'VLESS Reality',
-      sni: 'google.com',
-      available_snis: ['google.com', 'yahoo.com', 'microsoft.com'],
-    },
-    presets: [],
-  },
-  protocols: [
-    { name: 'vless', label: 'VLESS Reality', description: 'Рекомендуется', recommended: true },
-    { name: 'shadowsocks', label: 'Shadowsocks', description: 'Альтернативный', recommended: false },
-  ],
-  endpoints: [
-    { name: 'relay-msk', label: '🇷🇺 Через Москву → NL', host: '***REMOVED***', port: 443, is_relay: true, target: 'direct-nl', description: 'Обход белых списков' },
-    { name: 'direct-nl', label: '🇳🇱 Напрямую NL', host: '***REMOVED***', port: 443, is_relay: false, description: 'Hiddify NL' },
-    { name: '62yun', label: '🌍 62YUN', host: '***REMOVED***', port: 443, is_relay: false, description: 'Прямое подключение' },
-  ],
-  link: 'vless://abc123-def456@***REMOVED***:443?type=tcp&security=reality&pbk=MOCK_KEY&fp=chrome&sni=google.com&sid=abcdef&spx=%2F&flow=xtls-rprx-vision#VPN4Friends',
-};
 
-const isDev = import.meta.env.DEV;
-
-async function safeFetch(fetcher, fallback) {
-  try {
-    return await fetcher();
-  } catch (err) {
-    if (isDev && fallback !== undefined) return fallback;
-    // Preserve the original error message if it exists, otherwise use 'API unavailable'
-    throw new Error(err?.message || 'API unavailable');
-  }
-}
 
 function App() {
   // ----- State -----
   const [colorScheme, setColorScheme] = useState('dark');
-  const [loading, setLoading] = useState(true);
-  const [me, setMe] = useState(null);
-  const [protocols, setProtocols] = useState([]);
-  const [endpoints, setEndpoints] = useState([]);
-  const [currentEndpoint, setCurrentEndpoint] = useState(null);
-  const [vpnLink, setVpnLink] = useState(null);
-  const [busy, setBusy] = useState('');
   const [activeTab, setActiveTab] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
 
@@ -87,6 +36,39 @@ function App() {
     setToast((prev) => ({ ...prev, visible: false }));
   }, []);
 
+  const {
+    loading,
+    me,
+    protocols,
+    endpoints,
+    currentEndpoint,
+    vpnLink,
+    busy,
+    loadAll,
+    refreshMe,
+    handleSelectEndpoint,
+    handleSwitchProtocol,
+    handleUpdateSni,
+    handleRequestVpn
+  } = useVPN(showToast);
+
+  // Setup WebSockets
+  useWebSocket({
+    NEW_REQUEST: (msg) => {
+      showToast(`Новая заявка VPN от ${msg.full_name}`, 'success');
+      // Dispatch custom DOM event to trigger AdminPanel refresh
+      window.dispatchEvent(new Event('refresh_admin_data'));
+    },
+    REQUEST_APPROVED: () => {
+      showToast('Ваш VPN одобрен!', 'success');
+      loadAll(); // Reload everything to get the link
+    },
+    REQUEST_REJECTED: () => {
+      showToast('Заявка на VPN отклонена', 'error');
+      refreshMe();
+    }
+  });
+
   // ----- Init -----
   useEffect(() => {
     const tg = getTelegram();
@@ -102,54 +84,7 @@ function App() {
       }
     }
     loadAll();
-  }, []);
-
-  const loadAll = async () => {
-    try {
-      const [meData, protocolData, endpointData] = await Promise.all([
-        safeFetch(fetchMe, MOCK_DATA.me),
-        safeFetch(fetchProtocols, MOCK_DATA.protocols),
-        safeFetch(fetchEndpoints, MOCK_DATA.endpoints),
-      ]);
-
-      setMe(meData);
-      setProtocols(protocolData);
-      setEndpoints(endpointData);
-      if (endpointData.length > 0) setCurrentEndpoint(endpointData[0].name);
-
-      // Load VPN link if user has profile
-      if (meData?.profile?.has_profile) {
-        try {
-          const linkData = await safeFetch(fetchLink, { link: MOCK_DATA.link });
-          setVpnLink(linkData.link);
-        } catch {
-          // noop
-        }
-      }
-    } catch {
-      showToast('Не удалось загрузить данные.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refreshMe = async () => {
-    try {
-      const data = await safeFetch(fetchMe, MOCK_DATA.me);
-      setMe(data);
-    } catch {
-      showToast('Ошибка обновления данных.', 'error');
-    }
-  };
-
-  const refreshLink = async () => {
-    try {
-      const linkData = await safeFetch(fetchLink, { link: MOCK_DATA.link });
-      setVpnLink(linkData.link);
-    } catch {
-      // noop
-    }
-  };
+  }, [loadAll]);
 
   // ----- Handlers -----
 
@@ -163,71 +98,6 @@ function App() {
       showToast('Ссылка скопирована!', 'success');
     } catch {
       showToast('Не удалось скопировать.', 'error');
-    }
-  };
-
-  const handleSelectEndpoint = async (name, andCopy = false) => {
-    setBusy('endpoint');
-    try {
-      if (name !== currentEndpoint) {
-        await safeFetch(() => selectEndpoint(name), { success: true });
-        setCurrentEndpoint(name);
-        const linkData = await safeFetch(fetchLink, { link: MOCK_DATA.link });
-        setVpnLink(linkData.link);
-        showToast('Точка входа изменена.', 'success');
-        
-        if (andCopy) {
-           await navigator.clipboard.writeText(linkData.link);
-           setTimeout(() => showToast('Ссылка скопирована!', 'success'), 300);
-        }
-      } else if (andCopy) {
-         handleCopy();
-      }
-    } catch {
-      showToast('Ошибка смены точки входа.', 'error');
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const handleSwitchProtocol = async (protocol) => {
-    setBusy('protocol');
-    try {
-      await safeFetch(() => switchProtocol(protocol), { success: true });
-      await refreshMe();
-      await refreshLink();
-      showToast('Протокол переключён.', 'success');
-    } catch {
-      showToast('Не удалось переключить протокол.', 'error');
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const handleUpdateSni = async (sni) => {
-    setBusy('sni');
-    try {
-      await safeFetch(() => updateSni(sni), { success: true });
-      await refreshMe();
-      await refreshLink();
-      showToast('SNI обновлён.', 'success');
-    } catch {
-      showToast('Не удалось обновить SNI.', 'error');
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const handleRequestVpn = async (comment = '') => {
-    setBusy('request');
-    try {
-      const resp = await safeFetch(() => requestVpn(comment), { success: true, message: 'Mock Заявка отправлена' });
-      showToast(resp.message || 'Заявка отправлена!', 'success');
-      await refreshMe();
-    } catch (err) {
-      showToast(err.message || 'Ошибка отправки заявки.', 'error');
-    } finally {
-      setBusy('');
     }
   };
 

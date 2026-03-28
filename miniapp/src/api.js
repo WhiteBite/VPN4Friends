@@ -25,9 +25,10 @@ async function apiRequest(path, options = {}) {
   });
 
   let data;
+  let rawText;
   try {
-    const text = await response.clone().text();
-    if (text) data = JSON.parse(text);
+    rawText = await response.text();
+    if (rawText) data = JSON.parse(rawText);
   } catch {
     // Ignore non-json body
   }
@@ -36,12 +37,8 @@ async function apiRequest(path, options = {}) {
     let message = `HTTP ${response.status}`;
     if (data) {
       message = data.detail || data.message || message;
-    } else {
-      try {
-        message = await response.text() || message;
-      } catch {
-        // ignore
-      }
+    } else if (rawText) {
+      message = rawText;
     }
     throw new Error(message);
   }
@@ -54,6 +51,68 @@ async function apiRequest(path, options = {}) {
 }
 
 // ----- User state -----
+
+export function subscribeToWebSockets(callbacks = {}) {
+  const initData = getInitData();
+  if (!initData && !import.meta.env.DEV) return () => {};
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = import.meta.env.VITE_API_BASE_URL 
+    ? import.meta.env.VITE_API_BASE_URL.replace(/^http(s)?:\/\//, '')
+    : 'localhost:8000';
+  const wsUrl = `${protocol}//${host}/ws?init_data=${encodeURIComponent(initData || '')}`;
+
+  let ws = null;
+  let retryDelay = 1000;       // Start with 1s
+  const MAX_DELAY = 30000;     // Cap at 30s
+  let retryTimer = null;
+  let closed = false;          // True when user calls unsubscribe
+
+  function connect() {
+    if (closed) return;
+
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      retryDelay = 1000; // Reset on successful connect
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (callbacks[data.type]) {
+          callbacks[data.type](data);
+        }
+      } catch { /* ignore malformed messages */ }
+    };
+
+    ws.onclose = () => {
+      if (closed) return;
+      // Auto-reconnect with exponential backoff
+      retryTimer = setTimeout(() => {
+        retryDelay = Math.min(retryDelay * 2, MAX_DELAY);
+        connect();
+      }, retryDelay);
+    };
+
+    ws.onerror = () => {
+      // onclose will fire after onerror, so reconnect is handled there
+    };
+  }
+
+  connect();
+
+  // Return cleanup function
+  return () => {
+    closed = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    if (ws) {
+      ws.onclose = null; // Prevent reconnect on intentional close
+      ws.close();
+      ws = null;
+    }
+  };
+}
 
 export function fetchMe() {
   return apiRequest('/me');

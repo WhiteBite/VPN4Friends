@@ -2,14 +2,19 @@
 
 import asyncio
 import logging
-from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_user
-from src.api.schemas import GenericResponse
+from src.api.schemas import (
+    AdminRequestSchema,
+    BroadcastRequestSchema,
+    ChatMessageSchema,
+    ChatPreviewSchema,
+    GenericResponse,
+    SendMessageSchema,
+)
 from src.database.models import User
 from src.database.repositories import RequestRepository, SupportRepository, UserRepository
 from src.database.session import get_session
@@ -20,52 +25,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/staff", tags=["admin"])
 
 
-class ChatPreviewSchema(BaseModel):
-    user_id: int
-    telegram_id: int
-    full_name: str
-    username: str | None
-    last_message: str
-    last_message_at: datetime
-    is_last_from_admin: bool
-
-
-class ChatMessageSchema(BaseModel):
-    id: int
-    is_from_admin: bool
-    text: str
-    created_at: datetime
-
-
-class SendMessageSchema(BaseModel):
-    text: str
-
-
-class AdminRequestSchema(BaseModel):
-    id: int
-    user_id: int
-    telegram_id: int
-    full_name: str
-    username: str | None
-    status: str
-    created_at: datetime
-    user_comment: str | None = None
-
-
-class BroadcastRequestSchema(BaseModel):
-    message: str
-    target: str = "all"  # all, with_vpn, without_vpn
-
-
 async def _send_broadcast_task(message: str, target: str):
-    from aiogram import Bot
-
-    from src.bot.config import settings
+    from src.api.bot_utils import create_bot
     from src.database.session import session_factory
 
-    bot = Bot(token=settings.bot_token)
-
-    try:
+    async with create_bot() as bot:
         async with session_factory() as session:
             user_repo = UserRepository(session)
             if target == "all":
@@ -88,8 +52,6 @@ async def _send_broadcast_task(message: str, target: str):
             await asyncio.sleep(0.05)
 
         logger.info(f"API Broadcast finished. Sent to {success}/{len(users)}")
-    finally:
-        await bot.session.close()
 
 
 async def require_admin(user: User = Depends(get_current_user)) -> User:
@@ -133,7 +95,6 @@ async def approve_request(
     session: AsyncSession = Depends(get_session),
 ) -> GenericResponse:
     """Approve a VPN request."""
-    from aiogram import Bot
 
     from src.bot.config import settings
 
@@ -150,18 +111,23 @@ async def approve_request(
     if not success:
         return GenericResponse(success=False, message=message)
 
-    # Notify user
-    try:
-        bot = Bot(token=settings.bot_token)
-        await bot.send_message(
-            request.user.telegram_id,
-            "✅ <b>Заявка одобрена!</b>\n\n"
-            "Твой VPN готов. Открой приложение, чтобы получить настройки.",
-            parse_mode="HTML",
-        )
-        await bot.session.close()
-    except Exception:
-        pass
+    # Notify user via WebSockets
+    from src.api.ws import manager as ws_manager
+
+    await ws_manager.send_personal_message({"type": "REQUEST_APPROVED"}, request.user.id)
+    await ws_manager.broadcast_to_admins(
+        {"type": "REQUEST_STATUS_CHANGED", "request_id": request.id, "status": "approved"}
+    )
+
+    # Notify user via Telegram bot
+    from src.api.bot_utils import notify_user
+
+    await notify_user(
+        request.user.telegram_id,
+        "✅ <b>Заявка одобрена!</b>\n\n"
+        "Твой VPN готов. Открой приложение, чтобы получить настройки.",
+        parse_mode="HTML",
+    )
 
     return GenericResponse(success=True, message="Заявка одобрена.")
 
@@ -173,10 +139,6 @@ async def reject_request(
     session: AsyncSession = Depends(get_session),
 ) -> GenericResponse:
     """Reject a VPN request."""
-    from aiogram import Bot
-
-    from src.bot.config import settings
-
     req_repo = RequestRepository(session)
     request = await req_repo.get_by_id(request_id)
     if not request or request.status.value != "pending":
@@ -184,16 +146,21 @@ async def reject_request(
 
     await req_repo.reject(request)
 
-    try:
-        bot = Bot(token=settings.bot_token)
-        await bot.send_message(
-            request.user.telegram_id,
-            "❌ <b>Заявка отклонена.</b>\n\nМодератор отклонил запрос.",
-            parse_mode="HTML",
-        )
-        await bot.session.close()
-    except Exception:
-        pass
+    # Notify user via WebSockets
+    from src.api.ws import manager as ws_manager
+
+    await ws_manager.send_personal_message({"type": "REQUEST_REJECTED"}, request.user.id)
+    await ws_manager.broadcast_to_admins(
+        {"type": "REQUEST_STATUS_CHANGED", "request_id": request.id, "status": "rejected"}
+    )
+
+    from src.api.bot_utils import notify_user
+
+    await notify_user(
+        request.user.telegram_id,
+        "❌ <b>Заявка отклонена.</b>\n\nМодератор отклонил запрос.",
+        parse_mode="HTML",
+    )
 
     return GenericResponse(success=True, message="Заявка отклонена.")
 
@@ -256,9 +223,6 @@ async def send_chat_message(
 ) -> ChatMessageSchema:
     import logging
 
-    from aiogram import Bot
-
-    from src.bot.config import settings
     from src.keyboards.user_reply_kb import get_reply_to_admin_kb
 
     if not payload.text.strip():
@@ -274,17 +238,17 @@ async def send_chat_message(
     await session.commit()
 
     # Dispatch to Telegram Bot
-    bot = Bot(token=settings.bot_token)
-    try:
-        await bot.send_message(
-            target_user.telegram_id,
-            f"💬 Сообщение от Дани:\n\n{payload.text}",
-            reply_markup=get_reply_to_admin_kb(),
-        )
-    except Exception as e:
-        logging.warning(f"Failed to send direct message to {target_user.telegram_id}: {e}")
-    finally:
-        await bot.session.close()
+    from src.api.bot_utils import create_bot
+
+    async with create_bot() as bot:
+        try:
+            await bot.send_message(
+                target_user.telegram_id,
+                f"💬 Сообщение от админа:\n\n{payload.text}",
+                reply_markup=get_reply_to_admin_kb(),
+            )
+        except Exception as e:
+            logging.warning(f"Failed to send direct message to {target_user.telegram_id}: {e}")
 
     return ChatMessageSchema(
         id=saved_msg.id,

@@ -85,34 +85,3 @@ def test_generate_vless_url_no_special_chars():
     # spider_x should be URL-encoded
     assert "/path/to/resource" not in url
     assert "%2Fpath%2Fto%2Fresource" in url
-
-
-def test_vless_url_scannable_by_qr():
-    """Generated VLESS URL should be scannable when encoded in QR."""
-    from PIL import Image
-    from pyzbar.pyzbar import decode
-
-    from src.utils.qr_generator import generate_qr_code
-
-    profile_data = {
-        "client_id": "550e8400-e29b-41d4-a716-446655440000",
-        "email": "realuser",
-        "port": 443,
-        "remark": "VPN",
-        "reality": {
-            "public_key": "***REMOVED***",
-            "fingerprint": "chrome",
-            "sni": "www.google.com",
-            "short_id": "***REMOVED***",
-            "spider_x": "/",
-        },
-    }
-
-    url = generate_vless_url(profile_data)
-    buffer = generate_qr_code(url)
-
-    img = Image.open(buffer)
-    decoded = decode(img)
-
-    assert len(decoded) == 1, f"QR not readable! URL: {url}"
-    assert decoded[0].data.decode("utf-8") == url

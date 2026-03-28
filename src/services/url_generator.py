@@ -66,13 +66,10 @@ def generate_vless_url(
     from ``profile_data`` / ``settings.xui_host``.
     """
 
-    remark = profile_data.get("remark", "")
-    email = profile_data.get("email", "")
-
-    if endpoint and getattr(endpoint, "label", None):
-        fragment = f"{endpoint.label} | {email}" if email else endpoint.label
-    else:
-        fragment = f"{remark}-{email}" if remark and email else (remark or email)
+    transport = "tcp"
+    security = "reality"
+    flow_param = "xtls-rprx-vision"
+    service_name = ""
 
     reality = profile_data.get("reality", {})
     public_key = reality.get("public_key") or settings.reality_public_key
@@ -83,16 +80,10 @@ def generate_vless_url(
         short_id = settings.reality_short_id
     spider_x = reality.get("spider_x", "/")
 
-    spider_x_encoded = quote(spider_x, safe="")
-
-    # Default transport parameters
-    transport = "tcp"
-    security = "reality"
-    flow_param = "xtls-rprx-vision"
-    service_name = ""
-
     # Endpoint override takes priority over profile_data and settings
+    country_name = "VPN"
     if endpoint:
+        country_name = getattr(endpoint, "country", getattr(endpoint, "label", "VPN"))
         host = endpoint.host
         port = endpoint.port
         if getattr(endpoint, "sni", None):
@@ -113,27 +104,51 @@ def generate_vless_url(
             fingerprint = endpoint.fp
         if getattr(endpoint, "spx", None):
             spider_x = endpoint.spx
-            spider_x_encoded = quote(spider_x, safe="")
     else:
         host = profile_data.get("host", settings.xui_host)
         port = profile_data.get("port", 443)
+        remark = profile_data.get("remark", "VPN")
+        country_name = remark
 
-    url_params = [
-        f"type={transport}",
-        f"security={security}",
-        f"pbk={public_key}",
-        f"fp={fingerprint}",
-        f"sni={sni}",
-        f"sid={short_id}",
-        f"spx={spider_x_encoded}",
-    ]
+    spider_x_encoded = quote(spider_x, safe="")
 
-    if flow_param and transport == "tcp":
-        url_params.append(f"flow={flow_param}")
+    params_dict = {
+        "type": transport,
+        "security": security,
+    }
+
+    if fingerprint:
+        params_dict["fp"] = fingerprint
+    if sni:
+        params_dict["sni"] = sni
+
+    if security == "reality":
+        if public_key:
+            params_dict["pbk"] = public_key
+        if short_id is not None:
+            params_dict["sid"] = short_id
+        if spider_x_encoded:
+            params_dict["spx"] = spider_x_encoded
+
+    if flow_param and transport == "tcp" and security == "reality":
+        params_dict["flow"] = flow_param
     if service_name and transport in ("grpc", "ws"):
-        url_params.append(f"serviceName={service_name}")
+        params_dict["serviceName"] = service_name
+
+    url_params = []
+    for k, v in params_dict.items():
+        if v is not None and str(v).strip() and str(v) != "None":
+            url_params.append(f"{k}={v}")
 
     query_string = "&".join(url_params)
+
+    # Label formatting: {Location} {Transport} {Security} - {Nickname}
+    email = profile_data.get("email", "User")
+    protocol_desc = f"{transport.upper()}"
+    if security and security != "none":
+        protocol_desc += f" {security.upper()}"
+
+    fragment = f"{country_name} {protocol_desc} - {email}"
 
     # URL-encode the fragment for strict clients
     fragment_encoded = quote(fragment)

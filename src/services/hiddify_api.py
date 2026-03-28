@@ -169,7 +169,7 @@ class HiddifyApi(PanelAPI):
             "download": 0,  # Hiddify reports combined traffic
         }
 
-    async def get_protocol_settings(self) -> dict[str, Any]:
+    async def get_protocol_settings(self, inbound_id: int) -> dict[str, Any]:  # noqa: ARG002
         """Get protocol settings from Hiddify.
 
         Hiddify manages Reality/TLS settings automatically.

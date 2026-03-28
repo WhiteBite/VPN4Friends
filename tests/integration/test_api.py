@@ -10,7 +10,7 @@ class TestHealthEndpoints:
     @pytest.mark.asyncio
     async def test_health_check(self, api_client: AsyncClient):
         """Test health check endpoint."""
-        response = await api_client.get("/api/health")
+        response = await api_client.get("/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -19,7 +19,7 @@ class TestHealthEndpoints:
     @pytest.mark.asyncio
     async def test_ready_check(self, api_client: AsyncClient):
         """Test ready check endpoint."""
-        response = await api_client.get("/api/ready")
+        response = await api_client.get("/ready")
 
         assert response.status_code == 200
 
@@ -30,30 +30,24 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_get_me_unauthorized(self, api_client: AsyncClient):
         """Test getting user profile without auth."""
-        response = await api_client.get("/api/me")
+        response = await api_client.get("/me")
 
-        # Should return 401 or handle gracefully
-        assert response.status_code in [200, 401]
+        # The backend requires WebApp InitData header. Without it:
+        assert response.status_code in [401, 422]
 
     @pytest.mark.asyncio
     async def test_create_vpn_request(self, api_client: AsyncClient):
-        """Test creating VPN request."""
-        response = await api_client.post("/api/vpn/request")
+        """Test requesting VPN."""
+        response = await api_client.post("/me/request")
 
-        # Should create request or return auth error
-        assert response.status_code in [200, 201, 401]
-
-
-class TestVPNEndpoints:
-    """Tests for VPN management endpoints."""
+        # Should return auth error
+        assert response.status_code in [401, 422]
 
     @pytest.mark.asyncio
     async def test_get_vpn_links_unauthorized(self, api_client: AsyncClient):
         """Test getting VPN links without auth."""
-        response = await api_client.get("/api/vpn")
-
-        # Should return 401 or empty list
-        assert response.status_code in [200, 401]
+        response = await api_client.get("/me/link")
+        assert response.status_code in [401, 422]
 
 
 class TestAdminEndpoints:
@@ -62,23 +56,21 @@ class TestAdminEndpoints:
     @pytest.mark.asyncio
     async def test_get_pending_requests_unauthorized(self, api_client: AsyncClient):
         """Test getting pending requests without admin auth."""
-        response = await api_client.get("/api/admin/requests")
+        response = await api_client.get("/staff/requests")
 
-        # Should return 401 or 403
-        assert response.status_code in [200, 401, 403]
+        # Should return 401 Unauthorized because missing InitData
+        assert response.status_code in [401, 422]
 
     @pytest.mark.asyncio
     async def test_approve_request_unauthorized(self, api_client: AsyncClient):
         """Test approving request without admin auth."""
-        response = await api_client.post("/api/admin/requests/1/approve")
+        response = await api_client.post("/staff/requests/1/approve")
 
-        # Should return 401 or 403
-        assert response.status_code in [401, 403]
+        assert response.status_code in [401, 422]
 
     @pytest.mark.asyncio
     async def test_reject_request_unauthorized(self, api_client: AsyncClient):
         """Test rejecting request without admin auth."""
-        response = await api_client.post("/api/admin/requests/1/reject")
+        response = await api_client.post("/staff/requests/1/reject")
 
-        # Should return 401 or 403
-        assert response.status_code in [401, 403]
+        assert response.status_code in [401, 422]

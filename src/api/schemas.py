@@ -1,5 +1,6 @@
 """Pydantic schemas for the API."""
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -133,3 +134,40 @@ class EndpointSchema(BaseModel):
 
 class SelectEndpointRequest(BaseModel):
     endpoint: str
+
+
+class ChatPreviewSchema(BaseModel):
+    user_id: int
+    telegram_id: int
+    full_name: str
+    username: str | None
+    last_message: str
+    last_message_at: datetime
+    is_last_from_admin: bool
+
+
+class ChatMessageSchema(BaseModel):
+    id: int
+    is_from_admin: bool
+    text: str
+    created_at: datetime
+
+
+class SendMessageSchema(BaseModel):
+    text: str
+
+
+class AdminRequestSchema(BaseModel):
+    id: int
+    user_id: int
+    telegram_id: int
+    full_name: str
+    username: str | None
+    status: str
+    created_at: datetime
+    user_comment: str | None = None
+
+
+class BroadcastRequestSchema(BaseModel):
+    message: str
+    target: str = "all"  # all, with_vpn, without_vpn

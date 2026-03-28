@@ -64,6 +64,16 @@ export default function AdminPanel({ onError, onSuccess }) {
 
   useEffect(() => {
     loadRequests();
+    
+    // Listen for WebSocket NEW_REQUEST triggers from App.jsx
+    const handleRefresh = () => {
+      loadRequests();
+    };
+    
+    window.addEventListener('refresh_admin_data', handleRefresh);
+    return () => {
+      window.removeEventListener('refresh_admin_data', handleRefresh);
+    };
   }, [loadRequests]);
 
   const handleApprove = async (id) => {
