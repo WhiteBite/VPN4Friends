@@ -233,6 +233,50 @@ async def sync_node_routing(node_name: str, node_config: dict) -> bool:
             # Get current template
             template = await api.get_xray_template_config()
 
+            # If template is empty (configured via UI only), build a minimal base
+            if not template or not template.get("outbounds"):
+                logger.info(
+                    f"Node {node_name}: xrayTemplateConfig is empty, building base template"
+                )
+                template = {
+                    "log": {
+                        "loglevel": "warning",
+                        "access": "",
+                        "error": "",
+                    },
+                    "api": {
+                        "tag": "api",
+                        "services": ["HandlerService", "LoggerService", "StatsService"],
+                    },
+                    "inbounds": [
+                        {
+                            "tag": "api",
+                            "listen": "127.0.0.1",
+                            "port": 62789,
+                            "protocol": "dokodemo-door",
+                            "settings": {"address": "127.0.0.1"},
+                        }
+                    ],
+                    "outbounds": [],
+                    "routing": {
+                        "domainStrategy": "AsIs",
+                        "rules": [
+                            {
+                                "type": "field",
+                                "inboundTag": ["api"],
+                                "outboundTag": "api",
+                            }
+                        ],
+                    },
+                    "policy": {
+                        "system": {
+                            "statsInboundDownlink": True,
+                            "statsInboundUplink": True,
+                        }
+                    },
+                    "stats": {},
+                }
+
             current_outbounds = template.get("outbounds", [])
             current_routing = template.get("routing", {})
             current_rules = current_routing.get("rules", [])

@@ -59,6 +59,12 @@ app.include_router(system_router, prefix="/api")
 app.include_router(me_router, prefix="/api")
 app.include_router(presets_router, prefix="/api")
 
+# Also mount WITHOUT prefix for Cloudflare tunnel (strips /api path)
+app.include_router(admin_router)
+app.include_router(system_router)
+app.include_router(me_router)
+app.include_router(presets_router)
+
 if os.path.exists(frontend_path):
     # Mount specific /app path for the SPA
     app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="app")

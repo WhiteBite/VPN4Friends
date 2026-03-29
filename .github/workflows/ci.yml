@@ -157,7 +157,7 @@ jobs:
             echo "🏗 Building Mini App..."
             docker run --rm -v $(pwd)/miniapp:/app -w /app node:20-alpine sh -c "
               npm install && \
-              VITE_API_BASE_URL=https://vpn4friends-api.whitebite.ru/api npm run build
+              VITE_API_BASE_URL=https://vpn4friends-api.whitebite.ru npm run build
             "
             
             # Создаём директорию для базы

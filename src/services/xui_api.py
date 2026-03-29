@@ -484,7 +484,7 @@ class XUIApi(PanelAPI):
         if not self._session:
             raise XUIApiError("Session not initialized")
 
-        url = self._build_url("/api/setting/all")
+        url = self._build_url("/setting/all")
         async with self._session.post(url) as resp:
             if resp.status != 200:
                 raise XUIApiError(f"Get settings failed with HTTP {resp.status}")
@@ -505,7 +505,7 @@ class XUIApi(PanelAPI):
         if not self._session:
             raise XUIApiError("Session not initialized")
 
-        url = self._build_url("/api/setting/update")
+        url = self._build_url("/setting/update")
         payload = {"xrayTemplateConfig": json.dumps(template)}
 
         async with self._session.post(url, json=payload) as resp:
