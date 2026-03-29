@@ -241,17 +241,28 @@ class XUIApi(PanelAPI):
         clients = settings_data.get("clients", [])
         existing_emails = {c.get("email") for c in clients}
 
-        added = False
+        changed = False
         for email, client_id in clients_info:
             if email in existing_emails:
+                # Update existing client UUID to match central DB
+                for c in clients:
+                    if c.get("email") == email and c.get("id") != client_id:
+                        c["id"] = client_id
+                        changed = True
                 continue
 
             new_client = self._get_client_template(protocol, client_id, email)
             clients.append(new_client)
-            added = True
+            changed = True
 
-        if not added:
-            return True  # All clients already exist
+        if not changed:
+            return True
+        if changed:
+            settings_data["clients"] = clients
+            inbound["settings"] = json.dumps(settings_data)
+            return await self.update_inbound(inbound_id, inbound)
+
+        return True  # All clients already exist
 
         settings_data["clients"] = clients
         inbound["settings"] = json.dumps(settings_data)
