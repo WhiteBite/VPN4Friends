@@ -124,6 +124,9 @@ class Settings(BaseSettings):
         if not value:
             return []
 
+        if isinstance(value, int):
+            return [value]
+
         # If it's already a list, clean up each string element before int conversion
         if isinstance(value, list):
             import re
@@ -142,7 +145,10 @@ class Settings(BaseSettings):
             numbers = re.findall(r"\d+", str(value))
             return [int(n) for n in numbers]
 
-        return []
+        try:
+            return [int(value)]
+        except (ValueError, TypeError):
+            return []
 
     def get_protocol(self, protocol_name: str) -> Protocol | None:
         """Get protocol object by name."""

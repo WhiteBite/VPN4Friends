@@ -104,6 +104,7 @@ async def notify_admins_startup(bot: Bot) -> None:
                 admin_id,
                 f"🟢 Бот запущен!\n\n🕐 Время: {start_time}",
             )
+            logger.info(f"Startup notification sent to admin {admin_id}")
         except Exception as e:
             logger.warning(f"Failed to notify admin {admin_id} about startup: {e}")
 
