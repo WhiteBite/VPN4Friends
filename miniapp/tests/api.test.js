@@ -34,7 +34,7 @@ describe('api.js request handling', () => {
   it('handles standard 200 JSON responses', async () => {
     global.fetch.mockResolvedValueOnce({
       ok: true,
-      clone: () => ({ text: () => Promise.resolve('{"data": 123}') }),
+      text: () => Promise.resolve('{"data": 123}'),
     });
 
     const result = await fetchMe();
@@ -52,7 +52,7 @@ describe('api.js request handling', () => {
   it('throws Error when success is false in 200 OK body', async () => {
     global.fetch.mockResolvedValueOnce({
       ok: true,
-      clone: () => ({ text: () => Promise.resolve('{"success": false, "message": "Backend logically failed"}') }),
+      text: () => Promise.resolve('{"success": false, "message": "Backend logically failed"}'),
     });
 
     await expect(fetchMe()).rejects.toThrow('Backend logically failed');
@@ -62,7 +62,7 @@ describe('api.js request handling', () => {
     global.fetch.mockResolvedValueOnce({
       ok: false,
       status: 400,
-      clone: () => ({ text: () => Promise.resolve('{"detail": "Bad request"}') }),
+      text: () => Promise.resolve('{"detail": "Bad request"}'),
     });
 
     await expect(fetchMe()).rejects.toThrow('Bad request');
