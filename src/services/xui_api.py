@@ -502,22 +502,27 @@ class XUIApi(PanelAPI):
             return result.get("obj", {})
 
     async def update_xray_template_config(
-        self, template: dict[str, Any], full_settings: dict[str, Any]
+        self,
+        template: dict[str, Any],
+        full_settings: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> bool:
-        """Update the Xray template config in 3x-ui settings.
+        """Update the Xray template config via the /xray/update endpoint.
 
-        After updating, 3x-ui will restart Xray with the new config.
+        IMPORTANT: Uses /api/xray/update (not /setting/update) because the
+        settings endpoint strips wireguard outbounds during save. The xray
+        endpoint uses SaveXraySetting() which preserves all outbounds.
+
+        After updating, explicitly restarts Xray to apply the new config.
+        The full_settings parameter is kept for backward compatibility but ignored.
         """
         if not self._session:
             raise XUIApiError("Session not initialized")
 
-        url = self._build_url("/setting/update")
-        # 3x-ui requires ALL settings on update (validates webPort etc.)
-        # Send full_settings with only xrayTemplateConfig modified
-        payload = dict(full_settings)
-        payload["xrayTemplateConfig"] = json.dumps(template)
+        url = self._build_url("/xray/update")
+        template_json = json.dumps(template)
 
-        async with self._session.post(url, json=payload) as resp:
+        # /xray/update accepts form-encoded data with xraySetting field
+        async with self._session.post(url, data={"xraySetting": template_json}) as resp:
             if resp.status != 200:
                 body = await resp.text()
                 logger.error(f"update_xray_template failed: HTTP {resp.status}, body={body}")
@@ -527,6 +532,27 @@ class XUIApi(PanelAPI):
             success = result.get("success", False)
             if not success:
                 logger.error(f"update_xray_template API error: {result.get('msg')}")
+                return False
+
+        # 3x-ui does NOT auto-restart Xray on template update — must call explicitly
+        return await self.restart_xray()
+
+    async def restart_xray(self) -> bool:
+        """Restart the Xray service via 3x-ui API."""
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        url = self._build_url("/api/server/restartXrayService")
+        async with self._session.post(url) as resp:
+            if resp.status != 200:
+                logger.error(f"restart_xray failed: HTTP {resp.status}")
+                return False
+            result = await resp.json()
+            success = result.get("success", False)
+            if not success:
+                logger.error(f"restart_xray API error: {result.get('msg')}")
+            else:
+                logger.info("Xray service restarted successfully")
             return success
 
 
