@@ -474,6 +474,52 @@ class XUIApi(PanelAPI):
 
         return settings_data
 
+    async def get_xray_template_config(self) -> dict[str, Any]:
+        """Get the Xray template config (outbounds + routing) from 3x-ui settings.
+
+        The template config is stored in the panel's database and contains
+        the outbounds, routing rules, and other Xray-level settings that are
+        merged with inbounds managed via the inbound API.
+        """
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        url = self._build_url("/api/setting/all")
+        async with self._session.post(url) as resp:
+            if resp.status != 200:
+                raise XUIApiError(f"Get settings failed with HTTP {resp.status}")
+
+            result = await resp.json()
+            if not result.get("success"):
+                raise XUIApiError(f"Get settings failed: {result.get('msg')}")
+
+            obj = result.get("obj", {})
+            template_str = obj.get("xrayTemplateConfig", "{}")
+            return json.loads(template_str)
+
+    async def update_xray_template_config(self, template: dict[str, Any]) -> bool:
+        """Update the Xray template config in 3x-ui settings.
+
+        After updating, 3x-ui will restart Xray with the new config.
+        """
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        url = self._build_url("/api/setting/update")
+        payload = {"xrayTemplateConfig": json.dumps(template)}
+
+        async with self._session.post(url, json=payload) as resp:
+            if resp.status != 200:
+                body = await resp.text()
+                logger.error(f"update_xray_template failed: HTTP {resp.status}, body={body}")
+                return False
+
+            result = await resp.json()
+            success = result.get("success", False)
+            if not success:
+                logger.error(f"update_xray_template API error: {result.get('msg')}")
+            return success
+
 
 async def check_xui_connection() -> tuple[bool, str]:
     """Check connection to 3X-UI panel. Returns (success, message)."""

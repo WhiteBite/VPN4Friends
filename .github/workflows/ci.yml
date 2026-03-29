@@ -140,6 +140,9 @@ jobs:
               # Endpoints (JSON array)
               "ENDPOINTS_CONFIG=\(.endpoints | @json)",
               
+              # Nodes topology: outbounds + routing (JSON object)
+              "NODES_CONFIG_RAW=\(.nodes // {} | @json)",
+              
               # Database
               "DATABASE_URL=sqlite+aiosqlite:////app/data/vpn_bot.db"
             ' > .env

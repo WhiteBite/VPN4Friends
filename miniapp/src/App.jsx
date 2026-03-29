@@ -11,8 +11,10 @@ import Toast from './components/Toast';
 import BottomNav from './components/BottomNav';
 import AdminPanel from './components/AdminPanel';
 import SupportForm from './components/SupportForm';
+import LoginScreen from './components/LoginScreen';
 import Card from './ui/Card';
 import Button from './ui/Button';
+import { getInitData } from './telegram';
 
 
 
@@ -21,6 +23,7 @@ function App() {
   const [colorScheme, setColorScheme] = useState('dark');
   const [activeTab, setActiveTab] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   // Toast
   const [toast, setToast] = useState({ message: '', type: 'info', visible: false });
@@ -83,7 +86,23 @@ function App() {
         setColorScheme(tg.colorScheme);
       }
     }
-    loadAll();
+
+    // Check if we have any auth method available
+    const initData = getInitData();
+    const storedToken = localStorage.getItem('auth_token');
+
+    if (!initData && !storedToken && !import.meta.env.DEV) {
+      // No auth available — show login screen
+      setNeedsAuth(true);
+      setLoading && undefined; // Don't start loading
+    } else {
+      loadAll().catch(() => {
+        // If loadAll fails due to auth, show login
+        if (!initData && !localStorage.getItem('auth_token')) {
+          setNeedsAuth(true);
+        }
+      });
+    }
   }, [loadAll]);
 
   // ----- Handlers -----
@@ -104,6 +123,18 @@ function App() {
   // ----- Render -----
 
   const activeEndpoint = endpoints.find((ep) => ep.name === currentEndpoint) || null;
+
+  // ----- Auth gate -----
+  if (needsAuth) {
+    return (
+      <LoginScreen
+        onLogin={async () => {
+          await loadAll();
+          setNeedsAuth(false);
+        }}
+      />
+    );
+  }
 
   if (loading) {
     return (

@@ -200,3 +200,130 @@ async def sync_node_clients(node_endpoint: ServerEndpoint, users: list[Any]) -> 
     except Exception as e:
         logger.error(f"Unexpected error syncing clients to {node_endpoint.name}: {e}")
         return False
+
+
+async def sync_node_routing(node_name: str, node_config: dict) -> bool:
+    """Synchronize outbounds and routing rules for a node.
+
+    Reads the node definition from vpn-config.json nodes section,
+    compares with the current Xray template config on the panel,
+    and updates if there are differences.
+
+    Args:
+        node_name: Name of the node (e.g., "germany", "finland")
+        node_config: Node configuration dict with panel_config, outbounds, routing
+    """
+    panel_config = node_config.get("panel_config")
+    if not panel_config or "api_url" not in panel_config:
+        logger.warning(f"Node {node_name}: no panel_config, skipping routing sync")
+        return False
+
+    expected_outbounds = node_config.get("outbounds", [])
+    expected_routing = node_config.get("routing", {})
+
+    # Remove non-routing keys like _comment
+    expected_routing = {k: v for k, v in expected_routing.items() if not k.startswith("_")}
+
+    if not expected_outbounds and not expected_routing:
+        logger.info(f"Node {node_name}: no outbounds/routing defined, skipping")
+        return True
+
+    try:
+        async with XUIApi(panel_config) as api:
+            # Get current template
+            template = await api.get_xray_template_config()
+
+            current_outbounds = template.get("outbounds", [])
+            current_routing = template.get("routing", {})
+            current_rules = current_routing.get("rules", [])
+
+            changed = False
+
+            # --- Sync outbounds ---
+            current_tags = {o.get("tag") for o in current_outbounds}
+            for expected_ob in expected_outbounds:
+                tag = expected_ob.get("tag")
+                if tag not in current_tags:
+                    logger.info(f"Node {node_name}: adding outbound '{tag}'")
+                    current_outbounds.append(expected_ob)
+                    changed = True
+                else:
+                    # Update existing outbound settings if different
+                    for i, co in enumerate(current_outbounds):
+                        if co.get("tag") == tag:
+                            if (
+                                co.get("protocol") != expected_ob.get("protocol")
+                                or tag == "warp"
+                                and co.get("settings") != expected_ob.get("settings")
+                            ):
+                                current_outbounds[i] = expected_ob
+                                changed = True
+                            break
+
+            # --- Sync routing rules ---
+            # Build expected rules from the routing map
+            # Group inbound tags by outbound tag for efficient rules
+            outbound_to_inbounds: dict[str, list[str]] = {}
+            for inbound_tag, outbound_tag in expected_routing.items():
+                outbound_to_inbounds.setdefault(outbound_tag, []).append(inbound_tag)
+
+            # Check if current rules already match
+            current_inbound_routing: dict[str, str] = {}
+            for rule in current_rules:
+                inbound_tags = rule.get("inboundTag", [])
+                outbound_tag = rule.get("outboundTag", "")
+                for it in inbound_tags:
+                    current_inbound_routing[it] = outbound_tag
+
+            if current_inbound_routing != dict(expected_routing):
+                logger.info(
+                    f"Node {node_name}: routing mismatch, updating "
+                    f"(current={current_inbound_routing}, expected={dict(expected_routing)})"
+                )
+
+                # Rebuild rules: keep api rule, add our inbound rules, keep system rules
+                new_rules = []
+
+                # 1. Keep the API rule
+                for rule in current_rules:
+                    if rule.get("inboundTag") == ["api"]:
+                        new_rules.append(rule)
+                        break
+
+                # 2. Add our inbound routing rules
+                for outbound_tag, inbound_tags in outbound_to_inbounds.items():
+                    new_rules.append(
+                        {
+                            "type": "field",
+                            "inboundTag": sorted(inbound_tags),
+                            "outboundTag": outbound_tag,
+                        }
+                    )
+
+                # 3. Keep system rules (geoip:private → blocked, bittorrent → blocked)
+                for rule in current_rules:
+                    if rule.get("ip") or rule.get("protocol"):
+                        new_rules.append(rule)
+
+                current_routing["rules"] = new_rules
+                changed = True
+
+            if changed:
+                template["outbounds"] = current_outbounds
+                template["routing"] = current_routing
+                success = await api.update_xray_template_config(template)
+                if success:
+                    logger.info(f"Node {node_name}: routing synced successfully")
+                else:
+                    logger.error(f"Node {node_name}: failed to update routing")
+                return success
+            else:
+                logger.info(f"Node {node_name}: routing already in sync")
+                return True
+
+    except XUIApiError as e:
+        logger.error(f"Failed to sync routing for node {node_name}: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error syncing routing for {node_name}: {e}")
+        return False

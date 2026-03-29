@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     endpoints_config: str = "[]"
     endpoints: list[ServerEndpoint] = []
 
+    # Node topology: outbounds + routing (JSON string from .env)
+    nodes_config_raw: str = "{}"
+    nodes_config: dict = {}
+
     # Database (absolute path for Docker)
     database_url: str = "sqlite+aiosqlite:////app/data/vpn_bot.db"
 
@@ -121,6 +125,17 @@ class Settings(BaseSettings):
         except (json.JSONDecodeError, ValueError):
             # Endpoints are optional — don't crash if not configured
             self.endpoints = []
+        return self
+
+    @model_validator(mode="after")
+    def parse_nodes_config(self) -> "Settings":
+        """Parse NODES_CONFIG_RAW JSON string into a dict of node configs."""
+        try:
+            nodes_data = json.loads(self.nodes_config_raw)
+            if isinstance(nodes_data, dict):
+                self.nodes_config = nodes_data
+        except (json.JSONDecodeError, ValueError):
+            self.nodes_config = {}
         return self
 
     @field_validator("admin_ids", mode="before")
