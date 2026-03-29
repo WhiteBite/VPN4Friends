@@ -1,12 +1,11 @@
 """Unit tests for database repositories."""
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import User, VPNRequest, RequestStatus
-from src.database.repositories.user_repo import UserRepository
+from src.database.models import RequestStatus, User, VPNRequest
 from src.database.repositories.request_repo import RequestRepository
+from src.database.repositories.user_repo import UserRepository
 
 
 class TestUserRepository:

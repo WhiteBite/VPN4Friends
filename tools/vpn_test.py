@@ -14,6 +14,7 @@
     python tools/vpn_test.py --verbose
     python tools/vpn_test.py --sites google.com,youtube.com
 """
+
 import argparse
 import json
 import os
@@ -104,7 +105,11 @@ class VPNTester:
         return result
 
     def _curl(
-        self, url: str, proxy: bool = True, timeout: float = 15.0, extra_args: list[str] | None = None
+        self,
+        url: str,
+        proxy: bool = True,
+        timeout: float = 15.0,
+        extra_args: list[str] | None = None,
     ) -> tuple[int, str, str]:
         cmd = [self.curl, "-4", "-s", "--max-time", str(int(timeout))]
         if proxy:
@@ -123,12 +128,22 @@ class VPNTester:
                 "strategy": "prefer_ipv4",
                 "servers": [
                     {"tag": "bootstrap", "address": "1.1.1.1"},
-                    {"tag": "doh", "address": "https://cloudflare-dns.com/dns-query", "address_resolver": "bootstrap"},
+                    {
+                        "tag": "doh",
+                        "address": "https://cloudflare-dns.com/dns-query",
+                        "address_resolver": "bootstrap",
+                    },
                 ],
                 "final": "doh",
             },
             "inbounds": [
-                {"type": "socks", "tag": "socks-in", "listen": self.socks_host, "listen_port": self.socks_port, "sniff": True}
+                {
+                    "type": "socks",
+                    "tag": "socks-in",
+                    "listen": self.socks_host,
+                    "listen_port": self.socks_port,
+                    "sniff": True,
+                }
             ],
             "outbounds": [
                 {
@@ -190,6 +205,7 @@ class VPNTester:
                 self._proc.kill()
         if self._tmp_dir:
             import shutil as sh
+
             sh.rmtree(self._tmp_dir, ignore_errors=True)
 
     # === Тесты ===
@@ -223,7 +239,9 @@ class VPNTester:
     def test_https(self) -> tuple[bool, str]:
         """Проверка HTTPS через прокси."""
         # Получаем только HTTP код без вывода body
-        rc, out, err = self._curl("https://www.google.com", extra_args=["-w", "%{http_code}", "-o", "NUL"])
+        rc, out, err = self._curl(
+            "https://www.google.com", extra_args=["-w", "%{http_code}", "-o", "NUL"]
+        )
         code = out[-3:] if len(out) >= 3 else out  # HTTP код в конце
         if rc == 0 and code in ("200", "301", "302"):
             return True, f"HTTPS works (HTTP {code})"

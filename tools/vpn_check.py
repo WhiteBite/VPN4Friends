@@ -4,7 +4,6 @@ import os
 import shutil
 import socket
 import subprocess
-import sys
 import tempfile
 import time
 from pathlib import Path
@@ -287,7 +286,9 @@ def main() -> int:
             time.sleep(0.5)
 
             print("[step] fetch direct ip")
-            rc, direct_ip, err = _run([curl, "-4", "-s", "https://api.ipify.org"], timeout_s=args.curl_timeout)
+            rc, direct_ip, err = _run(
+                [curl, "-4", "-s", "https://api.ipify.org"], timeout_s=args.curl_timeout
+            )
             if rc != 0 or not direct_ip:
                 print(f"[fail] direct ipify failed: rc={rc} err={err}")
                 return 6
@@ -295,7 +296,9 @@ def main() -> int:
 
             print("[step] fetch proxy ip")
             proxy_url = _socks_proxy_url(args.socks_host, args.socks_port)
-            ok, proxy_ip, used_url, err = _curl_get_ip_through_proxy(curl, proxy_url, timeout_s=args.curl_timeout)
+            ok, proxy_ip, used_url, err = _curl_get_ip_through_proxy(
+                curl, proxy_url, timeout_s=args.curl_timeout
+            )
             if not ok:
                 print(f"[fail] proxy ip check failed (last url: {used_url}) err={err}")
                 _, _, verr = _run(
@@ -316,9 +319,11 @@ def main() -> int:
                 print("[info] non-geosite traffic goes direct through server IP")
 
             if proxy_ip == server:
-                print(f"[ok] proxy ip matches server ip (direct routing working)")
+                print("[ok] proxy ip matches server ip (direct routing working)")
             elif proxy_ip != server:
-                print(f"[info] proxy ip ({proxy_ip}) != server ip ({server}). Traffic may go through WARP/CDN.")
+                print(
+                    f"[info] proxy ip ({proxy_ip}) != server ip ({server}). Traffic may go through WARP/CDN."
+                )
 
             print("[step] fetch cloudflare trace through proxy")
             rc, trace, err = _run(

@@ -21,7 +21,7 @@ async def main() -> None:
     try:
         async with XUIApi() as api:
             print("✓ Successfully connected to 3X-UI panel")
-            
+
             # Check inbound
             try:
                 inbound = await api.get_inbound(settings.inbound_id)
@@ -30,40 +30,42 @@ async def main() -> None:
                 print(f"  Port: {inbound['port']}")
                 print(f"  Remark: {inbound['remark']}")
                 print(f"  Enabled: {inbound['enable']}")
-                
+
                 # Check Reality settings
-                stream_settings = json.loads(inbound['streamSettings'])
-                reality_settings = stream_settings.get('realitySettings', {})
-                
+                stream_settings = json.loads(inbound["streamSettings"])
+                reality_settings = stream_settings.get("realitySettings", {})
+
                 if reality_settings:
                     print("✓ Reality settings found")
-                    reality_inner = reality_settings.get('settings', {})
-                    server_names = reality_settings.get('serverNames', [])
-                    short_ids = reality_settings.get('shortIds', [])
-                    
+                    reality_inner = reality_settings.get("settings", {})
+                    server_names = reality_settings.get("serverNames", [])
+                    short_ids = reality_settings.get("shortIds", [])
+
                     print(f"  Public Key: {reality_inner.get('publicKey', 'N/A')[:30]}...")
                     print(f"  SNI: {server_names}")
                     print(f"  Short IDs: {short_ids}")
-                    print(f"  Fingerprint: {reality_inner.get('fingerprint', stream_settings.get('fingerprint', 'N/A'))}")
+                    print(
+                        f"  Fingerprint: {reality_inner.get('fingerprint', stream_settings.get('fingerprint', 'N/A'))}"
+                    )
                 else:
                     print("✗ No Reality settings found in inbound!")
                     print("  You need to configure Reality in 3X-UI panel first")
                     return
-                
+
                 # Check clients
-                settings_data = json.loads(inbound['settings'])
-                clients = settings_data.get('clients', [])
+                settings_data = json.loads(inbound["settings"])
+                clients = settings_data.get("clients", [])
                 print(f"\n✓ Current clients: {len(clients)}")
                 for client in clients:
                     print(f"  - {client['email']} (enabled: {client.get('enable', True)})")
-                
+
             except XUIApiError as e:
                 print(f"✗ Failed to get inbound: {e}")
                 print("\nMake sure:")
                 print("1. Inbound ID is correct in .env file")
                 print("2. Reality inbound is created in 3X-UI panel")
                 return
-                
+
     except XUIApiError as e:
         print(f"✗ Failed to connect: {e}")
         print("\nCheck:")

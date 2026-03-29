@@ -10,7 +10,7 @@ class TestHealthEndpoints:
     @pytest.mark.asyncio
     async def test_health_check(self, api_client: AsyncClient):
         """Test health check endpoint returns OK."""
-        response = await api_client.get("/health")
+        response = await api_client.get("/api/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -19,7 +19,7 @@ class TestHealthEndpoints:
     @pytest.mark.asyncio
     async def test_ready_check(self, api_client: AsyncClient):
         """Test readiness check endpoint returns ready."""
-        response = await api_client.get("/ready")
+        response = await api_client.get("/api/ready")
 
         assert response.status_code == 200
         data = response.json()
@@ -32,7 +32,7 @@ class TestEndpointsEndpoint:
     @pytest.mark.asyncio
     async def test_list_endpoints_empty(self, api_client: AsyncClient):
         """Test listing endpoints when none configured."""
-        response = await api_client.get("/endpoints")
+        response = await api_client.get("/api/endpoints")
 
         assert response.status_code == 200
         data = response.json()
@@ -46,7 +46,7 @@ class TestProtocolsEndpoint:
     @pytest.mark.asyncio
     async def test_list_protocols(self, api_client: AsyncClient):
         """Test listing available protocols."""
-        response = await api_client.get("/protocols")
+        response = await api_client.get("/api/protocols")
 
         assert response.status_code == 200
         data = response.json()
@@ -67,7 +67,7 @@ class TestMeEndpoint:
     async def test_get_me_unauthorized(self, api_client: AsyncClient):
         """Test getting user profile without Telegram auth."""
         # Without proper Telegram initData, returns 422 (validation error)
-        response = await api_client.get("/me")
+        response = await api_client.get("/api/me")
 
         # 422 = validation error (missing/invalid auth header)
         assert response.status_code == 422
@@ -79,7 +79,7 @@ class TestPresetsEndpoints:
     @pytest.mark.asyncio
     async def test_list_presets_unauthorized(self, api_client: AsyncClient):
         """Test listing presets without auth."""
-        response = await api_client.get("/presets")
+        response = await api_client.get("/api/presets")
 
         # 422 = validation error (missing/invalid auth header)
         assert response.status_code == 422

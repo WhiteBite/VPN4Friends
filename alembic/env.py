@@ -3,14 +3,13 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, pool
 from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy import pool
 
 from alembic import context
 
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.database.models import Base  # noqa: E402
 
@@ -93,5 +92,6 @@ async def main():
         run_migrations_offline()
     else:
         await run_migrations_online()
+
 
 asyncio.run(main())
