@@ -44,6 +44,8 @@ class ServerEndpoint(BaseModel):
     sni: str | None = None
     flow: str | None = None
     serviceName: str | None = None
+    path: str | None = None
+    host_override: str | None = None  # Using host_override to avoid collision with base host
 
     # Reality-specific overrides
     pbk: str | None = None

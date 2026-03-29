@@ -142,6 +142,17 @@ def generate_vless_url(
     if service_name and transport in ("grpc", "ws"):
         params_dict["serviceName"] = service_name
 
+    # Support path and host params for ws, xhttp, wechat-video, grpc etc.
+    if getattr(endpoint, "path", None):
+        params_dict["path"] = quote(endpoint.path, safe="/")
+    elif profile_data.get("path"):
+        params_dict["path"] = quote(profile_data["path"], safe="/")
+
+    if getattr(endpoint, "host_override", None) and transport in ("ws", "xhttp", "httpupgrade"):
+        params_dict["host"] = quote(endpoint.host_override)
+    elif profile_data.get("host") and transport in ("ws", "xhttp", "httpupgrade"):
+        params_dict["host"] = quote(profile_data["host"])
+
     url_params = []
     for k, v in params_dict.items():
         if v is not None and str(v).strip() and str(v) != "None":
