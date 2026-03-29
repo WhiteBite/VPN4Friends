@@ -112,9 +112,8 @@ jobs:
               "ADMIN_IDS=\(.bot.admin_ids | join(","))",
               "MINIAPP_URL=\(.bot.miniapp_url // "")",
               
-              # API Public Domain for Caddy proxy
+              # API Public Domain for Cloudflare tunnel
               "API_PUBLIC_DOMAIN=vpn4friends-api.whitebite.ru",
-              "APP_PUBLIC_DOMAIN=vpn4friends-app.whitebite.ru",
               
               # Finland Panel (also as legacy XUI vars for backward compatibility)
               "XUI_FINLAND_URL=\(.servers.finland.panel_url)",
@@ -157,7 +156,7 @@ jobs:
             echo "🏗 Building Mini App..."
             docker run --rm -v $(pwd)/miniapp:/app -w /app node:20-alpine sh -c "
               npm install && \
-              VITE_API_BASE_URL=https://vpn4friends-api.whitebite.ru npm run build
+              VITE_API_BASE_URL=/api npm run build
             "
             
             # Создаём директорию для базы
