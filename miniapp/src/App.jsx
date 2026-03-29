@@ -87,6 +87,21 @@ function App() {
       }
     }
 
+    // Check for ?token= in URL (from /web bot command)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    if (urlToken) {
+      // Save token and clean URL
+      localStorage.setItem('auth_token', urlToken);
+      window.history.replaceState({}, '', window.location.pathname);
+      // Auto-login with this token
+      loadAll().catch(() => {
+        localStorage.removeItem('auth_token');
+        setNeedsAuth(true);
+      });
+      return;
+    }
+
     // Check if we have any auth method available
     const initData = getInitData();
     const storedToken = localStorage.getItem('auth_token');
