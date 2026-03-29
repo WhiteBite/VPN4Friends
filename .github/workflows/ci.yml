@@ -104,9 +104,9 @@ jobs:
               sudo apt-get update && sudo apt-get install -y jq
             fi
             
-            # Генерируем .env из VPN_CONFIG JSON
-            echo "🔐 Generating .env from secrets..."
-            echo '${{ secrets.VPN_CONFIG }}' | jq -r '
+            # Генерируем .env из VPN_CONFIG_B64 JSON
+            echo "🔐 Generating .env from B64 secrets..."
+            echo '${{ secrets.VPN_CONFIG_B64 }}' | base64 -d | jq -r '
               # Bot
               "BOT_TOKEN=\(.bot.token)",
               "ADMIN_IDS=\(.bot.admin_ids | join(","))",

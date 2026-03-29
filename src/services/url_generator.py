@@ -155,7 +155,13 @@ def generate_vless_url(
     if security and security != "none":
         protocol_desc += f" {security.upper()}"
 
-    fragment = f"{country_name} {protocol_desc} - {email}"
+    # Use endpoint label if available, fallback to country name
+    location_label = (
+        getattr(endpoint, "label", getattr(endpoint, "name", country_name))
+        if endpoint
+        else country_name
+    )
+    fragment = f"{location_label} {protocol_desc} - {email}"
 
     # URL-encode the fragment for strict clients
     fragment_encoded = quote(fragment)
