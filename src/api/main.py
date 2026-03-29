@@ -47,18 +47,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve Mini App static files
+# Priority: /app or other specific paths first, catch-all / last.
+frontend_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "miniapp", "dist"
+)
+
+# API routes MUST be included before the catch-all static mount
 app.include_router(admin_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
 app.include_router(me_router, prefix="/api")
 app.include_router(presets_router, prefix="/api")
 
-# Serve Mini App static files
-# Priority: /app for direct access, / for root access
-frontend_path = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "miniapp", "dist"
-)
 if os.path.exists(frontend_path):
+    # Mount specific /app path for the SPA
     app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="app")
+    # The root mount should be the very LAST thing to avoid intercepting valid API routes
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 
