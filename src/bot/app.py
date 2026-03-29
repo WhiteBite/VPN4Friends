@@ -126,32 +126,36 @@ async def main() -> None:
     await init_db()
     logger.info("Database initialized")
 
+    from src.database import session_factory
+
     # Check 3X-UI connection
     logger.info("Checking 3X-UI panel connection...")
     xui_ok, xui_message = await check_xui_connection()
     if xui_ok:
         logger.info(f"✅ {xui_message}")
 
-        # --- Provision nodes ---
-        try:
-            from src.database import session_factory
-            from src.database.repositories import UserRepository
-            from src.services.xui_provisioner import sync_node_clients, sync_node_inbounds
+        # --- Provision nodes in background ---
+        async def run_provisioning():
+            try:
+                from src.database.repositories import UserRepository
+                from src.services.xui_provisioner import sync_node_clients, sync_node_inbounds
 
-            # Get all users for client synchronization
-            logger.info("Starting auto-provisioning for 3X-UI nodes...")
-            async with session_factory() as session:
-                user_repo = UserRepository(session)
-                users_with_vpn = await user_repo.get_all_with_vpn()
+                # Get all users for client synchronization
+                logger.info("Starting auto-provisioning for 3X-UI nodes in background...")
+                async with session_factory() as session:
+                    user_repo = UserRepository(session)
+                    users_with_vpn = await user_repo.get_all_with_vpn()
 
-                for endpoint in settings.endpoints:
-                    if endpoint.panel_type == "3xui" and endpoint.panel_config:
-                        success = await sync_node_inbounds(endpoint)
-                        if success:
-                            await sync_node_clients(endpoint, users_with_vpn)
-            logger.info("Auto-provisioning complete")
-        except Exception as e:
-            logger.error(f"Failed during auto-provisioning: {e}")
+                    for endpoint in settings.endpoints:
+                        if endpoint.panel_type == "3xui" and endpoint.panel_config:
+                            success = await sync_node_inbounds(endpoint)
+                            if success:
+                                await sync_node_clients(endpoint, users_with_vpn)
+                logger.info("Auto-provisioning complete")
+            except Exception as pe:
+                logger.error(f"Failed during auto-provisioning: {pe}")
+
+        asyncio.create_task(run_provisioning())
 
     else:
         logger.warning(f"⚠️ {xui_message}")

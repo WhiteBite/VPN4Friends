@@ -39,7 +39,9 @@ class XUIApi(PanelAPI):
             self._cfg["base_path"] = "panel"
 
     async def __aenter__(self) -> "XUIApi":
-        self._session = aiohttp.ClientSession(cookie_jar=self._cookie_jar)
+        # Add a total timeout of 10 seconds to all requests to avoid hanging on unreachable nodes
+        timeout = aiohttp.ClientTimeout(total=10)
+        self._session = aiohttp.ClientSession(cookie_jar=self._cookie_jar, timeout=timeout)
         await self._login()
         return self
 
