@@ -88,3 +88,6 @@ BACKUP-CREDENTIALS.txt
 data/
 node_modules/
 miniapp/node_modules/
+
+# Infrastructure docs (local only, contains credentials)
+INFRASTRUCTURE.md
