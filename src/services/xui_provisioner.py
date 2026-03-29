@@ -120,9 +120,7 @@ def generate_inbound_config(endpoint: ServerEndpoint) -> dict[str, Any]:
         elif endpoint.transport == "xhttp":
             stream_settings["xhttpSettings"] = {
                 "path": endpoint.path or "/xhttp",
-                "mode": "auto",
                 "host": "",
-                "extra": {},
             }
 
         if is_reality:
