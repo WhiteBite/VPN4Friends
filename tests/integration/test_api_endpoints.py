@@ -66,11 +66,11 @@ class TestMeEndpoint:
     @pytest.mark.asyncio
     async def test_get_me_unauthorized(self, api_client: AsyncClient):
         """Test getting user profile without Telegram auth."""
-        # Without proper Telegram initData, returns 422 (validation error)
+        # Without proper Telegram or Token auth, returns 401 Unauthorized
         response = await api_client.get("/api/me")
 
-        # 422 = validation error (missing/invalid auth header)
-        assert response.status_code == 422
+        # 401 = unauthorized (missing/invalid auth credentials)
+        assert response.status_code == 401
 
 
 class TestPresetsEndpoints:
@@ -81,8 +81,8 @@ class TestPresetsEndpoints:
         """Test listing presets without auth."""
         response = await api_client.get("/api/presets")
 
-        # 422 = validation error (missing/invalid auth header)
-        assert response.status_code == 422
+        # 401 = unauthorized (missing/invalid auth credentials)
+        assert response.status_code == 401
 
 
 class TestAPIRoot:
@@ -93,9 +93,8 @@ class TestAPIRoot:
         """Test API root returns 404 (no route configured for root)."""
         response = await api_client.get("/")
 
-        # Root path (/) is not configured - returns 404
-        # OpenAPI docs available at /docs, schema at /openapi.json
-        assert response.status_code == 404
+        # Root path (/) now serves the MiniApp static files
+        assert response.status_code == 200
 
 
 class TestOpenAPISchema:
