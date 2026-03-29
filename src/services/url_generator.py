@@ -96,6 +96,13 @@ def generate_vless_url(
             flow_param = endpoint.flow
         if getattr(endpoint, "serviceName", None):
             service_name = endpoint.serviceName
+
+        # COMPATIBILITY FIX: Some clients/configs incorrectly set 'transport' to 'reality'
+        # instead of setting transport='tcp' and security='reality'.
+        if transport == "reality":
+            transport = "tcp"
+            security = "reality"
+
         if getattr(endpoint, "pbk", None):
             public_key = endpoint.pbk
         if getattr(endpoint, "sid", None) is not None:
