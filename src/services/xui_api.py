@@ -34,6 +34,10 @@ class XUIApi(PanelAPI):
             "host": settings.xui_host,
         }
 
+        # Safely default base_path to "panel" for 3X-UI if missing in server_config
+        if "base_path" not in self._cfg:
+            self._cfg["base_path"] = "panel"
+
     async def __aenter__(self) -> "XUIApi":
         self._session = aiohttp.ClientSession(cookie_jar=self._cookie_jar)
         await self._login()
