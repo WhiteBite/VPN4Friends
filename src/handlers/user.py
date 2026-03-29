@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.dependencies import create_access_token
 from src.bot.config import settings
 from src.database.repositories import RequestRepository, UserRepository
 from src.keyboards.admin_kb import get_request_action_kb
@@ -23,6 +24,7 @@ from src.keyboards.user_kb import (
 from src.services.vpn_service import VPNService
 from src.services.xui_api import XUIApi
 from src.utils.formatters import format_traffic, get_dns_instructions
+from src.utils.messaging import send_smart_message
 from src.utils.qr_generator import generate_qr_code
 
 logger = logging.getLogger(__name__)
@@ -178,7 +180,8 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
 
     full_text = "\n".join(messages)
 
-    await message.answer(
+    await send_smart_message(
+        message,
         full_text,
         reply_markup=get_locations_kb(),
         parse_mode="HTML",
@@ -221,6 +224,29 @@ async def cmd_support(message: Message, state: FSMContext) -> None:
     await message.answer(
         "✉️ Напиши сообщение для Дани:",
         reply_markup=get_cancel_kb(),
+    )
+
+
+@router.message(Command("web"))
+async def cmd_web(message: Message, session: AsyncSession) -> None:
+    """Handle /web command - generate magic link for browser access."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(message.from_user.id)
+
+    if not user:
+        await message.answer("Нажми /start")
+        return
+
+    token = create_access_token(user.telegram_id)
+    web_url = f"{settings.miniapp_url}/?token={token}"
+
+    await message.answer(
+        "🌐 <b>Вход через браузер</b>\n\n"
+        "Эта ссылка позволит вам пользоваться VPN через обычный браузер (на ПК или другом устройстве) без Telegram.\n\n"
+        "⚠️ <b>Внимание:</b> не передавайте эту ссылку посторонним!\n\n"
+        f"🔗 <a href='{web_url}'>Ваша ссылка для входа</a>",
+        parse_mode="HTML",
+        disable_web_page_preview=True,
     )
 
 
@@ -336,7 +362,8 @@ async def my_link(callback: CallbackQuery, session: AsyncSession) -> None:
 
     full_text = "\n".join(messages)
 
-    await callback.message.edit_text(
+    await send_smart_message(
+        callback.message,
         full_text,
         reply_markup=get_locations_kb(),
         parse_mode="HTML",

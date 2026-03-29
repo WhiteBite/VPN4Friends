@@ -19,7 +19,21 @@ async function apiRequest(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  if (initData) {
+  // 1. Try to get token from URL first (Magic Link)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  if (urlToken) {
+    localStorage.setItem('auth_token', urlToken);
+    // Clean up URL without reload
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  // 2. Auth: Prioritize JWT Token from localStorage if available
+  const storedToken = localStorage.getItem('auth_token');
+  if (storedToken) {
+    headers['Authorization'] = `Bearer ${storedToken}`;
+  } else if (initData) {
+    // 3. Fallback to Telegram Init Data
     headers['X-Telegram-Init-Data'] = initData;
   }
 
@@ -61,10 +75,13 @@ export function subscribeToWebSockets(callbacks = {}) {
   if (!initData && !import.meta.env.DEV) return () => {};
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = import.meta.env.VITE_API_BASE_URL 
-    ? import.meta.env.VITE_API_BASE_URL.replace(/^http(s)?:\/\//, '')
-    : 'localhost:8000';
-  const wsUrl = `${protocol}//${host}/ws?init_data=${encodeURIComponent(initData || '')}`;
+  const storedToken = localStorage.getItem('auth_token');
+  let wsUrl = `${protocol}//${host}/ws`;
+  if (storedToken) {
+    wsUrl += `?token=${encodeURIComponent(storedToken)}`;
+  } else if (initData) {
+    wsUrl += `?init_data=${encodeURIComponent(initData)}`;
+  }
 
   let ws = null;
   let retryDelay = 1000;       // Start with 1s

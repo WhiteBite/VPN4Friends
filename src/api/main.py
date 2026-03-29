@@ -67,31 +67,46 @@ if os.path.exists(frontend_path):
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, init_data: str = ""):
+async def websocket_endpoint(websocket: WebSocket, init_data: str = "", token: str = ""):
     """WebSocket endpoint for real-time notifications."""
-    if not init_data:
+    if not init_data and not token:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    # Validate Telegram initData (catch HTTPException since it's WS context)
-    from src.api.dependencies import _validate_telegram_data
+    import jwt
 
-    try:
-        validated_data = _validate_telegram_data(init_data)
-    except HTTPException:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-
-    user_data = json.loads(validated_data.get("user", "{}"))
-    if not user_data or "id" not in user_data:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-
+    from src.api.dependencies import JWT_ALGORITHM, _validate_telegram_data
+    from src.bot.config import settings
     from src.database.session import session_factory
+
+    telegram_id: int | None = None
+
+    # 1. Try Token first
+    if token:
+        try:
+            payload = jwt.decode(token, settings.jwt_secret, algorithms=[JWT_ALGORITHM])
+            telegram_id = int(payload.get("sub"))
+        except (jwt.PyJWTError, ValueError, TypeError):
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+    # 2. Fallback to initData
+    if not telegram_id and init_data:
+        try:
+            validated_data = _validate_telegram_data(init_data)
+            user_data = json.loads(validated_data.get("user", "{}"))
+            telegram_id = int(user_data.get("id"))
+        except (HTTPException, ValueError, TypeError):
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+    if not telegram_id:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
 
     async with session_factory() as session:
         user_repo = UserRepository(session)
-        user = await user_repo.get_by_telegram_id(user_data["id"])
+        user = await user_repo.get_by_telegram_id(telegram_id)
         if not user:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return

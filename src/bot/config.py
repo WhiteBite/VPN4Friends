@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     bot_token: str
     admin_ids: list[int] = []
     miniapp_url: str = ""
+    jwt_secret: str = "change-me-in-production-please"  # Default for dev
     # 3X-UI Panel
     xui_api_url: str
     xui_base_path: str = "/panel"
