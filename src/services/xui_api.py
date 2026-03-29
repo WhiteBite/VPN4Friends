@@ -46,7 +46,7 @@ class XUIApi(PanelAPI):
     def _build_url(self, path: str) -> str:
         """Build full URL for API endpoint."""
         base = self._cfg["api_url"].rstrip("/")
-        base_path = self._cfg["base_path"].strip("/")
+        base_path = self._cfg.get("base_path", "").strip("/")
         if base_path:
             return f"{base}/{base_path}{path}"
         return f"{base}{path}"
