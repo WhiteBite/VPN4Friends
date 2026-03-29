@@ -16,19 +16,21 @@ describe('api.js request handling', () => {
     telegram.getInitData.mockReturnValue('query_id=123');
   });
 
-  it('throws Error if telegram initData is empty in production', async () => {
-    // Vite test runs in node; simulate prod behavior by empty initData
+  it('throws Error if no auth method available in production', async () => {
+    // Simulate no Telegram initData
     telegram.getInitData.mockReturnValue('');
     
-    // Simulate import.meta.env.DEV = false by mocking it? 
-    // Vitest runs in dev normally, let's just make sure the error handling is fine if DEV was false.
-    // Instead, let's mock DEV property for this test.
+    // Mock localStorage to have no stored token
+    const originalGetItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = vi.fn(() => null);
+    
     const originalDev = import.meta.env.DEV;
     import.meta.env.DEV = false;
     
-    await expect(fetchMe()).rejects.toThrow('Telegram не передал данные профиля (initData пуст)');
+    await expect(fetchMe()).rejects.toThrow('Требуется авторизация');
     
     import.meta.env.DEV = originalDev;
+    Storage.prototype.getItem = originalGetItem;
   });
 
   it('handles standard 200 JSON responses', async () => {
