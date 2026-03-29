@@ -1,99 +1,60 @@
 {
-  "_comment": "VPN4Friends Configuration - Copy this to GitHub Secrets as VPN_CONFIG",
-  "_instructions": "1. Copy this file to vpn-config.json (add to .gitignore!) 2. Fill in your values 3. Add to GitHub Secrets as VPN_CONFIG",
-  
+  "_comment": "VPN4Friends Configuration - Copy this to GitHub Secrets as VPN_CONFIG_B64 (base64 encoded)",
+  "_instructions": "1. Copy this to vpn-config.json. 2. Fill values. 3. Use scripts/bootstrap_node.sh on new nodes.",
+
   "bot": {
     "token": "YOUR_BOT_TOKEN_HERE",
     "admin_ids": [123456789]
   },
-  
-  "servers": {
-    "moscow": {
-      "ip": "YOUR_MOSCOW_IP",
-      "ssh_user": "ubuntu"
-    },
-    "finland": {
-      "ip": "YOUR_FINLAND_IP",
-      "panel_url": "https://YOUR_FINLAND_IP:9211/YOUR_PATH",
-      "login": "your_login",
-      "password": "your_password"
-    },
-    "netherlands": {
-      "ip": "YOUR_NL_IP",
-      "panel_url": "http://YOUR_NL_IP:2053",
-      "login": "your_login",
-      "password": "your_password"
-    }
-  },
-  
+
   "reality": {
-    "uuid": "your-uuid-here",
-    "private_key": "your_private_key",
-    "public_key": "your_public_key",
-    "short_id": "your_short_id"
+    "public_key": "YOUR_REALITY_PUBLIC_KEY",
+    "private_key": "YOUR_REALITY_PRIVATE_KEY",
+    "short_id": "YOUR_SHORT_ID"
   },
-  
-  "mtproto": {
-    "finland": {
-      "host": "YOUR_FINLAND_IP",
-      "port": 4443,
-      "secret": "your_mtproto_secret"
-    },
-    "netherlands": {
-      "host": "YOUR_NL_IP",
-      "port": 4443,
-      "secret": "your_nl_mtproto_secret"
-    }
-  },
-  
+
   "endpoints": [
     {
-      "name": "finland_xhttp",
-      "label": "🇫🇮 Финляндия (xHTTP)",
-      "host": "YOUR_MOSCOW_IP",
+      "name": "germany_direct",
+      "label": "Германия (Direct)",
+      "category": "vpn",
+      "country": "Германия",
+      "host": "de.vpn4friends.your-domain.ru",
       "port": 443,
       "protocol": "vless",
       "transport": "tcp",
       "security": "reality",
-      "sni": "max.ru",
-      "flow": "xtls-rprx-vision"
+      "sni": "google.com",
+      "panel_type": "3xui",
+      "panel_config": {
+        "api_url": "http://YOUR_NODE_IP:2053",
+        "username": "admin",
+        "password": "your_password",
+        "base_path": "panel"
+      },
+      "ssh_host": "YOUR_NODE_IP",
+      "ssh_user": "root",
+      "ssh_port": 22
     },
     {
-      "name": "finland_grpc",
-      "label": "🇫🇮 Финляндия (gRPC)",
-      "host": "YOUR_MOSCOW_IP",
-      "port": 444,
+      "name": "finland_xhttp",
+      "label": "Финляндия (xHTTP)",
+      "category": "vpn",
+      "country": "Финляндия",
+      "host": "fi.vpn4friends.your-domain.ru",
+      "port": 8448,
       "protocol": "vless",
-      "transport": "grpc",
+      "transport": "xhttp",
       "security": "reality",
       "sni": "max.ru",
-      "serviceName": "grpc"
-    },
-    {
-      "name": "finland_direct",
-      "label": "🇫🇮 Финляндия (Direct)",
-      "host": "YOUR_FINLAND_IP",
-      "port": 443,
-      "protocol": "vless",
-      "panel_type": "3xui"
-    },
-    {
-      "name": "netherlands_direct",
-      "label": "🇳🇱 Нидерланды (Direct)",
-      "host": "YOUR_NL_IP",
-      "port": 443,
-      "protocol": "vless",
-      "panel_type": "3xui"
-    },
-    {
-      "name": "netherlands_via_moscow",
-      "label": "🇳🇱 Нидерланды (via Moscow)",
-      "host": "YOUR_MOSCOW_IP",
-      "port": 445,
-      "protocol": "vless",
-      "security": "reality",
-      "sni": "max.ru",
-      "flow": "xtls-rprx-vision"
+      "path": "/xhttp",
+      "panel_type": "3xui",
+      "panel_config": {
+        "api_url": "http://YOUR_NODE_IP:2053",
+        "username": "admin",
+        "password": "your_password",
+        "base_path": "panel"
+      }
     }
   ]
 }

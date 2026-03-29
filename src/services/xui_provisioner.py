@@ -4,10 +4,71 @@ import json
 import logging
 from typing import Any
 
+import asyncssh
+
 from src.bot.config import ServerEndpoint, settings
 from src.services.xui_api import XUIApi, XUIApiError
 
 logger = logging.getLogger(__name__)
+
+
+async def self_heal_database(endpoint: ServerEndpoint) -> bool:
+    """Attempt to remotely patch the 3x-ui database to remove UNIQUE constraints.
+
+    Requires ssh_host, ssh_user, and optionally ssh_key in the endpoint config.
+    """
+    if not endpoint.ssh_host:
+        logger.warning(f"Node {endpoint.name}: No SSH host configured, self-healing skipped")
+        return False
+
+    host = endpoint.ssh_host
+    user = endpoint.ssh_user or "root"
+    port = endpoint.ssh_port or 22
+
+    logger.info(
+        f"Node {endpoint.name}: Starting remote self-healing (patching DB) via {user}@{host}:{port}"
+    )
+
+    sql_patch = """
+    BEGIN TRANSACTION;
+    CREATE TABLE IF NOT EXISTS client_traffics_new (
+        id integer PRIMARY KEY AUTOINCREMENT,
+        inbound_id integer,
+        enable numeric,
+        email text,
+        up integer,
+        down integer,
+        all_time integer,
+        expiry_time integer,
+        total integer,
+        reset integer DEFAULT 0,
+        last_online integer DEFAULT 0,
+        CONSTRAINT fk_inbounds_client_stats FOREIGN KEY (inbound_id) REFERENCES inbounds(id)
+    );
+    INSERT INTO client_traffics_new SELECT id, inbound_id, enable, email, up, down, all_time, expiry_time, total, reset, last_online FROM client_traffics;
+    DROP TABLE client_traffics;
+    ALTER TABLE client_traffics_new RENAME TO client_traffics;
+    COMMIT;
+    """
+
+    try:
+        # Use simple key-based or agent-based auth
+        # If key is provided as content, it would need a temporary file or specific asyncssh handling
+        async with asyncssh.connect(host, port=port, username=user) as conn:
+            # Check for DB path (different for Docker vs host-based)
+            # 1. Host-based (Finland style)
+            # 2. Docker-based (Germany style)
+            cmd = f'sqlite3 /etc/x-ui/x-ui.db "{sql_patch}"'
+            await conn.run(cmd, check=True)
+            logger.info(f"Node {endpoint.name}: DB patch applied successfully via SSH")
+            return True
+    except Exception as e:
+        logger.error(f"Node {endpoint.name}: Self-healing failed: {e}")
+        # Log the fallback manual command for the user
+        logger.info(
+            f"Manual fix for {endpoint.name}: 'sqlite3 /etc/x-ui/x-ui.db \"{sql_patch.strip()}\"'"
+        )
+        return False
 
 
 def generate_inbound_config(endpoint: ServerEndpoint) -> dict[str, Any]:
@@ -55,6 +116,13 @@ def generate_inbound_config(endpoint: ServerEndpoint) -> dict[str, Any]:
                 "serviceName": endpoint.serviceName or "grpc",
                 "authority": "",
                 "multiMode": True,
+            }
+        elif endpoint.transport == "xhttp":
+            stream_settings["xhttpSettings"] = {
+                "path": endpoint.path or "/xhttp",
+                "mode": "auto",
+                "host": "",
+                "extra": {},
             }
 
         if is_reality:
@@ -195,7 +263,32 @@ async def sync_node_clients(node_endpoint: ServerEndpoint, users: list[Any]) -> 
             return await api.batch_add_clients(target_id, clients_info, protocol=protocol)
 
     except XUIApiError as e:
-        logger.error(f"Failed to sync clients to node {node_endpoint.name}: {e}")
+        error_msg = str(e)
+        if "UNIQUE constraint failed" in error_msg:
+            logger.warning(
+                f"Node {node_endpoint.name}: Detected UNIQUE constraint failure. "
+                "The database likely requires patching to allow multiple inbounds for the same email."
+            )
+            # Trigger self-healing
+            if await self_heal_database(node_endpoint):
+                logger.info(
+                    f"Node {node_endpoint.name}: Retrying client sync after self-healing..."
+                )
+                # Retry once
+                try:
+                    async with XUIApi(node_endpoint.panel_config) as api:
+                        return await api.batch_add_clients(
+                            target_id, clients_info, protocol=protocol
+                        )
+                except Exception as retry_err:
+                    logger.error(f"Node {node_endpoint.name}: Retry failed: {retry_err}")
+            else:
+                logger.error(
+                    f"Node {node_endpoint.name}: Sync failed and automated self-healing was not possible. "
+                    "Please run the bootstrap script or manually patch the database."
+                )
+        else:
+            logger.error(f"Failed to sync clients to node {node_endpoint.name}: {e}")
         return False
     except Exception as e:
         logger.error(f"Unexpected error syncing clients to {node_endpoint.name}: {e}")

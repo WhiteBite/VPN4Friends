@@ -54,6 +54,12 @@ class ServerEndpoint(BaseModel):
     fp: str | None = None
     spx: str | None = None
 
+    # SSH configuration for automated setup and self-healing (optional)
+    ssh_host: str | None = None
+    ssh_user: str | None = None
+    ssh_key: str | None = None
+    ssh_port: int = 22
+
 
 class Settings(BaseSettings):
     """Bot configuration loaded from environment variables."""
