@@ -2,10 +2,12 @@
 
 import json
 import logging
+import os
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
@@ -45,10 +47,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(admin_router)
-app.include_router(system_router)
-app.include_router(me_router)
-app.include_router(presets_router)
+app.include_router(admin_router, prefix="/api")
+app.include_router(system_router, prefix="/api")
+app.include_router(me_router, prefix="/api")
+app.include_router(presets_router, prefix="/api")
+
+# Serve Mini App static files
+# Priority: /app for direct access, / for root access
+frontend_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "miniapp", "dist"
+)
+if os.path.exists(frontend_path):
+    app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="app")
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 
 @app.websocket("/ws")

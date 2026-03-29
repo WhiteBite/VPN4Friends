@@ -256,3 +256,68 @@ async def send_chat_message(
         text=saved_msg.text,
         created_at=saved_msg.created_at,
     )
+
+
+@router.delete("/users/{user_id}/vpn", response_model=GenericResponse)
+async def revoke_user_vpn(
+    user_id: int,
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> GenericResponse:
+    """Fully revoke a user's VPN access.
+
+    Removes the client from all X-UI panels and deletes the profile from the bot DB.
+    After this, the user can request VPN again from scratch.
+    """
+    user_repo = UserRepository(session)
+    target_user = await user_repo.get_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not target_user.has_vpn:
+        return GenericResponse(success=False, message="У пользователя нет активного VPN.")
+
+    vpn_service = VPNService(session)
+    revoked = await vpn_service.revoke_vpn(target_user)
+
+    if not revoked:
+        return GenericResponse(success=False, message="Не удалось отозвать VPN.")
+
+    # Notify via WebSocket
+    from src.api.ws import manager as ws_manager
+
+    await ws_manager.send_personal_message({"type": "VPN_REVOKED"}, target_user.id)
+    await ws_manager.broadcast_to_admins(
+        {"type": "USER_VPN_REVOKED", "user_id": target_user.id, "username": target_user.username}
+    )
+
+    display = f"@{target_user.username}" if target_user.username else target_user.full_name
+    logger.info(f"Admin revoked VPN for user {display} (id={target_user.id})")
+    return GenericResponse(success=True, message=f"VPN для {display} полностью удалён.")
+
+
+@router.get("/users")
+async def list_users(
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict]:
+    """List all known users with their VPN status."""
+    user_repo = UserRepository(session)
+    users = await user_repo.get_all()
+
+    result = []
+    for u in users:
+        profile = u.active_profile
+        result.append(
+            {
+                "id": u.id,
+                "telegram_id": u.telegram_id,
+                "username": u.username,
+                "full_name": u.full_name,
+                "has_vpn": u.has_vpn,
+                "protocol": profile.protocol_name if profile else None,
+                "email": profile.profile_data.get("email") if profile else None,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+            }
+        )
+    return result

@@ -1,6 +1,9 @@
 import { getInitData } from './telegram';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// use relative /api for production same-origin hosting, dev fallback to localhost
+const API_BASE_URL = import.meta.env.PROD 
+  ? '/api' 
+  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api');
 
 async function apiRequest(path, options = {}) {
   const initData = getInitData();
@@ -236,4 +239,14 @@ export function sendSupportMessage(text) {
     method: 'POST',
     body: JSON.stringify({ text }),
   });
+}
+
+// ----- Admin Users -----
+
+export function fetchUsers() {
+  return apiRequest('/staff/users');
+}
+
+export function revokeUserVpn(userId) {
+  return apiRequest(`/staff/users/${userId}/vpn`, { method: 'DELETE' });
 }

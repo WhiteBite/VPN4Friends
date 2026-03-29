@@ -20,6 +20,13 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_id(self, user_id: int) -> User | None:
+        """Get user by internal database ID with profiles eagerly loaded."""
+        result = await self.session.execute(
+            select(User).where(User.id == user_id).options(selectinload(User.profiles))
+        )
+        return result.scalar_one_or_none()
+
     async def create(
         self,
         telegram_id: int,
@@ -79,7 +86,7 @@ class UserRepository:
 
     async def get_all(self) -> list[User]:
         """Get all users."""
-        result = await self.session.execute(select(User))
+        result = await self.session.execute(select(User).options(selectinload(User.profiles)))
         return list(result.scalars().all())
 
     async def create_vpn_profile(

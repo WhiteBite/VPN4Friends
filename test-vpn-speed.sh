@@ -61,7 +61,7 @@ if docker ps | grep -q 3x-ui; then
     REALITY_CONFIG=$(docker exec 3x-ui cat /app/bin/config.json 2>/dev/null | grep -c '"realitySettings"' || echo "0")
     if [ "$REALITY_CONFIG" -gt 0 ]; then
         echo "✅ Reality protocol is configured"
-        echo "   Verify serverName matches your config (should be: speed.cloudflare.com)"
+        echo "   Verify serverName matches your config (should be: max.ru)"
     fi
     
     # Check for gRPC deprecation warning

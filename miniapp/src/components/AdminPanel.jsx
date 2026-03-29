@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { fetchAdminRequests, approveRequest, rejectRequest, sendAdminBroadcast } from '../api';
+import { fetchAdminRequests, approveRequest, rejectRequest, sendAdminBroadcast, fetchUsers, revokeUserVpn } from '../api';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import AdminChats from './AdminChats';
@@ -12,7 +12,7 @@ const MOCK_REQUESTS = [
 ];
 
 export default function AdminPanel({ onError, onSuccess }) {
-  const [activeTab, setActiveTab] = useState('requests'); // 'requests', 'broadcast', 'chats'
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests', 'broadcast', 'chats', 'users'
   
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +23,12 @@ export default function AdminPanel({ onError, onSuccess }) {
   const [broadcastText, setBroadcastText] = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState('all');
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
+
+  // Users tab state
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [revokeConfirmId, setRevokeConfirmId] = useState(null);
+  const [revoking, setRevoking] = useState(null);
 
   const isDev = import.meta.env.DEV;
 
@@ -112,6 +118,40 @@ export default function AdminPanel({ onError, onSuccess }) {
       setProcessing(null);
     }
   };
+
+  const loadUsers = useCallback(async () => {
+    try {
+      setUsersLoading(true);
+      const data = await fetchUsers();
+      setUsers(data || []);
+    } catch (err) {
+      if (!isDev) onError(err.message || 'Ошибка загрузки пользователей');
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [isDev, onError]);
+
+  const handleRevoke = async (userId) => {
+    if (revokeConfirmId !== userId) {
+      setRevokeConfirmId(userId);
+      return;
+    }
+    setRevoking(userId);
+    try {
+      const res = await revokeUserVpn(userId);
+      onSuccess(res.message || 'VPN удалён');
+      setRevokeConfirmId(null);
+      loadUsers(); // refresh
+    } catch (err) {
+      onError(err.message || 'Ошибка удаления VPN');
+    } finally {
+      setRevoking(null);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'users') loadUsers();
+  }, [activeTab, loadUsers]);
 
   if (loading) {
     return <div className="empty-state">Загрузка панели...</div>;
@@ -288,6 +328,80 @@ export default function AdminPanel({ onError, onSuccess }) {
     );
   };
 
+  const renderUsers = () => {
+    if (usersLoading) return <div className="empty-state">Загрузка...</div>;
+
+    const vpnUsers = users.filter(u => u.has_vpn);
+    const noVpnUsers = users.filter(u => !u.has_vpn);
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+          Всего: {users.length} | С VPN: {vpnUsers.length} | Без VPN: {noVpnUsers.length}
+        </div>
+
+        {vpnUsers.length > 0 && (
+          <>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold' }}>🟢 С активным VPN</h3>
+            {vpnUsers.map(u => (
+              <div key={u.id} style={{
+                padding: '12px 16px',
+                background: 'var(--bg-elevated)',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.full_name}</div>
+                  {u.username && <div style={{ fontSize: '13px', color: 'var(--accent)' }}>@{u.username}</div>}
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {u.protocol} · {u.email}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleRevoke(u.id)}
+                  disabled={revoking === u.id}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: revokeConfirmId === u.id ? '#ff4d4f' : 'var(--surface)',
+                    color: revokeConfirmId === u.id ? '#fff' : 'var(--text)',
+                    opacity: revoking === u.id ? 0.5 : 1,
+                  }}
+                >
+                  {revoking === u.id ? '...' : revokeConfirmId === u.id ? '🗑 Точно удалить?' : 'Удалить VPN'}
+                </button>
+              </div>
+            ))}
+          </>
+        )}
+
+        {noVpnUsers.length > 0 && (
+          <>
+            <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '8px' }}>⚪ Без VPN</h3>
+            {noVpnUsers.map(u => (
+              <div key={u.id} style={{
+                padding: '12px 16px',
+                background: 'var(--bg-elevated)',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                opacity: 0.7
+              }}>
+                <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.full_name}</div>
+                {u.username && <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>@{u.username}</div>}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div style={{ paddingBottom: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', gap: '8px' }}>
@@ -301,7 +415,7 @@ export default function AdminPanel({ onError, onSuccess }) {
             background: activeTab === 'requests' ? 'var(--accent)' : 'var(--bg-elevated)', 
             color: activeTab === 'requests' ? '#000' : 'var(--text)', 
             fontWeight: '600',
-            fontSize: '15px',
+            fontSize: '14px',
             transition: 'all 0.2s',
             cursor: 'pointer'
           }}>
@@ -317,7 +431,7 @@ export default function AdminPanel({ onError, onSuccess }) {
             background: activeTab === 'broadcast' ? 'var(--accent)' : 'var(--bg-elevated)', 
             color: activeTab === 'broadcast' ? '#000' : 'var(--text)', 
             fontWeight: '600',
-            fontSize: '15px',
+            fontSize: '14px',
             transition: 'all 0.2s',
             cursor: 'pointer'
           }}>
@@ -333,11 +447,27 @@ export default function AdminPanel({ onError, onSuccess }) {
             background: activeTab === 'chats' ? 'var(--accent)' : 'var(--bg-elevated)', 
             color: activeTab === 'chats' ? '#000' : 'var(--text)', 
             fontWeight: '600',
-            fontSize: '15px',
+            fontSize: '14px',
             transition: 'all 0.2s',
             cursor: 'pointer'
           }}>
-          Поддержка
+          Чаты
+        </button>
+        <button 
+          onClick={() => setActiveTab('users')}
+          style={{ 
+            flex: 1, 
+            padding: '12px', 
+            borderRadius: '12px', 
+            border: 'none', 
+            background: activeTab === 'users' ? 'var(--accent)' : 'var(--bg-elevated)', 
+            color: activeTab === 'users' ? '#000' : 'var(--text)', 
+            fontWeight: '600',
+            fontSize: '14px',
+            transition: 'all 0.2s',
+            cursor: 'pointer'
+          }}>
+          Юзеры
         </button>
       </div>
 
@@ -345,7 +475,7 @@ export default function AdminPanel({ onError, onSuccess }) {
         <AdminChats onError={onError} onSuccess={onSuccess} />
       ) : (
         <Card style={{ padding: '20px' }}>
-          {activeTab === 'requests' ? renderRequests() : renderBroadcast()}
+          {activeTab === 'requests' ? renderRequests() : activeTab === 'users' ? renderUsers() : renderBroadcast()}
         </Card>
       )}
     </div>
