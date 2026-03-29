@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_current_user
@@ -321,3 +322,115 @@ async def list_users(
             }
         )
     return result
+
+
+# ---------------------------------------------------------------------------
+#  Hot-reload config + re-provision
+# ---------------------------------------------------------------------------
+
+
+class ConfigReloadRequest(BaseModel):
+    """Request body for the config hot-reload endpoint."""
+
+    config_b64: str  # base64-encoded vpn-config.json
+
+
+class ConfigReloadResponse(BaseModel):
+    success: bool
+    message: str
+    endpoints_count: int = 0
+    nodes_count: int = 0
+
+
+@router.post("/config/reload", response_model=ConfigReloadResponse)
+async def reload_config(
+    payload: ConfigReloadRequest,
+    admin: User = Depends(require_admin),
+) -> ConfigReloadResponse:
+    """Hot-reload VPN config and re-run provisioning without CI/CD.
+
+    Accepts a base64-encoded ``vpn-config.json``, parses it, swaps the
+    global ``settings`` object in-place, and kicks off the auto-provisioner
+    in the background.
+    """
+    import base64
+    import json
+
+    from src.bot.config import ServerEndpoint, settings
+
+    # 1. Decode & parse -------------------------------------------------------
+    try:
+        raw = base64.b64decode(payload.config_b64)
+        config = json.loads(raw)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64/JSON: {exc}") from exc
+
+    if not isinstance(config, dict):
+        raise HTTPException(status_code=400, detail="Config must be a JSON object")
+
+    # 2. Validate & swap endpoints --------------------------------------------
+    try:
+        new_endpoints = [ServerEndpoint(**e) for e in config.get("endpoints", [])]
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to parse endpoints: {exc}") from exc
+
+    new_nodes = config.get("nodes", {})
+
+    # Hot-swap on the singleton
+    settings.endpoints = new_endpoints
+    settings.endpoints_config = json.dumps(config.get("endpoints", []))
+    settings.nodes_config = new_nodes
+    settings.nodes_config_raw = json.dumps(new_nodes)
+
+    logger.info(
+        f"Config hot-reloaded by admin {admin.username}: "
+        f"{len(new_endpoints)} endpoints, {len(new_nodes)} nodes"
+    )
+
+    # 3. Re-provision in background -------------------------------------------
+    async def _reprovision():
+        from src.database import session_factory
+        from src.database.repositories import UserRepository
+        from src.services.xui_provisioner import (
+            sync_node_clients,
+            sync_node_inbounds,
+            sync_node_routing,
+        )
+
+        try:
+            # Phase 1: routing / outbounds
+            for node_name, node_cfg in new_nodes.items():
+                try:
+                    await sync_node_routing(node_name, node_cfg)
+                except Exception as e:
+                    logger.error(f"Re-provision routing {node_name}: {e}")
+
+            # Phase 2: inbounds + clients
+            async with session_factory() as session:
+                user_repo = UserRepository(session)
+                users_with_vpn = await user_repo.get_all_with_vpn()
+
+                for ep in new_endpoints:
+                    if ep.panel_type != "3xui":
+                        continue
+                    if not ep.panel_config or "api_url" not in ep.panel_config:
+                        continue
+                    try:
+                        ok = await sync_node_inbounds(ep)
+                        if ok:
+                            await sync_node_clients(ep, users_with_vpn)
+                    except Exception as e:
+                        logger.error(f"Re-provision {ep.name}: {e}")
+
+            logger.info("Re-provisioning after config reload complete")
+        except Exception as exc:
+            logger.error(f"Re-provisioning failed: {exc}")
+
+    asyncio.create_task(_reprovision())
+
+    return ConfigReloadResponse(
+        success=True,
+        message="Config reloaded, provisioning started in background.",
+        endpoints_count=len(new_endpoints),
+        nodes_count=len(new_nodes),
+    )
