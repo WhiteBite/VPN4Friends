@@ -75,8 +75,10 @@ secrets/
 credentials.json
 service-account*.json
 
-# Deployment scripts
+# Deployment scripts (contain or generate secrets)
 scripts/deploy-env.sh
+scripts/deploy_config.py
+base64_config.txt
 
 
 # VPN Config (contains secrets)
