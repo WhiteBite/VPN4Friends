@@ -94,7 +94,7 @@ function App() {
     if (!initData && !storedToken && !import.meta.env.DEV) {
       // No auth available — show login screen
       setNeedsAuth(true);
-      setLoading && undefined; // Don't start loading
+      // No auth, no loading needed
     } else {
       loadAll().catch(() => {
         // If loadAll fails due to auth, show login
