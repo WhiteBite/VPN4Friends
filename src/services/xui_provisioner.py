@@ -255,10 +255,14 @@ async def sync_node_clients(node_endpoint: ServerEndpoint, users: list[Any]) -> 
                 logger.warning(f"Target inbound '{node_endpoint.name}' not found for client sync")
                 return False
 
+            transport = node_endpoint.transport or "tcp"
             logger.info(
-                f"Syncing {len(clients_info)} clients to node {node_endpoint.name} (inbound {target_id})"
+                f"Syncing {len(clients_info)} clients to node {node_endpoint.name} "
+                f"(inbound {target_id}, transport={transport})"
             )
-            return await api.batch_add_clients(target_id, clients_info, protocol=protocol)
+            return await api.batch_add_clients(
+                target_id, clients_info, protocol=protocol, transport=transport
+            )
 
     except XUIApiError as e:
         error_msg = str(e)
@@ -273,10 +277,11 @@ async def sync_node_clients(node_endpoint: ServerEndpoint, users: list[Any]) -> 
                     f"Node {node_endpoint.name}: Retrying client sync after self-healing..."
                 )
                 # Retry once
+                transport = node_endpoint.transport or "tcp"
                 try:
                     async with XUIApi(node_endpoint.panel_config) as api:
                         return await api.batch_add_clients(
-                            target_id, clients_info, protocol=protocol
+                            target_id, clients_info, protocol=protocol, transport=transport
                         )
                 except Exception as retry_err:
                     logger.error(f"Node {node_endpoint.name}: Retry failed: {retry_err}")

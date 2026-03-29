@@ -166,8 +166,14 @@ class XUIApi(PanelAPI):
                 logger.error(f"delete_inbound({inbound_id}) API error: {result.get('msg')}")
             return success
 
-    def _get_client_template(self, protocol: str, client_id: str, email: str) -> dict[str, Any]:
-        """Get a new client template based on the protocol."""
+    def _get_client_template(
+        self, protocol: str, client_id: str, email: str, transport: str = "tcp"
+    ) -> dict[str, Any]:
+        """Get a new client template based on the protocol.
+
+        IMPORTANT: flow=xtls-rprx-vision is ONLY compatible with TCP transport.
+        For gRPC, xHTTP, WS — flow MUST be empty or the connection will fail silently.
+        """
         base_template = {
             "id": client_id,
             "email": email,
@@ -180,11 +186,11 @@ class XUIApi(PanelAPI):
             "reset": 0,
         }
         if protocol == "vless":
-            base_template["flow"] = "xtls-rprx-vision"
-        # Add other protocols like shadowsocks here if needed
-        # elif protocol == "shadowsocks":
-        #     base_template["method"] = "..."
-        #     base_template["password"] = "..."
+            # flow is ONLY for TCP+REALITY. gRPC/xHTTP/WS must have empty flow!
+            if transport == "tcp":
+                base_template["flow"] = "xtls-rprx-vision"
+            else:
+                base_template["flow"] = ""
 
         return base_template
 
@@ -215,7 +221,15 @@ class XUIApi(PanelAPI):
                 }
 
         client_id = client_id or str(uuid.uuid4())
-        new_client = self._get_client_template(protocol, client_id, email)
+
+        # Detect transport from the inbound's streamSettings for correct flow
+        try:
+            ss = json.loads(inbound.get("streamSettings", "{}"))
+        except (json.JSONDecodeError, TypeError):
+            ss = {}
+        transport = ss.get("network", "tcp")
+
+        new_client = self._get_client_template(protocol, client_id, email, transport)
 
         clients.append(new_client)
         settings_data["clients"] = clients
@@ -232,47 +246,62 @@ class XUIApi(PanelAPI):
         return None
 
     async def batch_add_clients(
-        self, inbound_id: int, clients_info: list[tuple[str, str]], protocol: str = "vless"
+        self,
+        inbound_id: int,
+        clients_info: list[tuple[str, str]],
+        protocol: str = "vless",
+        transport: str = "tcp",
     ) -> bool:
-        """Efficiently add multiple clients (email, client_id) to an inbound."""
+        """Efficiently add/sync multiple clients (email, client_id) to an inbound.
+
+        Matches clients by UUID (id) instead of email to handle suffixed emails.
+        For non-primary inbounds, email is suffixed with -<port> to avoid
+        UNIQUE constraint on client_traffics.email in 3x-ui.
+
+        Args:
+            inbound_id: Target inbound ID
+            clients_info: List of (email, client_id) tuples
+            protocol: Protocol (vless, etc.)
+            transport: Transport type (tcp, grpc, xhttp, ws) — affects flow setting
+        """
         if not clients_info:
             return True
 
         inbound = await self.get_inbound(inbound_id)
+        inbound_port = inbound.get("port", 0)
         settings_data = json.loads(inbound["settings"])
         clients = settings_data.get("clients", [])
-        existing_emails = {c.get("email") for c in clients}
+        existing_uuids = {c.get("id") for c in clients}
 
         changed = False
         for email, client_id in clients_info:
-            if email in existing_emails:
-                # Update existing client UUID to match central DB
+            if client_id in existing_uuids:
+                # Client already exists (matched by UUID) — fix flow if wrong
                 for c in clients:
-                    if c.get("email") == email and c.get("id") != client_id:
-                        c["id"] = client_id
-                        changed = True
+                    if c.get("id") == client_id:
+                        correct_flow = "xtls-rprx-vision" if transport == "tcp" else ""
+                        if c.get("flow", "") != correct_flow:
+                            c["flow"] = correct_flow
+                            changed = True
+                            logger.info(
+                                f"Fixed flow for {email} on port {inbound_port}: "
+                                f"'{c.get('flow','')}' -> '{correct_flow}'"
+                            )
                 continue
 
-            new_client = self._get_client_template(protocol, client_id, email)
+            # Client not on this inbound — add with suffixed email
+            suffixed_email = f"{email}-{inbound_port}" if inbound_port else email
+            new_client = self._get_client_template(protocol, client_id, suffixed_email, transport)
             clients.append(new_client)
             changed = True
+            logger.debug(f"Adding client {email} ({client_id[:8]}...) to port {inbound_port}")
 
         if not changed:
             return True
-        if changed:
-            settings_data["clients"] = clients
-            inbound["settings"] = json.dumps(settings_data)
-            return await self.update_inbound(inbound_id, inbound)
-
-        return True  # All clients already exist
 
         settings_data["clients"] = clients
         inbound["settings"] = json.dumps(settings_data)
-
-        success = await self.update_inbound(inbound_id, inbound)
-        if success:
-            logger.info(f"Batch added {len(clients_info)} new clients to inbound {inbound_id}")
-        return success
+        return await self.update_inbound(inbound_id, inbound)
 
     async def add_client_to_all_inbounds(
         self, email: str, client_id: str, protocol: str = "vless"
@@ -299,7 +328,41 @@ class XUIApi(PanelAPI):
                 continue
             if inbound.get("protocol") != protocol:
                 continue
-            res = await self.create_client(inbound["id"], email, protocol, client_id)
+
+            # Detect transport from streamSettings for correct flow
+            port = inbound.get("port", 0)
+            try:
+                ss = json.loads(inbound.get("streamSettings", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                ss = {}
+            transport = ss.get("network", "tcp")
+
+            # Suffix email with port to avoid UNIQUE constraint on client_traffics
+            suffixed_email = f"{email}-{port}" if port else email
+
+            # Check if client UUID already exists on this inbound
+            try:
+                settings_data = json.loads(inbound.get("settings", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                settings_data = {}
+            existing_uuids = {c.get("id") for c in settings_data.get("clients", [])}
+
+            if client_id in existing_uuids:
+                # Already exists, fix flow if needed
+                clients = settings_data.get("clients", [])
+                for c in clients:
+                    if c.get("id") == client_id:
+                        correct_flow = "xtls-rprx-vision" if transport == "tcp" else ""
+                        if c.get("flow", "") != correct_flow:
+                            c["flow"] = correct_flow
+                            settings_data["clients"] = clients
+                            inbound["settings"] = json.dumps(settings_data)
+                            await self.update_inbound(inbound["id"], inbound)
+                            logger.info(f"Fixed flow for {email} on port {port}")
+                success_count += 1
+                continue
+
+            res = await self.create_client(inbound["id"], suffixed_email, protocol, client_id)
             if res:
                 success_count += 1
 
