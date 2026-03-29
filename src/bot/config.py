@@ -47,6 +47,7 @@ class ServerEndpoint(BaseModel):
 
     # Reality-specific overrides
     pbk: str | None = None
+    pk: str | None = None
     sid: str | None = None
     fp: str | None = None
     spx: str | None = None
@@ -67,6 +68,7 @@ class Settings(BaseSettings):
     xui_host: str
 
     # Global Reality Keys
+    reality_private_key: str = ""
     reality_public_key: str = ""
     reality_short_id: str = ""
 

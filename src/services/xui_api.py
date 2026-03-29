@@ -110,6 +110,56 @@ class XUIApi(PanelAPI):
                 logger.error(f"update_inbound({inbound_id}) API error: {result.get('msg')}")
             return success
 
+    async def list_inbounds(self) -> list[dict[str, Any]]:
+        """List all inbounds."""
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        url = self._build_url("/api/inbounds/list")
+        async with self._session.get(url) as resp:
+            if resp.status != 200:
+                raise XUIApiError(f"List inbounds failed with HTTP {resp.status}")
+
+            result = await resp.json()
+            if not result.get("success"):
+                raise XUIApiError(f"List inbounds API error: {result.get('msg')}")
+            return result.get("obj", [])
+
+    async def add_inbound(self, data: dict[str, Any]) -> bool:
+        """Add a new inbound."""
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        url = self._build_url("/api/inbounds/add")
+        async with self._session.post(url, json=data) as resp:
+            if resp.status != 200:
+                body = await resp.text()
+                logger.error(f"add_inbound failed: HTTP {resp.status}, body={body}")
+                return False
+
+            result = await resp.json()
+            success = result.get("success", False)
+            if not success:
+                logger.error(f"add_inbound API error: {result.get('msg')}")
+            return success
+
+    async def delete_inbound(self, inbound_id: int) -> bool:
+        """Delete an inbound."""
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        url = self._build_url(f"/api/inbounds/del/{inbound_id}")
+        async with self._session.post(url) as resp:
+            if resp.status != 200:
+                logger.error(f"delete_inbound({inbound_id}) failed: HTTP {resp.status}")
+                return False
+
+            result = await resp.json()
+            success = result.get("success", False)
+            if not success:
+                logger.error(f"delete_inbound({inbound_id}) API error: {result.get('msg')}")
+            return success
+
     def _get_client_template(self, protocol: str, client_id: str, email: str) -> dict[str, Any]:
         """Get a new client template based on the protocol."""
         base_template = {
@@ -174,6 +224,38 @@ class XUIApi(PanelAPI):
                 "inbound_id": inbound_id,
             }
         return None
+
+    async def batch_add_clients(
+        self, inbound_id: int, clients_info: list[tuple[str, str]], protocol: str = "vless"
+    ) -> bool:
+        """Efficiently add multiple clients (email, client_id) to an inbound."""
+        if not clients_info:
+            return True
+
+        inbound = await self.get_inbound(inbound_id)
+        settings_data = json.loads(inbound["settings"])
+        clients = settings_data.get("clients", [])
+        existing_emails = {c.get("email") for c in clients}
+
+        added = False
+        for email, client_id in clients_info:
+            if email in existing_emails:
+                continue
+
+            new_client = self._get_client_template(protocol, client_id, email)
+            clients.append(new_client)
+            added = True
+
+        if not added:
+            return True  # All clients already exist
+
+        settings_data["clients"] = clients
+        inbound["settings"] = json.dumps(settings_data)
+
+        success = await self.update_inbound(inbound_id, inbound)
+        if success:
+            logger.info(f"Batch added {len(clients_info)} new clients to inbound {inbound_id}")
+        return success
 
     async def add_client_to_all_inbounds(
         self, email: str, client_id: str, protocol: str = "vless"

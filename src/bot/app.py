@@ -20,7 +20,7 @@ from aiogram.types import (
 from src.bot.config import settings
 from src.bot.error_handler import router as error_router
 from src.bot.middlewares import DatabaseMiddleware
-from src.database import init_db, session_factory
+from src.database import init_db
 from src.handlers import (
     admin_messaging_router,
     admin_router,
@@ -131,6 +131,28 @@ async def main() -> None:
     xui_ok, xui_message = await check_xui_connection()
     if xui_ok:
         logger.info(f"✅ {xui_message}")
+
+        # --- Provision nodes ---
+        try:
+            from src.database import session_factory
+            from src.database.repositories import UserRepository
+            from src.services.xui_provisioner import sync_node_clients, sync_node_inbounds
+
+            # Get all users for client synchronization
+            logger.info("Starting auto-provisioning for 3X-UI nodes...")
+            async with session_factory() as session:
+                user_repo = UserRepository(session)
+                users_with_vpn = await user_repo.get_all_with_vpn()
+
+                for endpoint in settings.endpoints:
+                    if endpoint.panel_type == "3xui" and endpoint.panel_config:
+                        success = await sync_node_inbounds(endpoint)
+                        if success:
+                            await sync_node_clients(endpoint, users_with_vpn)
+            logger.info("Auto-provisioning complete")
+        except Exception as e:
+            logger.error(f"Failed during auto-provisioning: {e}")
+
     else:
         logger.warning(f"⚠️ {xui_message}")
         logger.warning("Bot will start, but VPN operations may fail!")
