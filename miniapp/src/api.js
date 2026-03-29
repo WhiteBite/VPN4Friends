@@ -9,11 +9,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
 async function apiRequest(path, options = {}) {
   const initData = getInitData();
 
-  // If initData is empty and we are not in mock dev mode, we cannot authenticate the user.
-  if (!initData && !import.meta.env.DEV) {
-    throw new Error('Telegram не передал данные профиля (initData пуст). Перезапустите бота через /start и нажмите кнопку в меню.');
-  }
-
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
@@ -35,6 +30,9 @@ async function apiRequest(path, options = {}) {
   } else if (initData) {
     // 3. Fallback to Telegram Init Data
     headers['X-Telegram-Init-Data'] = initData;
+  } else if (!import.meta.env.DEV) {
+    // No auth method available
+    throw new Error('Требуется авторизация. Откройте приложение через Telegram или используйте команду /web в боте.');
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -72,11 +70,20 @@ async function apiRequest(path, options = {}) {
 
 export function subscribeToWebSockets(callbacks = {}) {
   const initData = getInitData();
-  if (!initData && !import.meta.env.DEV) return () => {};
+  const storedToken = localStorage.getItem('auth_token');
+
+  // Need at least one auth method for WS
+  if (!initData && !storedToken && !import.meta.env.DEV) return () => {};
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const storedToken = localStorage.getItem('auth_token');
-  let wsUrl = `${protocol}//${host}/ws`;
+  // Derive WS host from API base URL or fall back to current page host
+  let wsHost = window.location.host;
+  try {
+    const apiUrl = new URL(API_BASE_URL);
+    wsHost = apiUrl.host;
+  } catch { /* use page host */ }
+
+  let wsUrl = `${protocol}//${wsHost}/ws`;
   if (storedToken) {
     wsUrl += `?token=${encodeURIComponent(storedToken)}`;
   } else if (initData) {
