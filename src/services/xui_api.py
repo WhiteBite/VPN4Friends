@@ -481,6 +481,12 @@ class XUIApi(PanelAPI):
         the outbounds, routing rules, and other Xray-level settings that are
         merged with inbounds managed via the inbound API.
         """
+        settings = await self.get_all_settings()
+        template_str = settings.get("xrayTemplateConfig", "{}")
+        return json.loads(template_str), settings
+
+    async def get_all_settings(self) -> dict[str, Any]:
+        """Get ALL panel settings (needed to update any single field)."""
         if not self._session:
             raise XUIApiError("Session not initialized")
 
@@ -493,11 +499,11 @@ class XUIApi(PanelAPI):
             if not result.get("success"):
                 raise XUIApiError(f"Get settings failed: {result.get('msg')}")
 
-            obj = result.get("obj", {})
-            template_str = obj.get("xrayTemplateConfig", "{}")
-            return json.loads(template_str)
+            return result.get("obj", {})
 
-    async def update_xray_template_config(self, template: dict[str, Any]) -> bool:
+    async def update_xray_template_config(
+        self, template: dict[str, Any], full_settings: dict[str, Any]
+    ) -> bool:
         """Update the Xray template config in 3x-ui settings.
 
         After updating, 3x-ui will restart Xray with the new config.
@@ -506,7 +512,10 @@ class XUIApi(PanelAPI):
             raise XUIApiError("Session not initialized")
 
         url = self._build_url("/setting/update")
-        payload = {"xrayTemplateConfig": json.dumps(template)}
+        # 3x-ui requires ALL settings on update (validates webPort etc.)
+        # Send full_settings with only xrayTemplateConfig modified
+        payload = dict(full_settings)
+        payload["xrayTemplateConfig"] = json.dumps(template)
 
         async with self._session.post(url, json=payload) as resp:
             if resp.status != 200:

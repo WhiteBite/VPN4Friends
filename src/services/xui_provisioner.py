@@ -230,8 +230,8 @@ async def sync_node_routing(node_name: str, node_config: dict) -> bool:
 
     try:
         async with XUIApi(panel_config) as api:
-            # Get current template
-            template = await api.get_xray_template_config()
+            # Get current template and all settings (needed for update)
+            template, full_settings = await api.get_xray_template_config()
 
             # If template is empty (configured via UI only), build a minimal base
             if not template or not template.get("outbounds"):
@@ -355,7 +355,7 @@ async def sync_node_routing(node_name: str, node_config: dict) -> bool:
             if changed:
                 template["outbounds"] = current_outbounds
                 template["routing"] = current_routing
-                success = await api.update_xray_template_config(template)
+                success = await api.update_xray_template_config(template, full_settings)
                 if success:
                     logger.info(f"Node {node_name}: routing synced successfully")
                 else:
