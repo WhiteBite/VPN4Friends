@@ -72,7 +72,8 @@ function App() {
     }
   });
 
-  // ----- Init -----
+  // ----- Init (runs once on mount) -----
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const tg = getTelegram();
     if (tg) {
@@ -118,7 +119,7 @@ function App() {
         }
       });
     }
-  }, [loadAll]);
+  }, []);
 
   // ----- Handlers -----
 

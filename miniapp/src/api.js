@@ -91,8 +91,10 @@ export function subscribeToWebSockets(callbacks = {}) {
   }
 
   let ws = null;
-  let retryDelay = 1000;       // Start with 1s
+  let retryDelay = 2000;       // Start with 2s
   const MAX_DELAY = 30000;     // Cap at 30s
+  const MAX_RETRIES = 5;       // Stop reconnecting after 5 failures
+  let retryCount = 0;
   let retryTimer = null;
   let closed = false;          // True when user calls unsubscribe
 
@@ -102,7 +104,8 @@ export function subscribeToWebSockets(callbacks = {}) {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      retryDelay = 1000; // Reset on successful connect
+      retryDelay = 2000; // Reset on successful connect
+      retryCount = 0;
     };
 
     ws.onmessage = (event) => {
@@ -116,6 +119,11 @@ export function subscribeToWebSockets(callbacks = {}) {
 
     ws.onclose = () => {
       if (closed) return;
+      retryCount++;
+      if (retryCount > MAX_RETRIES) {
+        // Stop trying — WS is optional, app works without it
+        return;
+      }
       // Auto-reconnect with exponential backoff
       retryTimer = setTimeout(() => {
         retryDelay = Math.min(retryDelay * 2, MAX_DELAY);
