@@ -1,9 +1,10 @@
 import { getInitData } from './telegram';
 
 // use relative /api for production same-origin hosting, dev fallback to localhost
-const API_BASE_URL = import.meta.env.PROD 
-  ? '/api' 
-  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api');
+// Use VITE_API_BASE_URL if provided (even in prod for cross-subdomain calls), 
+// otherwise fallback to relative /api or localhost.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (import.meta.env.PROD ? '/api' : 'http://localhost:8000/api');
 
 async function apiRequest(path, options = {}) {
   const initData = getInitData();
