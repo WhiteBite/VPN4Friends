@@ -5,7 +5,7 @@ import logging
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import BufferedInputFile, CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, FSInputFile, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import create_access_token
@@ -13,6 +13,11 @@ from src.bot.config import settings
 from src.database.repositories import RequestRepository, UserRepository
 from src.keyboards.admin_kb import get_request_action_kb
 from src.keyboards.messaging_kb import get_cancel_kb
+from src.keyboards.onboarding_kb import (
+    get_android_onboarding_kb,
+    get_iphone_onboarding_kb,
+    get_onboarding_kb,
+)
 from src.keyboards.user_kb import (
     get_back_kb,
     get_confirm_delete_kb,
@@ -637,3 +642,93 @@ async def back_to_menu_new(callback: CallbackQuery, session: AsyncSession) -> No
         "🏠 Меню",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
     )
+
+
+@router.callback_query(F.data == "how_to_connect")
+async def how_to_connect(callback: CallbackQuery) -> None:
+    """Show platform choice for instructions."""
+    await callback.answer()
+
+    # Create the text if the bot was sending a message vs editing
+    text = (
+        "📱 <b>Инструкции по настройке VPN</b>\n\n"
+        "Выберите ваше устройство, чтобы получить подробную пошаговую инструкцию:"
+    )
+
+    # If this came from a photo (like QR), we must delete and send message
+    if callback.message.content_type == "photo":
+        await callback.message.delete()
+        await callback.message.answer(text, reply_markup=get_onboarding_kb(), parse_mode="HTML")
+    else:
+        await callback.message.edit_text(text, reply_markup=get_onboarding_kb(), parse_mode="HTML")
+
+
+@router.callback_query(F.data.in_({"how_to_iphone", "how_to_android", "how_to_desktop"}))
+async def show_onboarding(callback: CallbackQuery) -> None:
+    """Show specific visual guide for chosen platform."""
+    await callback.answer("Загружаю инструкцию...")
+
+    platform = callback.data.split("_")[2]
+    media_path = f"src/bot/media/{platform}_onboarding.png"
+
+    text_map = {
+        "iphone": (
+            "🍏 <b>Инструкция для iPhone (V2RayTun)</b>\n\n"
+            "1. Зайдите во вкладку <b>Локации</b> в кабинете\n"
+            "2. Нажмите <b>Скопировать ссылку</b> нужного сервера\n"
+            "3. Установите V2RayTun по ссылке ниже\n"
+            "4. Откройте приложение, нажмите '<b>+</b>' в правом верхнем углу, "
+            "выберите <b>'Импорт из буфера обмена'</b>\n"
+            "5. Нажмите большую кнопку подключения! 🚀"
+        ),
+        "android": (
+            "🤖 <b>Инструкция для Android (v2rayNG)</b>\n\n"
+            "1. Зайдите во вкладку <b>Локации</b> в кабинете\n"
+            "2. Нажмите <b>Скопировать ссылку</b> нужного сервера\n"
+            "3. Установите v2rayNG по ссылке ниже\n"
+            "4. Откройте приложение, нажмите '<b>+</b>' в правом верхнем углу, "
+            "выберите <b>'Импорт профиля из буфера обмена'</b>\n"
+            "5. Нажмите кнопку подключения (круг со значком V) внизу! 🚀"
+        ),
+        "desktop": (
+            "💻 <b>Инструкция для PC/Mac (Hiddify)</b>\n\n"
+            "1. Зайдите во вкладку <b>Локации</b> в кабинете\n"
+            "2. Нажмите <b>Скопировать ссылку</b> нужного сервера\n"
+            "3. Скачайте приложение Hiddify Desktop\n"
+            "4. Нажмите кнопку '<b>+ New profile</b>' -> '<b>Add from clipboard</b>'\n"
+            "5. Нажмите круглую центральную кнопку '<b>Tap to Connect</b>'! 🚀"
+        ),
+    }
+
+    kb_map = {
+        "iphone": get_iphone_onboarding_kb(),
+        "android": get_android_onboarding_kb(),
+        "desktop": get_onboarding_kb(),  # Just typical fallback back button for desktop
+    }
+
+    try:
+        import os
+
+        if os.path.exists(media_path):
+            photo = FSInputFile(media_path)
+            await callback.message.delete()
+            await callback.message.answer_photo(
+                photo=photo,
+                caption=text_map[platform],
+                reply_markup=kb_map[platform],
+                parse_mode="HTML",
+            )
+        else:
+            raise FileNotFoundError(f"Media not found: {media_path}")
+    except Exception as e:
+        logger.error(f"Failed to send onboarding image: {e}")
+        # Message edit text fallback if photo sending fails or file missing
+        if callback.message.content_type == "text":
+            await callback.message.edit_text(
+                text_map[platform], reply_markup=kb_map[platform], parse_mode="HTML"
+            )
+        else:
+            await callback.message.delete()
+            await callback.message.answer(
+                text_map[platform], reply_markup=kb_map[platform], parse_mode="HTML"
+            )
