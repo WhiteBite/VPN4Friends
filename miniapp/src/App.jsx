@@ -142,7 +142,10 @@ function App() {
       showToast('Подписка недоступна.', 'error');
       return;
     }
-    const fullUrl = `${window.location.origin}${subUrl}`;
+    const origin = import.meta.env.VITE_API_BASE_URL 
+      ? new URL(import.meta.env.VITE_API_BASE_URL).origin
+      : 'https://vpn4friends-api.whitebite.ru';
+    const fullUrl = `${origin}${subUrl}`;
     try {
       await navigator.clipboard.writeText(fullUrl);
       showToast('Ссылка на подписку скопирована!', 'success');
