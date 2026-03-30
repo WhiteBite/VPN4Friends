@@ -113,19 +113,32 @@ function App() {
         return;
       }
 
-      // Check if we have any auth method available
+      // Always attempt to load data first.
+      // Even if getInitData() returns empty now, the apiRequest function
+      // will re-check initData at call time (URL hash may contain it).
       const initData = getInitData();
       const storedToken = localStorage.getItem('auth_token');
 
+      // If we clearly have no auth method, show login immediately
       if (!initData && !storedToken && !import.meta.env.DEV) {
-        // No auth available — show login screen
-        setNeedsAuth(true);
+        // But double-check: are we inside Telegram? (hash might have data)
+        const hash = window.location.hash || '';
+        if (hash.includes('tgWebAppData')) {
+          // We ARE inside Telegram, try loading anyway
+          try {
+            await loadAll();
+          } catch {
+            setNeedsAuth(true);
+          }
+        } else {
+          setNeedsAuth(true);
+        }
       } else {
         try {
           await loadAll();
         } catch {
-          // If loadAll fails due to auth, show login
-          if (!initData && !localStorage.getItem('auth_token')) {
+          // If loadAll fails and we have no auth fallback, show login
+          if (!getInitData() && !localStorage.getItem('auth_token')) {
             setNeedsAuth(true);
           }
         }

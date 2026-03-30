@@ -79,8 +79,21 @@ export function getInitData() {
     return tg.initData;
   }
 
-  // Fallback: try to read from URL (for local dev or direct links)
+  // Fallback: extract initData from URL hash directly
+  // This works even when telegram.org SDK is blocked (Russia/RKN)
+  // Telegram always puts tgWebAppData in the URL hash fragment
   if (typeof window !== 'undefined') {
+    // Try URL hash first (Telegram's standard method)
+    const hash = window.location.hash;
+    if (hash) {
+      try {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const data = hashParams.get('tgWebAppData');
+        if (data) return data;
+      } catch { /* ignore */ }
+    }
+
+    // Try search params
     const params = new URLSearchParams(window.location.search);
     return params.get('tgWebAppData') || params.get('initData') || '';
   }
