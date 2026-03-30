@@ -105,7 +105,7 @@ class VPNService:
 
         try:
             # Sync to ALL supported protocols on ALL panels
-            synced_any = await self.sync_client_to_all_panels(client_name, client_id, "all")
+            synced_any = await self.sync_client_to_all_panels(client_name, client_id, "vless")
             if not synced_any:
                 await self.request_repo.revert_to_pending(request)
                 return False, "Ошибка создания профиля: ни одна панель не доступна"

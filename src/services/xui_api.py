@@ -319,6 +319,11 @@ class XUIApi(PanelAPI):
             if protocols != "all" and inbound_proto not in protocols:
                 continue
 
+            # Safety: never add UUID-based clients to password-based protocols
+            # Shadowsocks requires 'password' field; adding UUID-only clients crashes Xray
+            if inbound_proto in ("shadowsocks", "shadowsocks_2022"):
+                continue
+
             # Detect transport from streamSettings for correct flow
             port = inbound.get("port", 0)
             try:
