@@ -26,9 +26,7 @@ from src.handlers import (
     admin_router,
     user_messaging_router,
     user_router,
-    web_access_router,
 )
-from src.handlers.server_selection import router as server_selection_router
 from src.services.xui_api import check_xui_connection
 
 
@@ -71,9 +69,8 @@ async def setup_bot_commands(bot: Bot) -> None:
     user_commands = [
         BotCommand(command="start", description="🚀 Запустить бота"),
         BotCommand(command="menu", description="📋 Главное меню"),
-        BotCommand(command="link", description="🔗 Получить ссылку VPN"),
-        BotCommand(command="stats", description="📊 Моя статистика"),
         BotCommand(command="support", description="✉️ Написать админу"),
+        BotCommand(command="web", description="🌐 Войти через браузер"),
         BotCommand(command="help", description="❓ Справка"),
     ]
 
@@ -82,7 +79,6 @@ async def setup_bot_commands(bot: Bot) -> None:
         BotCommand(command="admin", description="⚙️ Админ-панель"),
         BotCommand(command="users", description="👥 Пользователи с VPN"),
         BotCommand(command="broadcast", description="📢 Рассылка"),
-        BotCommand(command="notify_update", description="🔔 Уведомить о смене конфига"),
     ]
 
     # Set commands for all private chats
@@ -197,10 +193,8 @@ async def main() -> None:
     # Register routers
     dp.include_router(user_router)
     dp.include_router(user_messaging_router)
-    dp.include_router(server_selection_router)  # Server selection router
     dp.include_router(admin_router)
     dp.include_router(admin_messaging_router)
-    dp.include_router(web_access_router)
     logger.info("Handlers registered")
 
     # Set bot commands

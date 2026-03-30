@@ -10,7 +10,10 @@ USERS_PER_PAGE = 5
 
 
 def get_admin_main_kb(pending_count: int = 0, vpn_count: int = 0) -> InlineKeyboardMarkup:
-    """Get main admin panel keyboard with counters."""
+    """Get main admin panel keyboard — compact version.
+
+    Removed: Dashboard (→ Mini App), DM (→ reply_to_ on messages).
+    """
     builder = InlineKeyboardBuilder()
 
     req_label = f"📋 Заявки ({pending_count})" if pending_count else "📋 Заявки"
@@ -18,16 +21,17 @@ def get_admin_main_kb(pending_count: int = 0, vpn_count: int = 0) -> InlineKeybo
 
     builder.button(text=req_label, callback_data="admin_requests")
     builder.button(text=usr_label, callback_data="admin_users")
-    builder.button(text="📊 Дашборд", callback_data="admin_dashboard")
     builder.button(text="📢 Рассылка", callback_data="admin_broadcast")
-    builder.button(text="✉️ Написать", callback_data="admin_dm")
     builder.button(text="❌ Закрыть", callback_data="close_admin")
-    builder.adjust(2, 2, 2)
+    builder.adjust(2, 2)
     return builder.as_markup()
 
 
 def get_compact_requests_kb(requests: list[VPNRequest]) -> InlineKeyboardMarkup:
-    """Compact inline approve/reject for each request."""
+    """Compact inline approve/reject for each request.
+
+    Each request gets ✅ and ❌ side by side.
+    """
     builder = InlineKeyboardBuilder()
     for req in requests:
         name = req.user.full_name.split()[0] if req.user.full_name else f"#{req.id}"
@@ -35,15 +39,17 @@ def get_compact_requests_kb(requests: list[VPNRequest]) -> InlineKeyboardMarkup:
             text=f"✅ {name}",
             callback_data=RequestAction(action="approve", request_id=req.id).pack(),
         )
-    if len(requests) > 1:
-        # Two per row for approve buttons
-        builder.adjust(2)
+        builder.button(
+            text=f"❌ {name}",
+            callback_data=RequestAction(action="reject", request_id=req.id).pack(),
+        )
+    builder.adjust(2)  # ✅ ❌ per row
     builder.button(text="⬅️ Админ-панель", callback_data="admin_menu")
     return builder.as_markup()
 
 
 def get_request_action_kb(request: VPNRequest) -> InlineKeyboardMarkup:
-    """Get action keyboard for a single VPN request (fallback)."""
+    """Get action keyboard for a single VPN request (push notification)."""
     builder = InlineKeyboardBuilder()
     builder.button(
         text="✅ Одобрить",

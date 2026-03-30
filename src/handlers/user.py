@@ -5,7 +5,7 @@ import logging
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import BufferedInputFile, CallbackQuery, FSInputFile, Message
+from aiogram.types import CallbackQuery, FSInputFile, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import create_access_token
@@ -21,22 +21,15 @@ from src.keyboards.onboarding_kb import (
 from src.keyboards.user_kb import (
     get_back_kb,
     get_confirm_delete_kb,
-    get_link_kb,
-    get_locations_kb,
-    get_stats_kb,
     get_user_main_kb,
 )
 from src.services.vpn_service import VPNService
-from src.services.xui_api import XUIApi
-from src.utils.formatters import format_traffic, get_dns_instructions
-from src.utils.messaging import send_smart_message
-from src.utils.qr_generator import generate_qr_code
 
 logger = logging.getLogger(__name__)
 router = Router(name="user")
 
 
-# App download links
+# App download links (used in /help)
 APP_LINKS = (
     "📱 <b>Приложения:</b>\n"
     "• iPhone → <a href='https://apps.apple.com/app/v2raytun/id6476628951'>V2RayTun</a>\n"
@@ -64,16 +57,16 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
     if created:
         # New user — clean onboarding
         await message.answer(
-            f"🌍 <b>VPN4Friends Premium</b>\n\n"
+            f"🌍 <b>VPN4Friends</b>\n\n"
             f"Привет, <b>{user.full_name}</b>! 👋\n\n"
-            f"Это персональный высокоскоростной VPN с обходом блокировок.\n"
+            f"Персональный VPN с обходом блокировок.\n"
             f"Нажми кнопку ниже, чтобы запросить доступ.",
             reply_markup=get_user_main_kb(user.has_vpn, has_pending),
             parse_mode="HTML",
         )
         return
 
-    # Returning user without VPN or with VPN
+    # Returning user
     status_emoji = "🟢 Подписка активна" if user.has_vpn else "👋 С возвращением"
     await message.answer(
         f"<b>VPN4Friends</b>\n\n{status_emoji}, <b>{user.full_name}</b>!",
@@ -110,145 +103,16 @@ async def cmd_help(message: Message) -> None:
         "Бот для бесплатного VPN от Дани.\n\n"
         "<b>Как подключиться:</b>\n"
         "1. Скачай приложение из списка ниже\n"
-        "2. Скопируй ссылку из бота\n"
+        "2. Открой Кабинет → скопируй подписку\n"
         "3. Вставь в приложение → Подключись\n\n"
         f"{APP_LINKS}\n\n"
         "<b>Команды:</b>\n"
         "/start — главное меню\n"
-        "/link — получить ссылку\n"
-        "/stats — статистика\n"
+        "/support — написать админу\n"
+        "/web — войти через браузер\n"
         "/help — эта справка",
         parse_mode="HTML",
         disable_web_page_preview=True,
-    )
-
-
-@router.message(Command("status"))
-async def cmd_status(message: Message) -> None:
-    """Handle /status command."""
-    await message.answer("⏳ Проверяю...")
-
-    try:
-        async with XUIApi() as api:
-            status = await api.get_server_status()
-            online_clients = await api.get_online_clients()
-
-        online_count = len(online_clients) if online_clients else 0
-        total_traffic = format_traffic(status["upload"] + status["download"])
-
-        await message.answer(
-            f"📶 Сервер: ✅ Онлайн\n"
-            f"👥 Клиентов: {status['clients']}\n"
-            f"🟢 Онлайн: {online_count}\n"
-            f"📊 Трафик: {total_traffic}",
-        )
-    except Exception as e:
-        logger.error(f"Server status failed: {e}")
-        await message.answer("📶 Сервер: ❌ Недоступен\n\nПопробуй позже.")
-
-
-@router.message(Command("link"))
-async def cmd_link(message: Message, session: AsyncSession) -> None:
-    """Handle /link command."""
-    user_repo = UserRepository(session)
-    user = await user_repo.get_by_telegram_id(message.from_user.id)
-
-    if not user or not user.active_profile:
-        await message.answer("❌ Нет VPN. Отправь заявку через /start")
-        return
-
-    # For MTProto, we just generate URL without hitting any DB info
-    # For VLESS/Shadowsocks, it relies on User profile_data
-    from src.services.url_generator import generate_vpn_link
-
-    messages: list[str] = [
-        f"🔗 <b>Пакет ваших ссылок ({user.active_profile.protocol_name.upper()}):</b>\n\n"
-        "<i>Нажмите на любую ссылку, чтобы её скопировать. "
-        "Для получения QR-кода используйте кнопки ниже.</i>\n"
-    ]
-
-    for ep in settings.endpoints:
-        try:
-            vpn_link = generate_vpn_link(
-                protocol_name=user.active_profile.protocol_name,
-                profile_data=user.active_profile.profile_data,
-                settings_overrides=user.active_profile.settings,
-                endpoint=ep,
-            )
-        except Exception as e:
-            logger.error(f"Error generating link for {ep.name}: {e}")
-            continue
-
-        if vpn_link:
-            proto = getattr(ep, "protocol", user.active_profile.protocol_name).upper()
-            icon = "✈️" if proto == "MTPROTO" else "🌍"
-            messages.append(f"{icon} <b>{ep.label} ({proto})</b>\n<code>{vpn_link}</code>\n")
-
-    full_text = "\n".join(messages)
-
-    await send_smart_message(
-        message,
-        full_text,
-        reply_markup=get_locations_kb(),
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
-
-
-@router.message(Command("subscription"))
-async def cmd_subscription(message: Message, session: AsyncSession) -> None:
-    """Handle /subscription command."""
-    user_repo = UserRepository(session)
-    user = await user_repo.get_by_telegram_id(message.from_user.id)
-
-    if not user or not user.active_profile:
-        await message.answer("❌ У вас нет активного VPN-профиля.")
-        return
-
-    client_id = user.active_profile.client_id
-    if not client_id:
-        # This shouldn't happen with the new self-healer, but as a fallback:
-        client_id = user.active_profile.profile_data.get("client_id")
-
-    if not client_id:
-        await message.answer("❌ Ошибка профиля. Попробуйте нажать /start или зайти в Кабинет.")
-        return
-
-    sub_link = f"https://vpn4friends-api.whitebite.ru/api/sub/{client_id}"
-
-    await message.answer(
-        f"📡 <b>Ваша Авто-Подписка</b>\n\n"
-        f"Скопируйте ссылку ниже и вставьте её в приложение (Throne, v2rayNG или Hiddify):\n\n"
-        f"<code>{sub_link}</code>\n\n"
-        f"<i>Все серверы добавятся и будут обновляться автоматически.</i>",
-        parse_mode="HTML",
-        reply_markup=get_back_kb(),
-    )
-
-
-@router.message(Command("stats"))
-async def cmd_stats(message: Message, session: AsyncSession) -> None:
-    """Handle /stats command."""
-    user_repo = UserRepository(session)
-    user = await user_repo.get_by_telegram_id(message.from_user.id)
-
-    if not user or not user.active_profile:
-        await message.answer("❌ Нет VPN.")
-        return
-
-    vpn_service = VPNService(session)
-    stats = await vpn_service.get_user_stats(user)
-
-    if not stats:
-        await message.answer("❌ Статистика недоступна.")
-        return
-
-    upload = format_traffic(stats["upload"])
-    download = format_traffic(stats["download"])
-
-    await message.answer(
-        f"📊 Статистика:\n\n🔼 Upload: {upload}\n🔽 Download: {download}",
-        reply_markup=get_stats_kb(),
     )
 
 
@@ -279,9 +143,9 @@ async def cmd_web(message: Message, session: AsyncSession) -> None:
 
     await message.answer(
         "🌐 <b>Вход через браузер</b>\n\n"
-        "Эта ссылка позволит вам пользоваться VPN через обычный браузер (на ПК или другом устройстве) без Telegram.\n\n"
-        "⚠️ <b>Внимание:</b> не передавайте эту ссылку посторонним!\n\n"
-        f"🔗 <a href='{web_url}'>Ваша ссылка для входа</a>",
+        "Ссылка для входа в кабинет без Telegram.\n\n"
+        "⚠️ <b>Не передавайте ссылку посторонним!</b>\n\n"
+        f"🔗 <a href='{web_url}'>Открыть кабинет в браузере</a>",
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
@@ -308,6 +172,26 @@ async def back_to_menu(callback: CallbackQuery, session: AsyncSession) -> None:
         f"<b>Меню управления</b>\nСтатус: {status_emoji}",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
         parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == "back_to_menu_new")
+async def back_to_menu_new(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Handle back to menu from photo message (delete + new msg)."""
+    await callback.answer()
+
+    user_repo = UserRepository(session)
+    request_repo = RequestRepository(session)
+
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
+    if not user:
+        return
+
+    has_pending = await request_repo.has_pending(user)
+    await callback.message.delete()
+    await callback.message.answer(
+        "🏠 Меню",
+        reply_markup=get_user_main_kb(user.has_vpn, has_pending),
     )
 
 
@@ -351,183 +235,51 @@ async def request_vpn(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
 
 
 @router.callback_query(F.data == "pending_info")
-async def pending_info(callback: CallbackQuery) -> None:
-    """Handle pending request info."""
-    await callback.answer(
-        "Заявка на рассмотрении. Обычно одобряю быстро ⚡",
-        show_alert=True,
-    )
-
-
-@router.callback_query(F.data == "my_sub")
-async def my_sub(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Show user's auto-subscription link."""
-    await callback.answer()
-
+async def pending_info(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Handle pending request info — show date and cancel option."""
+    request_repo = RequestRepository(session)
     user_repo = UserRepository(session)
+
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user or not user.active_profile:
-        await callback.message.edit_text(
-            "❌ У вас нет активного VPN-профиля.", reply_markup=get_back_kb()
-        )
-        return
-
-    client_id = user.active_profile.profile_data.get("client_id")
-    if not client_id:
-        await callback.message.edit_text(
-            "❌ Ошибка профиля. Обратитесь в поддержку.", reply_markup=get_back_kb()
-        )
-        return
-
-    sub_link = f"https://vpn4friends-api.whitebite.ru/api/sub/{client_id}"
-
-    await callback.message.edit_text(
-        f"📡 <b>Ваша Авто-Подписка</b>\n\n"
-        f"Скопируйте ссылку ниже и вставьте её в приложение (Throne, v2rayNG или Hiddify):\n\n"
-        f"<code>{sub_link}</code>\n\n"
-        f"<i>Все серверы добавятся и будут обновляться автоматически.</i>",
-        parse_mode="HTML",
-        reply_markup=get_back_kb(),
-    )
-
-
-@router.callback_query(F.data == "my_link")
-async def my_link(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Show user's VPN link with QR code."""
-    await callback.answer()
-
-    user_repo = UserRepository(session)
-    user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user or not user.active_profile:
-        await callback.message.edit_text("❌ Нет VPN.", reply_markup=get_back_kb())
-        return
-
-    await callback.answer("⏳ Собираю ссылки...")
-
-    # For MTProto, we just generate URL without hitting any DB info
-    # For VLESS/Shadowsocks, it relies on User profile_data
-    from src.services.url_generator import generate_vpn_link
-
-    messages: list[str] = [
-        f"🔗 <b>Пакет ваших ссылок ({user.active_profile.protocol_name.upper()}):</b>\n\n"
-        "<i>Нажмите на любую ссылку, чтобы её скопировать. "
-        "Для получения QR-кода используйте кнопки ниже.</i>\n"
-    ]
-
-    for ep in settings.endpoints:
-        try:
-            vpn_link = generate_vpn_link(
-                protocol_name=user.active_profile.protocol_name,
-                profile_data=user.active_profile.profile_data,
-                settings_overrides=user.active_profile.settings,
-                endpoint=ep,
-            )
-        except Exception as e:
-            logger.error(f"Error generating link for {ep.name}: {e}")
-            continue
-
-        if vpn_link:
-            proto = getattr(ep, "protocol", user.active_profile.protocol_name).upper()
-            icon = "✈️" if proto == "MTPROTO" else "🌍"
-            messages.append(f"{icon} <b>{ep.label} ({proto})</b>\n<code>{vpn_link}</code>\n")
-
-    full_text = "\n".join(messages)
-
-    await send_smart_message(
-        callback.message,
-        full_text,
-        reply_markup=get_locations_kb(),
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
-
-
-@router.callback_query(F.data.startswith("get_link:"))
-async def generate_specific_link(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Generate link and QR code for a specific server location."""
-    endpoint_name = callback.data.split(":")[1]
-
-    user_repo = UserRepository(session)
-    user = await user_repo.get_by_telegram_id(
-        callback.fromuser.id if hasattr(callback, "fromuser") else callback.from_user.id
-    )
-    if not user or not user.active_profile:
-        await callback.answer("❌ Нет профиля.", show_alert=True)
-        return
-
-    endpoint = settings.get_endpoint(endpoint_name)
-    if not endpoint:
-        await callback.answer("❌ Сервер не найден.", show_alert=True)
-        return
-
-    await callback.answer("⏳ Создаю ссылку...")
-
-    # For MTProto, we just generate URL without hitting any DB info
-    # For VLESS/Shadowsocks, it relies on User profile_data
-    from src.services.url_generator import generate_vpn_link
-
-    try:
-        vpn_link = generate_vpn_link(
-            protocol_name=user.active_profile.protocol_name,
-            profile_data=user.active_profile.profile_data,
-            settings_overrides=user.active_profile.settings,
-            endpoint=endpoint,
-        )
-    except Exception as e:
-        logger.error(f"Error generating link for {endpoint.name}: {e}")
-        vpn_link = None
-
-    if not vpn_link:
-        await callback.message.edit_text("❌ Ошибка генерации ссылки.", reply_markup=get_back_kb())
-        return
-
-    qr_buffer = generate_qr_code(vpn_link)
-    qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
-    proto = getattr(endpoint, "protocol", user.active_profile.protocol_name).upper()
-
-    await callback.message.delete()
-    await callback.message.answer_photo(
-        photo=qr_photo,
-        caption=(
-            f"🔗 <b>{endpoint.label} ({proto})</b>\n\n"
-            f"<code>{vpn_link}</code>\n\n"
-            f"📷 Или отсканируй QR выше"
-            f"{get_dns_instructions()}\n\n"
-            f"{APP_LINKS}"
-        ),
-        reply_markup=get_link_kb(endpoint.name),
-        parse_mode="HTML",
-    )
-
-
-@router.callback_query(F.data.in_(["my_stats", "refresh_stats"]))
-async def my_stats(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Show user's traffic statistics."""
-    if callback.data == "refresh_stats":
-        await callback.answer("🔄 Обновляю...")
-    else:
+    if not user:
         await callback.answer()
+        return
+
+    pending = await request_repo.get_pending_for_user(user)
+    if pending:
+        date_str = pending.created_at.strftime("%d.%m.%Y %H:%M")
+        await callback.answer(
+            f"Заявка подана: {date_str}\nОбычно одобряю быстро ⚡",
+            show_alert=True,
+        )
+    else:
+        await callback.answer("Нет активных заявок.", show_alert=True)
+
+
+@router.callback_query(F.data == "cancel_request")
+async def cancel_request(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Cancel a pending VPN request."""
+    await callback.answer()
 
     user_repo = UserRepository(session)
+    request_repo = RequestRepository(session)
+
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user or not user.active_profile:
-        await callback.message.edit_text("❌ Нет VPN.", reply_markup=get_back_kb())
+    if not user:
         return
 
-    vpn_service = VPNService(session)
-    stats = await vpn_service.get_user_stats(user)
-
-    if not stats:
-        await callback.message.edit_text("❌ Статистика недоступна.", reply_markup=get_back_kb())
-        return
-
-    upload = format_traffic(stats["upload"])
-    download = format_traffic(stats["download"])
-
-    await callback.message.edit_text(
-        f"📊 Статистика:\n\n🔼 Upload: {upload}\n🔽 Download: {download}",
-        reply_markup=get_stats_kb(),
-    )
+    cancelled = await request_repo.cancel_pending(user)
+    if cancelled:
+        await session.commit()
+        await callback.message.edit_text(
+            "✅ Заявка отменена.\n\nМожешь подать новую в любой момент.",
+            reply_markup=get_user_main_kb(has_vpn=False, has_pending=False),
+        )
+    else:
+        await callback.message.edit_text(
+            "ℹ️ Нет активных заявок для отмены.",
+            reply_markup=get_user_main_kb(has_vpn=False, has_pending=False),
+        )
 
 
 @router.callback_query(F.data == "delete_vpn")
@@ -562,90 +314,7 @@ async def confirm_delete_vpn(callback: CallbackQuery, session: AsyncSession) -> 
         await callback.message.edit_text("❌ Ошибка.", reply_markup=get_back_kb())
 
 
-@router.callback_query(F.data.startswith("refresh_link:"))
-async def refresh_link(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Refresh VPN link."""
-    await callback.answer("🔄 Обновляю...")
-
-    endpoint_name = callback.data.split(":")[1]
-
-    user_repo = UserRepository(session)
-    user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user or not user.active_profile:
-        await callback.message.delete()
-        await callback.message.answer("❌ Нет VPN.", reply_markup=get_back_kb())
-        return
-
-    endpoint = (
-        settings.get_endpoint(endpoint_name)
-        if endpoint_name and endpoint_name != "default"
-        else None
-    )
-
-    if not endpoint:
-        # Fallback to general menu if endpoint not found
-        await callback.message.delete()
-        await callback.message.answer(
-            "🌍 <b>Выберите локацию для подключения:</b>",
-            reply_markup=get_locations_kb(),
-            parse_mode="HTML",
-        )
-        return
-
-    from src.services.url_generator import generate_vpn_link
-
-    try:
-        vpn_link = generate_vpn_link(
-            protocol_name=user.active_profile.protocol_name,
-            profile_data=user.active_profile.profile_data,
-            settings_overrides=user.active_profile.settings,
-            endpoint=endpoint,
-        )
-    except Exception as e:
-        logger.error(f"Error refreshing link for {endpoint.name}: {e}")
-        vpn_link = None
-
-    if not vpn_link:
-        await callback.message.delete()
-        await callback.message.answer("❌ Ошибка.", reply_markup=get_back_kb())
-        return
-
-    qr_buffer = generate_qr_code(vpn_link)
-    qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
-    proto = getattr(endpoint, "protocol", user.active_profile.protocol_name).upper()
-
-    await callback.message.delete()
-    await callback.message.answer_photo(
-        photo=qr_photo,
-        caption=(
-            f"🔗 <b>{endpoint.label} ({proto})</b>\n\n"
-            f"<code>{vpn_link}</code>\n\n"
-            f"📷 Или отсканируй QR выше\n\n"
-            f"{APP_LINKS}"
-        ),
-        reply_markup=get_link_kb(endpoint.name),
-        parse_mode="HTML",
-    )
-
-
-@router.callback_query(F.data == "back_to_menu_new")
-async def back_to_menu_new(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Handle back to menu from photo message."""
-    await callback.answer()
-
-    user_repo = UserRepository(session)
-    request_repo = RequestRepository(session)
-
-    user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user:
-        return
-
-    has_pending = await request_repo.has_pending(user)
-    await callback.message.delete()
-    await callback.message.answer(
-        "🏠 Меню",
-        reply_markup=get_user_main_kb(user.has_vpn, has_pending),
-    )
+# ============ ONBOARDING ============
 
 
 @router.callback_query(F.data == "how_to_connect")
@@ -653,13 +322,11 @@ async def how_to_connect(callback: CallbackQuery) -> None:
     """Show platform choice for instructions."""
     await callback.answer()
 
-    # Create the text if the bot was sending a message vs editing
     text = (
         "📱 <b>Инструкции по настройке VPN</b>\n\n"
         "Выберите ваше устройство, чтобы получить подробную пошаговую инструкцию:"
     )
 
-    # If this came from a photo (like QR), we must delete and send message
     if callback.message.content_type == "photo":
         await callback.message.delete()
         await callback.message.answer(text, reply_markup=get_onboarding_kb(), parse_mode="HTML")
@@ -707,7 +374,7 @@ async def show_onboarding(callback: CallbackQuery) -> None:
     kb_map = {
         "iphone": get_iphone_onboarding_kb(),
         "android": get_android_onboarding_kb(),
-        "desktop": get_onboarding_kb(),  # Just typical fallback back button for desktop
+        "desktop": get_onboarding_kb(),
     }
 
     try:
@@ -726,7 +393,6 @@ async def show_onboarding(callback: CallbackQuery) -> None:
             raise FileNotFoundError(f"Media not found: {media_path}")
     except Exception as e:
         logger.error(f"Failed to send onboarding image: {e}")
-        # Message edit text fallback if photo sending fails or file missing
         if callback.message.content_type == "text":
             await callback.message.edit_text(
                 text_map[platform], reply_markup=kb_map[platform], parse_mode="HTML"

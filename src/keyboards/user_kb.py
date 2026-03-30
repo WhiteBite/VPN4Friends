@@ -1,20 +1,18 @@
 """User keyboards."""
 
-import os
-
 from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.bot.config import settings
 
-# MTProto settings (loaded directly from env vars)
-MTPROTO_HOST = os.getenv("MTPROTO_PROXY_HOST", settings.mtproto_proxy_host)
-MTPROTO_PORT = os.getenv("MTPROTO_PROXY_PORT", str(settings.mtproto_proxy_port))
-MTPROTO_SECRET = os.getenv("MTPROTO_PROXY_SECRET", settings.mtproto_proxy_secret)
-
 
 def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboardMarkup:
-    """Get main keyboard for user based on their status."""
+    """Get main keyboard for user based on their status.
+
+    - has_vpn: Cabinet + How-to + Support
+    - has_pending: Cabinet + Pending (with date) + Cancel
+    - new: Cabinet (request VPN inside)
+    """
     builder = InlineKeyboardBuilder()
 
     if has_vpn:
@@ -23,10 +21,9 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
                 text="🔵 Открыть Кабинет",
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
-        builder.button(text="🔗 Ссылка на подписку", callback_data="my_sub")
-        builder.button(text="🆘 Как подключить?", callback_data="how_to_connect")
-        builder.button(text="🆘 Поддержка", callback_data="contact_admin")
-        builder.adjust(1, 1, 2)
+        builder.button(text="📱 Как подключить?", callback_data="how_to_connect")
+        builder.button(text="💬 Поддержка", callback_data="contact_admin")
+        builder.adjust(1, 2)
     elif has_pending:
         if settings.miniapp_url:
             builder.button(
@@ -34,17 +31,44 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
         builder.button(text="⏳ Заявка на рассмотрении", callback_data="pending_info")
-        builder.button(text="🆘 Поддержка", callback_data="contact_admin")
+        builder.button(text="❌ Отменить заявку", callback_data="cancel_request")
         builder.adjust(1, 1, 1)
     else:
         if settings.miniapp_url:
             builder.button(
-                text="🔵 Открыть Кабинет (Запросить VPN)",
+                text="🔵 Запросить доступ",
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
         builder.button(text="🔑 Попросить VPN тут", callback_data="request_vpn")
         builder.adjust(1, 1)
 
+    return builder.as_markup()
+
+
+def get_approval_onboarding_kb() -> InlineKeyboardMarkup:
+    """Post-approval keyboard with cabinet + app download links."""
+    builder = InlineKeyboardBuilder()
+
+    if settings.miniapp_url:
+        builder.button(
+            text="🔵 Открыть Кабинет",
+            web_app=WebAppInfo(url=settings.miniapp_url),
+        )
+
+    builder.button(
+        text="🍏 V2RayTun (iPhone)",
+        url="https://apps.apple.com/app/v2raytun/id6476628951",
+    )
+    builder.button(
+        text="🤖 v2rayNG (Android)",
+        url="https://play.google.com/store/apps/details?id=com.v2ray.ang",
+    )
+    builder.button(
+        text="💻 Hiddify (PC/Mac)",
+        url="https://github.com/hiddify/hiddify-app/releases",
+    )
+
+    builder.adjust(1, 2, 1)
     return builder.as_markup()
 
 
@@ -55,54 +79,10 @@ def get_back_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_stats_kb() -> InlineKeyboardMarkup:
-    """Get keyboard for stats page with refresh button."""
-    builder = InlineKeyboardBuilder()
-    builder.button(text="🔄 Обновить", callback_data="refresh_stats")
-    builder.button(text="⬅️ Меню", callback_data="back_to_menu")
-    builder.adjust(2)
-    return builder.as_markup()
-
-
 def get_confirm_delete_kb() -> InlineKeyboardMarkup:
     """Get confirmation keyboard for VPN deletion."""
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Да, удалить", callback_data="confirm_delete_vpn")
     builder.button(text="❌ Нет", callback_data="back_to_menu")
     builder.adjust(2)
-    return builder.as_markup()
-
-
-def get_link_kb(endpoint_name: str | None = None) -> InlineKeyboardMarkup:
-    """Get keyboard for link page."""
-    builder = InlineKeyboardBuilder()
-
-    refresh_data = f"refresh_link:{endpoint_name}" if endpoint_name else "refresh_link:default"
-    builder.button(text="🔄 Обновить", callback_data=refresh_data)
-
-    builder.button(text="🏠 Меню", callback_data="back_to_menu_new")
-    if settings.miniapp_url:
-        builder.button(
-            text="⚙️ Настройки",
-            web_app=WebAppInfo(url=settings.miniapp_url),
-        )
-    builder.adjust(2, 1)
-    return builder.as_markup()
-
-
-def get_locations_kb() -> InlineKeyboardMarkup:
-    """Get keyboard with all available server locations."""
-    builder = InlineKeyboardBuilder()
-
-    for endpoint in settings.endpoints:
-        builder.button(
-            text=endpoint.label,
-            callback_data=f"get_link:{endpoint.name}",
-        )
-
-    # We construct the MTProto proxy link button inside user.py, or we can just make it part of endpoints if it has name="finland_mtproto" etc.
-    # Since MTProto endpoints are already in settings.endpoints, the loop above naturally handles them!
-
-    builder.button(text="⬅️ Опции и другие протоколы", callback_data="back_to_menu")
-    builder.adjust(1)
     return builder.as_markup()

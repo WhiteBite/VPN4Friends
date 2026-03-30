@@ -163,58 +163,7 @@ async def cmd_sync_all(message: Message, session: AsyncSession) -> None:
     )
 
 
-# ============ DASHBOARD ============
-
-
-@router.callback_query(F.data == "admin_dashboard")
-async def admin_dashboard(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Show dashboard with server status and stats."""
-    await callback.answer()
-
-    user_repo = UserRepository(session)
-    request_repo = RequestRepository(session)
-
-    all_users = await user_repo.get_all()
-    vpn_users = await user_repo.get_all_with_vpn()
-    pending = await request_repo.get_all_pending()
-
-    # Try to get server stats
-    server_line = "📶 Сервер: ⏳ Проверяю..."
-    online_line = ""
-    traffic_line = ""
-
-    try:
-        from src.services.xui_api import XUIApi
-
-        async with XUIApi() as api:
-            status = await api.get_server_status()
-            online_clients = await api.get_online_clients()
-
-        online_count = len(online_clients) if online_clients else 0
-        total_traffic = format_traffic(status["upload"] + status["download"])
-
-        server_line = "📶 Сервер: ✅ Онлайн"
-        online_line = f"\n🟢 Онлайн: {online_count}/{len(vpn_users)}"
-        traffic_line = f"\n📈 Трафик: {total_traffic}"
-    except Exception as e:
-        logger.warning(f"Dashboard server check failed: {e}")
-        server_line = "📶 Сервер: ❌ Недоступен"
-
-    text = (
-        f"📊 <b>Дашборд VPN4Friends</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"{server_line}{online_line}{traffic_line}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"👥 Всего юзеров: {len(all_users)}\n"
-        f"🔑 С VPN: {len(vpn_users)}\n"
-        f"⏳ Заявок: {len(pending)}"
-    )
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=get_back_to_admin_kb(),
-        parse_mode="HTML",
-    )
+# Dashboard moved to Mini App admin tab
 
 
 # ============ REQUESTS (compact) ============
@@ -278,7 +227,7 @@ async def approve_request(
 
 
 async def _notify_user_approved(callback, request):
-    """Send approval notification to user and update admin message."""
+    """Send step-by-step onboarding after approval."""
     bot = callback.bot
 
     await callback.message.edit_text(
@@ -287,14 +236,17 @@ async def _notify_user_approved(callback, request):
     )
 
     try:
-        from src.keyboards.user_kb import get_user_main_kb
+        from src.keyboards.user_kb import get_approval_onboarding_kb
 
         await bot.send_message(
             request.user.telegram_id,
-            "🎉 <b>Твоя заявка одобрена!</b>\n\n"
-            "Твоя подписка и ключи уже ждут тебя в Личном кабинете.\n"
-            "Нажми кнопку <b>'Открыть Кабинет'</b> 👇",
-            reply_markup=get_user_main_kb(has_vpn=True),
+            "🎉 <b>Доступ к VPN активирован!</b>\n\n"
+            "<b>Что дальше:</b>\n"
+            "1️⃣ Скачай приложение для своего устройства (кнопки ниже)\n"
+            "2️⃣ Открой <b>Кабинет</b> → скопируй ссылку подписки\n"
+            "3️⃣ Вставь ссылку в приложение → Подключись! 🚀\n\n"
+            "<i>Подписка содержит все серверы и обновляется автоматически.</i>",
+            reply_markup=get_approval_onboarding_kb(),
             parse_mode="HTML",
         )
     except Exception as e:
@@ -506,16 +458,7 @@ async def revoke_user_vpn(
         )
 
 
-# ============ STATS (kept as fallback command) ============
-
-
-@router.callback_query(F.data == "admin_stats")
-async def admin_stats(callback: CallbackQuery, session: AsyncSession) -> None:
-    """Redirect old stats button to dashboard."""
-    await admin_dashboard(callback, session)
-
-
-# ============ BROADCAST / NOTIFY ============
+# ============ BROADCAST ============
 
 
 @router.message(Command("broadcast"))
@@ -531,38 +474,17 @@ async def cmd_broadcast(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(Command("notify_update"))
-async def cmd_notify_update(message: Message, session: AsyncSession, bot: Bot) -> None:
-    """Notify all VPN users about config update."""
-    user_repo = UserRepository(session)
-    users = await user_repo.get_all_with_vpn()
-
-    if not users:
-        await message.answer("👥 Нет юзеров с VPN.")
-        return
-
-    await message.answer(f"📤 Отправляю {len(users)} юзерам...")
-
-    notify_text = (
-        "⚠️ <b>Обновление!</b>\n\n"
-        "Конфигурация VPN обновлена.\n"
-        "Твоя старая ссылка не работает.\n\n"
-        "👉 Нажми /link чтобы получить новую."
-    )
-    success, failed = await _send_mass_notification(bot, users, notify_text)
-
-    await message.answer(f"✅ Отправлено!\n\n📨 Доставлено: {success}\n❌ Ошибок: {failed}")
-
-
-@router.callback_query(F.data == "admin_notify_update")
-async def admin_notify_update_btn(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
-    """Notify update via button — removed, redirect to broadcast."""
-    # Use the general broadcast flow instead
-
+@router.callback_query(F.data == "admin_broadcast")
+async def admin_broadcast_btn(callback: CallbackQuery, state: FSMContext) -> None:
+    """Start broadcast flow from admin panel button."""
     await callback.answer()
+    from src.handlers.messaging import BroadcastStates
+    from src.keyboards.messaging_kb import get_broadcast_target_kb
+
+    await state.set_state(BroadcastStates.select_target)
     await callback.message.edit_text(
-        "📢 Для рассылки используй /broadcast",
-        reply_markup=get_back_to_admin_kb(),
+        "📢 Рассылка\n\nВыбери, кому отправить:",
+        reply_markup=get_broadcast_target_kb(),
     )
 
 

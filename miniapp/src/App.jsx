@@ -24,6 +24,8 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
 
+  const [showSupport, setShowSupport] = useState(false);
+
   // Toast
   const [toast, setToast] = useState({ message: '', type: 'info', visible: false });
 
@@ -51,7 +53,8 @@ function App() {
     handleSelectEndpoint,
     handleSwitchProtocol,
     handleUpdateSni,
-    handleRequestVpn
+    handleRequestVpn,
+    handleRevokeVpn
   } = useVPN(showToast);
 
   // Setup WebSockets
@@ -233,13 +236,28 @@ function App() {
         {activeTab === 'locations' && (
           <div className="tab-pane fade-in">
             {me?.profile?.has_profile ? (
-               <ServerSelector
-                 endpoints={endpoints}
-                 currentEndpoint={currentEndpoint}
-                 onSelect={handleSelectEndpoint}
-                 onCopy={(name) => handleSelectEndpoint(name, true)}
-                 busy={busy === 'endpoint'}
-               />
+              <>
+                <div style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  fontSize: '13px',
+                  color: 'var(--text-hint)',
+                  lineHeight: '1.4'
+                }}>
+                  ℹ️ Если вы используете <b>подписку</b> (со вкладки «Главная») — все серверы уже добавлены автоматически.
+                  Здесь можно скопировать ссылку на <b>конкретный сервер</b> для ручной настройки.
+                </div>
+                <ServerSelector
+                  endpoints={endpoints}
+                  currentEndpoint={currentEndpoint}
+                  onSelect={handleSelectEndpoint}
+                  onCopy={(name) => handleSelectEndpoint(name, true)}
+                  busy={busy === 'endpoint'}
+                />
+              </>
             ) : (
               <Card>
                 <div className="empty-state">
@@ -287,10 +305,6 @@ function App() {
               onRevokeVpn={handleRevokeVpn}
               busy={busy === 'protocol' || busy === 'sni' || busy === 'revoke'}
             />
-            <SupportForm 
-              onError={(msg) => showToast(msg, 'error')} 
-              onSuccess={(msg) => showToast(msg, 'success')} 
-            />
           </div>
         )}
 
@@ -302,6 +316,29 @@ function App() {
       </div>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} isAdmin={Boolean(me?.user?.is_admin)} />
+
+      {/* Floating Support Button */}
+      {me?.user && (
+        <>
+          <button
+            className="fab-support"
+            onClick={() => setShowSupport(!showSupport)}
+            title="Поддержка"
+          >
+            {showSupport ? '✕' : '💬'}
+          </button>
+          {showSupport && (
+            <div className="support-modal-overlay" onClick={() => setShowSupport(false)}>
+              <div className="support-modal" onClick={e => e.stopPropagation()}>
+                <SupportForm
+                  onError={(msg) => showToast(msg, 'error')}
+                  onSuccess={(msg) => { showToast(msg, 'success'); setShowSupport(false); }}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Toast */}
       <Toast

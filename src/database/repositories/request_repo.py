@@ -76,3 +76,16 @@ class RequestRepository:
     async def has_pending(self, user: User) -> bool:
         """Check if user has pending request."""
         return await self.get_pending_by_user(user) is not None
+
+    # Alias for backward compat
+    get_pending_for_user = get_pending_by_user
+
+    async def cancel_pending(self, user: User) -> bool:
+        """Cancel user's pending request. Returns True if cancelled."""
+        request = await self.get_pending_by_user(user)
+        if not request:
+            return False
+        request.status = RequestStatus.REJECTED
+        request.processed_at = datetime.now(UTC)
+        request.admin_comment = "Отменено пользователем"
+        return True

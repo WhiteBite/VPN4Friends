@@ -4,7 +4,9 @@ import React, { useState } from 'react';
  * LoginScreen — shown when the app is opened outside Telegram
  * and no auth token is stored in localStorage.
  * 
- * Users can paste a token from the /web bot command.
+ * Two modes:
+ * 1. username: enter @username → get instant JWT (if user has VPN)
+ * 2. token: paste token from /web bot command
  */
 export default function LoginScreen({ onLogin }) {
   const [token, setToken] = useState('');
@@ -12,10 +14,8 @@ export default function LoginScreen({ onLogin }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState('username'); // 'username' | 'token'
-  const [requestId, setRequestId] = useState(null); // ID of pending web access request
-  const [statusMessage, setStatusMessage] = useState('');
 
-  // Handle direct JWT token login (fallback or from /web command)
+  // Handle direct JWT token login (from /web command)
   const handleTokenSubmit = async (e) => {
     e.preventDefault();
     const trimmed = token.trim();
@@ -27,11 +27,9 @@ export default function LoginScreen({ onLogin }) {
     setLoading(true);
     setError('');
 
-    // Save token and try to load user data
     localStorage.setItem('auth_token', trimmed);
 
     try {
-      // Test the token by calling onLogin
       await onLogin();
     } catch (err) {
       localStorage.removeItem('auth_token');
@@ -40,36 +38,7 @@ export default function LoginScreen({ onLogin }) {
     }
   };
 
-  // Check status of pending request
-  React.useEffect(() => {
-    if (!requestId) return;
-
-    let interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/auth/access-status/${requestId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        
-        if (data.status === 'approved' && data.token) {
-          clearInterval(interval);
-          localStorage.setItem('auth_token', data.token);
-          setStatusMessage('Доступ подтверждён! Загрузка...');
-          await onLogin();
-        } else if (data.status === 'rejected') {
-          clearInterval(interval);
-          setRequestId(null);
-          setLoading(false);
-          setError('Доступ отклонён администратором.');
-        }
-      } catch (err) {
-        // ignore fetch errs on polling
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [requestId, onLogin]);
-
-  // Handle username submit
+  // Handle username submit — instant JWT if user exists + has VPN
   const handleUsernameSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -80,7 +49,6 @@ export default function LoginScreen({ onLogin }) {
     }
 
     setLoading(true);
-    setStatusMessage('Отправка запроса...');
 
     try {
       const res = await fetch('/api/auth/request-access', {
@@ -92,21 +60,19 @@ export default function LoginScreen({ onLogin }) {
       const data = await res.json();
       
       if (!res.ok) {
-        throw new Error(data.detail || 'Не удалось отправить запрос');
+        throw new Error(data.detail || 'Не удалось войти');
       }
 
       if (data.status === 'approved' && data.token) {
-        // Already approved from before
+        // Instant login
         localStorage.setItem('auth_token', data.token);
         await onLogin();
       } else {
-        setRequestId(data.request_id);
-        setStatusMessage(data.message || 'Ожидание подтверждения администратора...');
+        throw new Error('Неожиданный ответ сервера');
       }
     } catch (err) {
       setLoading(false);
       setError(err.message);
-      setStatusMessage('');
     }
   };
 
@@ -117,30 +83,7 @@ export default function LoginScreen({ onLogin }) {
         <h1 className="login-title">VPN4Friends</h1>
         <p className="login-subtitle">Войти в личный кабинет</p>
 
-        {requestId ? (
-          <div className="login-form">
-            <div className="login-help" style={{ textAlign: 'center', margin: '20px 0' }}>
-              <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-              <p style={{ fontWeight: 500 }}>{statusMessage}</p>
-              <p style={{ fontSize: '13px', color: 'var(--text-hint)', marginTop: '8px' }}>
-                Мы отправили запрос администратору в Telegram.<br/>
-                Как только он одобрит — кабинет откроется автоматически.
-              </p>
-            </div>
-            {error && <div className="login-error">{error}</div>}
-            <button
-              onClick={() => {
-                setRequestId(null);
-                setLoading(false);
-                setStatusMessage('');
-              }}
-              className="login-button"
-              style={{ background: 'var(--surface)' }}
-            >
-              Отмена
-            </button>
-          </div>
-        ) : mode === 'username' ? (
+        {mode === 'username' ? (
           <form className="login-form" onSubmit={handleUsernameSubmit}>
             <div className="login-input-group">
               <input
@@ -159,7 +102,7 @@ export default function LoginScreen({ onLogin }) {
               className="login-button"
               disabled={loading || !username.trim()}
             >
-              {loading ? 'Загрузка...' : 'Запросить доступ'}
+              {loading ? 'Загрузка...' : 'Войти'}
             </button>
           </form>
         ) : (
@@ -185,50 +128,49 @@ export default function LoginScreen({ onLogin }) {
             </button>
           </form>
         )}
-        {!requestId && (
-          <div className="login-help">
-            <p style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>Телеграм не грузится?</p>
-            <a
-              href={import.meta.env.VITE_MTPROTO_URL || "tg://proxy?server=vpn4friends-api.whitebite.ru&port=443&secret=dddbab1715494d4d67ab0f5cc76efc250d"}
-              className="login-button"
-              style={{
-                display: 'block',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: 'var(--text-hint)',
-                textAlign: 'center',
-                textDecoration: 'none',
-                marginBottom: '16px',
-              }}
-            >
-              Подключить публичный Прокси
-            </a>
-            
-            <p>Нет Telegram на этом устройстве?</p>
-            <ol>
-              <li>Откройте <a href="https://t.me/whitebite_vpn_bot" target="_blank" rel="noopener noreferrer">@whitebite_vpn_bot</a> с телефона</li>
-              <li>Отправьте команду <code>/web</code></li>
-              <li>Скопируйте токен и {' '}
-                <span 
-                  style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}
-                  onClick={() => { setMode('token'); setError(''); }}
-                >
-                  вставьте сюда
-                </span>
-              </li>
-            </ol>
-            {mode === 'token' && (
-              <p style={{ textAlign: 'center', marginTop: '16px' }}>
-                <span 
-                  style={{ color: 'var(--text-hint)', cursor: 'pointer', textDecoration: 'underline' }}
-                  onClick={() => { setMode('username'); setError(''); }}
-                >
-                  Вернуться к вводу @username
-                </span>
-              </p>
-            )}
-          </div>
-        )}
+
+        <div className="login-help">
+          <p style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>Телеграм не грузится?</p>
+          <a
+            href={import.meta.env.VITE_MTPROTO_URL || "tg://proxy?server=vpn4friends-api.whitebite.ru&port=443&secret=dddbab1715494d4d67ab0f5cc76efc250d"}
+            className="login-button"
+            style={{
+              display: 'block',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: 'var(--text-hint)',
+              textAlign: 'center',
+              textDecoration: 'none',
+              marginBottom: '16px',
+            }}
+          >
+            Подключить публичный Прокси
+          </a>
+          
+          <p>Нет Telegram на этом устройстве?</p>
+          <ol>
+            <li>Откройте <a href="https://t.me/whitebite_vpn_bot" target="_blank" rel="noopener noreferrer">@whitebite_vpn_bot</a> с телефона</li>
+            <li>Отправьте команду <code>/web</code></li>
+            <li>Скопируйте токен и {' '}
+              <span 
+                style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => { setMode('token'); setError(''); }}
+              >
+                вставьте сюда
+              </span>
+            </li>
+          </ol>
+          {mode === 'token' && (
+            <p style={{ textAlign: 'center', marginTop: '16px' }}>
+              <span 
+                style={{ color: 'var(--text-hint)', cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => { setMode('username'); setError(''); }}
+              >
+                Вернуться к вводу @username
+              </span>
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
