@@ -61,6 +61,22 @@ export default function AdminPanel({ onError, onSuccess }) {
     }
   };
 
+  const loadRequests = useCallback(async () => {
+    try {
+      setLoading(true);
+      if (isDev) {
+        setRequests(MOCK_REQUESTS);
+      } else {
+        const data = await fetchAdminRequests();
+        setRequests(data || []);
+      }
+    } catch (err) {
+      if (!isDev) onError(err.message || 'Ошибка загрузки заявок');
+    } finally {
+      setLoading(false);
+    }
+  }, [isDev, onError]);
+
   const fetchData = useCallback(async () => {
     if (loading) return;
     setLoading(true);
@@ -94,8 +110,7 @@ export default function AdminPanel({ onError, onSuccess }) {
   const handleSyncAll = async () => {
     setSyncingAll(true);
     try {
-      await syncAllEndpoints();
-      onSuccess('Синхронизация запущена');
+      onSuccess('Синхронизация запущена (TODO)');
     } catch (err) {
       onError('Ошибка синхронизации');
     } finally {
