@@ -8,15 +8,21 @@ from aiogram.types import CallbackQuery
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.bot.config import settings
+from src.bot.middlewares.admin import AdminFilter
 from src.database.models import WebAccessRequest, WebAccessStatus
 from src.database.repositories import UserRepository
 
 logger = logging.getLogger(__name__)
 router = Router(name="web_access")
 
+# Apply admin filter
+router.message.filter(AdminFilter(settings.admin_ids))
+router.callback_query.filter(AdminFilter(settings.admin_ids))
 
-@router.callback_query(F.data.startswith("web_access:approve_self:"))
-async def approve_self_web_access(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
+
+@router.callback_query(F.data.startswith("web_access:approve:"))
+async def approve_web_access(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
     """Approve browser login request via inline button."""
     request_id = int(callback.data.split(":")[-1])
 
@@ -33,13 +39,6 @@ async def approve_self_web_access(callback: CallbackQuery, session: AsyncSession
         await callback.answer(f"⚠️ Этот запрос уже {req.status.value}", show_alert=True)
         return
 
-    # Security check: Make sure the person clicking is the actual user
-    user_repo = UserRepository(session)
-    user = await user_repo.get_by_telegram_id(callback.from_user.id)
-    if not user or user.id != req.user_id:
-        await callback.answer("❌ Это не ваш запрос", show_alert=True)
-        return
-
     # Create JWT
     from src.api.dependencies import create_access_token
 
@@ -50,7 +49,48 @@ async def approve_self_web_access(callback: CallbackQuery, session: AsyncSession
     req.processed_at = datetime.now()
     await session.commit()
 
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_id(req.user_id)
+    name = user.display_name if user else f"@{req.username}"
+
     await callback.message.edit_text(
-        "✅ <b>Вход подтверждён</b>\n\n" "Браузер автоматически загрузит личный кабинет."
+        f"✅ <b>Вход разрешён</b>\n\n"
+        f"Пользователь: {name}\n"
+        f"Статус: Одобрено\n\n"
+        f"Браузер пользователя сейчас автоматически войдет в систему.",
+        parse_mode="HTML",
     )
     await callback.answer("Вход успешно разрешён!")
+
+
+@router.callback_query(F.data.startswith("web_access:reject:"))
+async def reject_web_access(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Reject browser login request."""
+    request_id = int(callback.data.split(":")[-1])
+
+    result = await session.execute(
+        select(WebAccessRequest).where(WebAccessRequest.id == request_id)
+    )
+    req = result.scalar_one_or_none()
+
+    if not req:
+        await callback.answer("❌ Запрос не найден", show_alert=True)
+        return
+
+    if req.status != WebAccessStatus.PENDING:
+        await callback.answer(f"⚠️ Этот запрос уже {req.status.value}", show_alert=True)
+        return
+
+    req.status = WebAccessStatus.REJECTED
+    req.processed_at = datetime.now()
+    await session.commit()
+
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_id(req.user_id)
+    name = user.display_name if user else f"@{req.username}"
+
+    await callback.message.edit_text(
+        f"❌ <b>Вход отклонён</b>\n\n" f"Пользователь: {name}\n" f"Статус: Отклонено",
+        parse_mode="HTML",
+    )
+    await callback.answer()

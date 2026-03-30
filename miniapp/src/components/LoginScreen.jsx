@@ -13,7 +13,6 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState('username'); // 'username' | 'token'
   const [requestId, setRequestId] = useState(null); // ID of pending web access request
-  const [otpCode, setOtpCode] = useState(''); // OTP code input
   const [statusMessage, setStatusMessage] = useState('');
 
   // Handle direct JWT token login (fallback or from /web command)
@@ -102,7 +101,7 @@ export default function LoginScreen({ onLogin }) {
         await onLogin();
       } else {
         setRequestId(data.request_id);
-        setStatusMessage(data.message || 'Введите код из Telegram-бота:');
+        setStatusMessage(data.message || 'Ожидание подтверждения администратора...');
       }
     } catch (err) {
       setLoading(false);
@@ -111,41 +110,6 @@ export default function LoginScreen({ onLogin }) {
     }
   };
 
-  // Handle OTP submit
-  const handleOtpSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    const cleanOtp = otpCode.trim();
-    if (!cleanOtp) {
-      setError('Введите код');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const res = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_id: requestId, otp_code: cleanOtp })
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.detail || 'Неверный код');
-      }
-
-      if (data.status === 'approved' && data.token) {
-        localStorage.setItem('auth_token', data.token);
-        setStatusMessage('Успешно! Входим...');
-        await onLogin();
-      }
-    } catch (err) {
-      setLoading(false);
-      setError(err.message);
-    }
-  };
   return (
     <div className="app" data-theme="dark">
       <div className="login-screen">
@@ -154,53 +118,28 @@ export default function LoginScreen({ onLogin }) {
         <p className="login-subtitle">Войти в личный кабинет</p>
 
         {requestId ? (
-          <form className="login-form" onSubmit={handleOtpSubmit}>
+          <div className="login-form">
             <div className="login-help" style={{ textAlign: 'center', margin: '20px 0' }}>
               <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-              <p style={{ fontWeight: 500 }}>Мы отправили вам код в Telegram</p>
+              <p style={{ fontWeight: 500 }}>{statusMessage}</p>
               <p style={{ fontSize: '13px', color: 'var(--text-hint)', marginTop: '8px' }}>
-                Введите код из бота ниже или просто нажмите "Подтвердить вход" в самом Telegram.
+                Мы отправили запрос администратору в Telegram.<br/>
+                Как только он одобрит — кабинет откроется автоматически.
               </p>
             </div>
-            
-            <div className="login-input-group">
-              <input
-                type="text"
-                className="login-input"
-                placeholder="6-значный код"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                autoFocus
-                disabled={loading}
-                maxLength={6}
-                style={{ textAlign: 'center', fontSize: '20px', letterSpacing: '2px' }}
-              />
-            </div>
-
             {error && <div className="login-error">{error}</div>}
-            
             <button
-              type="submit"
-              className="login-button"
-              disabled={loading || otpCode.trim().length !== 6}
-            >
-              {loading ? 'Проверка...' : 'Войти'}
-            </button>
-
-            <button
-              type="button"
               onClick={() => {
                 setRequestId(null);
-                setOtpCode('');
                 setLoading(false);
                 setStatusMessage('');
               }}
               className="login-button"
-              style={{ background: 'transparent', color: 'var(--text-hint)', marginTop: '8px' }}
+              style={{ background: 'var(--surface)' }}
             >
               Отмена
             </button>
-          </form>
+          </div>
         ) : mode === 'username' ? (
           <form className="login-form" onSubmit={handleUsernameSubmit}>
             <div className="login-input-group">

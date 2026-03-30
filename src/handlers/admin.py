@@ -18,7 +18,6 @@ from src.keyboards.admin_kb import (
     get_back_to_admin_kb,
     get_compact_requests_kb,
     get_compact_users_kb,
-    get_protocol_select_kb,
     get_user_detail_kb,
 )
 from src.keyboards.callbacks import AdminPage, RequestAction, UserAction
@@ -196,99 +195,46 @@ async def admin_requests(callback: CallbackQuery, session: AsyncSession) -> None
 async def approve_request(
     callback: CallbackQuery, callback_data: RequestAction, session: AsyncSession
 ) -> None:
-    """Handle approve — auto-select if single protocol, else show selector."""
-    await callback.answer()
-
-    if len(settings.protocols) == 1:
-        # Auto-approve with the only protocol
-        proto = settings.protocols[0]
-        vpn_service = VPNService(session)
-        success, result = await vpn_service.approve_request(
-            request_id=callback_data.request_id, protocol_name=proto.name
-        )
-
-        if not success:
-            await callback.message.edit_text(
-                f"❌ {result}",
-                reply_markup=get_back_to_admin_kb(),
-            )
-            return
-
-        # Notify user
-        request_repo = RequestRepository(session)
-        request = await request_repo.get_by_id(callback_data.request_id)
-        await _notify_user_approved(callback, request, result, proto.name)
-    else:
-        await callback.message.edit_text(
-            "Выбери протокол:",
-            reply_markup=get_protocol_select_kb(callback_data.request_id),
-        )
-
-
-@router.callback_query(RequestAction.filter(F.action == "select_protocol"))
-async def approve_with_protocol(
-    callback: CallbackQuery,
-    callback_data: RequestAction,
-    session: AsyncSession,
-    bot: Bot,
-) -> None:
-    """Approve VPN request with the selected protocol."""
-    await callback.answer()
-
-    if not callback_data.protocol_name:
-        await callback.message.edit_text("❌ Протокол не выбран.")
-        return
+    """Handle approve — auto-approve with vless and notify user."""
+    await callback.answer("Одобряем и создаем профили...")
 
     vpn_service = VPNService(session)
+    # Automatically provision a default vless profile - the subscription will handle routing
     success, result = await vpn_service.approve_request(
-        request_id=callback_data.request_id, protocol_name=callback_data.protocol_name
+        request_id=callback_data.request_id, protocol_name="vless"
     )
 
     if not success:
         await callback.message.edit_text(
-            f"❌ {result}",
+            f"❌ Ошибка: {result}",
             reply_markup=get_back_to_admin_kb(),
         )
         return
 
+    # Notify user
     request_repo = RequestRepository(session)
     request = await request_repo.get_by_id(callback_data.request_id)
-    await _notify_user_approved(callback, request, result, callback_data.protocol_name)
+    await _notify_user_approved(callback, request)
 
 
-async def _notify_user_approved(callback, request, vpn_link, protocol_name):
+async def _notify_user_approved(callback, request):
     """Send approval notification to user and update admin message."""
     bot = callback.bot
-    proto_upper = protocol_name.upper()
 
     await callback.message.edit_text(
-        f"✅ Одобрено!\n\n👤 {request.user.display_name}\n⚡ {proto_upper}",
+        f"✅ Заявка одобрена!\n\n👤 {request.user.display_name}",
         reply_markup=get_back_to_admin_kb(),
     )
 
     try:
-        from aiogram.types import BufferedInputFile
+        from src.keyboards.user_kb import get_user_main_kb
 
-        from src.utils.qr_generator import generate_qr_code
-
-        qr_buffer = generate_qr_code(vpn_link)
-        qr_photo = BufferedInputFile(qr_buffer.read(), filename="vpn_qr.png")
-
-        await bot.send_photo(
+        await bot.send_message(
             request.user.telegram_id,
-            photo=qr_photo,
-            caption=(
-                f"🎉 <b>VPN одобрен!</b>\n\n"
-                f"Твоя {proto_upper} ссылка:\n\n"
-                f"<code>{vpn_link}</code>\n\n"
-                f"📷 Или отсканируй QR-код выше\n\n"
-                f"━━━━━━━━━━━━━━━━━━━━\n"
-                f"📱 <b>Скачай приложение:</b>\n"
-                f"• iPhone → <a href='https://apps.apple.com/app/v2raytun/id6476628951'>V2RayTun</a>\n"
-                f"• Android → <a href='https://play.google.com/store/apps/details?id=com.v2ray.ang'>V2RayNG</a>\n"
-                f"• Windows/Mac → <a href='https://github.com/hiddify/hiddify-app/releases'>Hiddify</a>\n\n"
-                f"👉 Скопируй ссылку → Открой приложение → Добавь профиль"
-            ),
+            "🎉 <b>Твоя заявка одобрена!</b>\n\n"
+            "Твоя подписка и ключи уже ждут тебя в Личном кабинете.\n"
+            "Нажми кнопку <b>'Открыть Кабинет'</b> 👇",
+            reply_markup=get_user_main_kb(has_vpn=True),
             parse_mode="HTML",
         )
     except Exception as e:

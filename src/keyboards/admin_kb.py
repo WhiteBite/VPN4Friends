@@ -57,51 +57,6 @@ def get_request_action_kb(request: VPNRequest) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_protocol_select_kb(request_id: int) -> InlineKeyboardMarkup:
-    """Get keyboard for admin to select a protocol for user."""
-    from src.bot.config import settings
-
-    builder = InlineKeyboardBuilder()
-
-    # Use endpoints instead of protocols
-    # Filter out mtproto endpoints (they don't need admin approval)
-    for endpoint in settings.endpoints:
-        # Check if endpoint has protocol field or skip mtproto
-        endpoint_protocol = getattr(endpoint, "protocol", None)
-        if endpoint_protocol and endpoint_protocol.lower() == "mtproto":
-            continue  # Skip MTProto
-
-        # Show all other endpoints
-        builder.button(
-            text=endpoint.label,
-            callback_data=RequestAction(
-                action="select_protocol",
-                request_id=request_id,
-                protocol_name=endpoint.name,
-            ).pack(),
-        )
-
-    # If no endpoints, show default protocols
-    if not builder.buttons:
-        for proto_name, proto_label in [
-            ("finland_xhttp", "🇫🇮 Финляндия xHTTP"),
-            ("finland_grpc", "🇫🇮 Финляндия gRPC"),
-            ("finland_direct", "🇫🇮 Финляндия Direct"),
-        ]:
-            builder.button(
-                text=proto_label,
-                callback_data=RequestAction(
-                    action="select_protocol",
-                    request_id=request_id,
-                    protocol_name=proto_name,
-                ).pack(),
-            )
-
-    builder.button(text="⬅️ Назад", callback_data="admin_requests")
-    builder.adjust(1)
-    return builder.as_markup()
-
-
 def get_compact_users_kb(users: list[User], page: int = 0) -> InlineKeyboardMarkup:
     """Compact user list with pagination and detail buttons."""
     builder = InlineKeyboardBuilder()
