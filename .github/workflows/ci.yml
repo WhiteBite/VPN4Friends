@@ -75,10 +75,13 @@ jobs:
     steps:
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          VPN_CONFIG_RAW: ${{ secrets.VPN_CONFIG_RAW }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
+          envs: VPN_CONFIG_RAW
           script: |
             set -e
             
@@ -104,9 +107,9 @@ jobs:
               sudo apt-get update && sudo apt-get install -y jq
             fi
             
-            # Генерируем .env из VPN_CONFIG_B64 JSON
-            echo "🔐 Generating .env from B64 secrets..."
-            echo '${{ secrets.VPN_CONFIG_B64 }}' | base64 -d | jq -r '
+            # Генерируем .env из VPN_CONFIG_RAW JSON
+            echo "🔐 Generating .env from RAW JSON secret..."
+            echo "$VPN_CONFIG_RAW" | jq -r '
               # Bot
               "BOT_TOKEN=\(.bot.token)",
               "ADMIN_IDS=\(.bot.admin_ids | join(","))",
