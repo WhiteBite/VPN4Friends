@@ -149,3 +149,29 @@ class SupportMessage(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="support_messages")
+
+
+class WebAccessStatus(enum.Enum):
+    """Status of web access request."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class WebAccessRequest(Base):
+    """Browser-based login request awaiting admin approval."""
+
+    __tablename__ = "web_access_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(255), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    status: Mapped[WebAccessStatus] = mapped_column(
+        Enum(WebAccessStatus), default=WebAccessStatus.PENDING
+    )
+    jwt_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User | None"] = relationship()

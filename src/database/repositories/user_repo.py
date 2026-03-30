@@ -27,6 +27,16 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_username(self, username: str) -> User | None:
+        """Get user by Telegram @username (case-insensitive)."""
+        clean = username.lstrip("@").strip().lower()
+        if not clean:
+            return None
+        result = await self.session.execute(
+            select(User).where(User.username.ilike(clean)).options(selectinload(User.profiles))
+        )
+        return result.scalar_one_or_none()
+
     async def create(
         self,
         telegram_id: int,

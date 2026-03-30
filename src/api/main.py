@@ -16,6 +16,7 @@ from src.api.routers.me import router as me_router
 from src.api.routers.presets import router as presets_router
 from src.api.routers.subscription import router as sub_router
 from src.api.routers.system import router as system_router
+from src.api.routers.web_access import router as web_access_router
 from src.api.ws import manager as ws_manager
 from src.database.repositories import UserRepository
 
@@ -60,6 +61,7 @@ app.include_router(system_router, prefix="/api")
 app.include_router(me_router, prefix="/api")
 app.include_router(presets_router, prefix="/api")
 app.include_router(sub_router, prefix="/api")
+app.include_router(web_access_router, prefix="/api")
 
 # Also mount WITHOUT prefix for Cloudflare tunnel (strips /api path)
 app.include_router(admin_router)
@@ -67,6 +69,7 @@ app.include_router(system_router)
 app.include_router(me_router)
 app.include_router(presets_router)
 app.include_router(sub_router)
+app.include_router(web_access_router)
 
 if os.path.exists(frontend_path):
     # Mount specific /app path for the SPA

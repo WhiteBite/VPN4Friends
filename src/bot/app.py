@@ -26,6 +26,7 @@ from src.handlers import (
     admin_router,
     user_messaging_router,
     user_router,
+    web_access_router,
 )
 from src.handlers.server_selection import router as server_selection_router
 from src.services.xui_api import check_xui_connection
@@ -199,6 +200,7 @@ async def main() -> None:
     dp.include_router(server_selection_router)  # Server selection router
     dp.include_router(admin_router)
     dp.include_router(admin_messaging_router)
+    dp.include_router(web_access_router)
     logger.info("Handlers registered")
 
     # Set bot commands
