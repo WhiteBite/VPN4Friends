@@ -121,10 +121,18 @@ async def get_me(
         PresetSchema(id=p.id, name=p.name, app_type=p.app_type, format=p.format) for p in presets
     ]
 
+    # Build subscription URL if user has active profile
+    subscription_url = None
+    if active_profile:
+        client_id = active_profile.profile_data.get("client_id")
+        if client_id:
+            subscription_url = f"/api/sub/{client_id}"
+
     return MeResponse(
         user=user_schema,
         profile=profile_schema,
         presets=presets_schema,
+        subscription_url=subscription_url,
     )
 
 

@@ -40,6 +40,7 @@ class MeResponse(BaseModel):
     user: UserSchema
     profile: ProfileSchema
     presets: list[PresetSchema]
+    subscription_url: str | None = None
 
 
 class SwitchProtocolRequest(BaseModel):

@@ -136,6 +136,21 @@ function App() {
     }
   };
 
+  const handleCopySubscription = async () => {
+    const subUrl = me?.subscription_url;
+    if (!subUrl) {
+      showToast('Подписка недоступна.', 'error');
+      return;
+    }
+    const fullUrl = `${window.location.origin}${subUrl}`;
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      showToast('Ссылка на подписку скопирована!', 'success');
+    } catch {
+      showToast('Не удалось скопировать.', 'error');
+    }
+  };
+
   // ----- Render -----
 
   const activeEndpoint = endpoints.find((ep) => ep.name === currentEndpoint) || null;
@@ -226,6 +241,18 @@ function App() {
 
         {activeTab === 'profile' && (
           <div className="tab-pane fade-in">
+            {me?.subscription_url && (
+              <Card>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ fontSize: '28px' }}>📡</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '4px' }}>Авто-подписка</div>
+                    <div style={{ fontSize: '12px', opacity: 0.6 }}>Добавь в Throne / v2rayNG — сервера обновятся автоматически</div>
+                  </div>
+                  <Button size="sm" onClick={handleCopySubscription}>Копировать</Button>
+                </div>
+              </Card>
+            )}
             <StatsCard
               visible={true}
               onError={(msg) => showToast(msg, 'error')}
