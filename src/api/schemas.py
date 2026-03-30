@@ -30,6 +30,7 @@ class ProfileSchema(BaseModel):
     request_status: str | None = None
     protocol: str | None = None
     label: str | None = None
+    client_id: str | None = None
     sni: str | None = None
     available_snis: list[str] = []
 

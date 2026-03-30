@@ -100,6 +100,9 @@ async def get_me(
             request_status="approved",
             protocol=active_profile.protocol_name,
             label=active_profile.label,
+            client_id=active_profile.profile_data.get("client_id")
+            if active_profile.profile_data
+            else None,
             sni=active_profile.settings.get("sni") if active_profile.settings else None,
             available_snis=available_snis,
         )
