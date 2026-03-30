@@ -19,25 +19,6 @@ export default function SettingsPanel({
     <Card>
       <div className="card-title">⚙️ Настройки</div>
 
-      {/* Protocol Selection */}
-      <div className="section-title">Протокол</div>
-      <div className="chips-row">
-        {sortedProtocols.map((p) => {
-          const isActive = profile.protocol === p.name;
-          return (
-            <button
-              key={p.name}
-              type="button"
-              className={`chip ${isActive ? 'chip--active' : ''}`}
-              onClick={() => !busy && !isActive && onSwitchProtocol(p.name)}
-              disabled={busy || isActive}
-            >
-              {p.label || p.name.toUpperCase()}
-            </button>
-          );
-        })}
-      </div>
-
       {/* SNI Selection */}
       {profile.available_snis?.length > 0 && (
         <>
