@@ -7,7 +7,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script data-cfasync="false" src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Load Telegram Web App script asynchronously to avoid blocking rendering if telegram.org is blocked by ISP -->
+    <script data-cfasync="false">
+      (function() {
+        var script = document.createElement('script');
+        script.src = 'https://telegram.org/js/telegram-web-app.js';
+        script.async = true;
+        document.head.appendChild(script);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
