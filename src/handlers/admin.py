@@ -149,7 +149,7 @@ async def cmd_sync_all(message: Message, session: AsyncSession) -> None:
 
         # Update progress every 5 users
         if (i + 1) % 5 == 0:
-            await progress_msg.edit_text(f"⏳ Синхронизация... {i+1}/{len(users)}")
+            await progress_msg.edit_text(f"⏳ Синхронизация... {i + 1}/{len(users)}")
             await asyncio.sleep(0.5)
 
     await progress_msg.delete()

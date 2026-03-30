@@ -87,7 +87,7 @@ async def reject_web_access(callback: CallbackQuery, session: AsyncSession) -> N
     name = user.display_name if user else f"@{req.username}"
 
     await callback.message.edit_text(
-        f"❌ <b>Вход отклонён</b>\n\n" f"Пользователь: {name}\n" f"Статус: Отклонено",
+        f"❌ <b>Вход отклонён</b>\n\nПользователь: {name}\nСтатус: Отклонено",
         parse_mode="HTML",
     )
     await callback.answer()
