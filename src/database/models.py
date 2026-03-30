@@ -170,6 +170,7 @@ class WebAccessRequest(Base):
     status: Mapped[WebAccessStatus] = mapped_column(
         Enum(WebAccessStatus), default=WebAccessStatus.PENDING
     )
+    otp_code: Mapped[str | None] = mapped_column(String(6), nullable=True)
     jwt_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

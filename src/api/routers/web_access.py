@@ -1,7 +1,9 @@
 """Web access router — allows browser login by Telegram username."""
 
 import logging
+import random
 import re
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
@@ -9,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.bot_utils import create_bot
-from src.bot.config import settings
+from src.api.dependencies import create_access_token
 from src.database.models import WebAccessRequest, WebAccessStatus
 from src.database.repositories import UserRepository
 from src.database.session import get_session
@@ -46,6 +48,11 @@ class WebAccessResponse(BaseModel):
 class WebAccessStatusResponse(BaseModel):
     status: str
     token: str | None = None
+
+
+class WebAccessVerifyPayload(BaseModel):
+    request_id: int
+    otp_code: str
 
 
 @router.post("/request-access", response_model=WebAccessResponse)
@@ -107,16 +114,18 @@ async def request_web_access(
         )
 
     # Create new request
+    otp_code = str(random.randint(100000, 999999))
     req = WebAccessRequest(
         username=username,
         user_id=user.id,
         status=WebAccessStatus.PENDING,
+        otp_code=otp_code,
     )
     session.add(req)
     await session.commit()
     await session.refresh(req)
 
-    # Notify admin via bot
+    # Notify user via bot
     try:
         from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -125,39 +134,31 @@ async def request_web_access(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text="✅ Одобрить",
-                        callback_data=f"web_access:approve:{req.id}",
-                    ),
-                    InlineKeyboardButton(
-                        text="❌ Отклонить",
-                        callback_data=f"web_access:reject:{req.id}",
-                    ),
+                        text="✅ Подтвердить вход",
+                        callback_data=f"web_access:approve_self:{req.id}",
+                    )
                 ]
             ]
         )
 
-        for admin_id in settings.admin_ids:
-            try:
-                await bot.send_message(
-                    admin_id,
-                    f"🌐 <b>Запрос веб-доступа</b>\n\n"
-                    f"Пользователь <b>@{username}</b> ({user.full_name})\n"
-                    f"запрашивает вход через браузер.\n\n"
-                    f"ID запроса: #{req.id}",
-                    reply_markup=kb,
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                logger.warning(f"Failed to notify admin {admin_id}: {e}")
+        await bot.send_message(
+            user.telegram_id,
+            f"🔐 <b>Попытка входа в Личный Кабинет</b>\n\n"
+            f"Ваш проверочный код:\n"
+            f"<code>{otp_code}</code>\n\n"
+            f"<i>Введите этот код на сайте или нажмите кнопку ниже для быстрого входа.</i>",
+            reply_markup=kb,
+            parse_mode="HTML",
+        )
 
         await bot.session.close()
     except Exception as e:
-        logger.error(f"Failed to send admin notification: {e}")
+        logger.error(f"Failed to send user notification: {e}")
 
     return WebAccessResponse(
         request_id=req.id,
         status="pending",
-        message="Запрос отправлен! Ожидайте подтверждения от администратора.",
+        message="Код отправлен в Telegram. Ожидание подтверждения...",
     )
 
 
@@ -181,3 +182,35 @@ async def check_web_access_status(
         return WebAccessStatusResponse(status="rejected")
     else:
         return WebAccessStatusResponse(status="pending")
+
+
+@router.post("/verify-otp", response_model=WebAccessStatusResponse)
+async def verify_otp(
+    payload: WebAccessVerifyPayload,
+    session: AsyncSession = Depends(get_session),
+):
+    """Verify the OTP code entered by the user."""
+    result = await session.execute(
+        select(WebAccessRequest).where(WebAccessRequest.id == payload.request_id)
+    )
+    req = result.scalar_one_or_none()
+
+    if not req:
+        raise HTTPException(status_code=404, detail="Запрос не найден")
+
+    if req.status != WebAccessStatus.PENDING:
+        raise HTTPException(
+            status_code=400, detail=f"Запрос уже обработан (статус: {req.status.value})"
+        )
+
+    if not req.otp_code or req.otp_code != payload.otp_code.strip():
+        raise HTTPException(status_code=400, detail="Неверный код")
+
+    # Code is valid, approve access
+    token = create_access_token(req.user_id)
+    req.status = WebAccessStatus.APPROVED
+    req.jwt_token = token
+    req.processed_at = datetime.now()
+    await session.commit()
+
+    return WebAccessStatusResponse(status="approved", token=token)
