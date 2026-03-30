@@ -15,10 +15,13 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.9.1",
+    "@emnapi/runtime": "^1.9.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.0.0",
+    "esbuild": "^0.27.4",
     "jsdom": "^29.0.1",
     "vite": "^5.0.0",
     "vitest": "^4.1.2"
