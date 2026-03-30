@@ -47,7 +47,13 @@ async def approve_web_access(callback: CallbackQuery, session: AsyncSession, bot
         await callback.answer("❌ Пользователь не найден", show_alert=True)
         return
 
-    create_access_token(user.telegram_id)  # validates token can be created
+    token = create_access_token(user.telegram_id)
+    req.status = WebAccessStatus.APPROVED
+    req.jwt_token = token
+    req.processed_at = datetime.now()
+
+    await session.commit()
+
     name = user.display_name
 
     await callback.message.edit_text(
