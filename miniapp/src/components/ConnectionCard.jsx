@@ -6,7 +6,7 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { IconLock, IconCopy, IconCheckCircle, IconGlobe } from '../ui/Icons';
 
-export default function ConnectionCard({ profile, endpoint, onCopy, link, onRequest, isBusy }) {
+export default function ConnectionCard({ profile, onCopySubscription, onRequest, isBusy }) {
   const hasProfile = profile?.has_profile;
   const [comment, setComment] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -114,56 +114,30 @@ export default function ConnectionCard({ profile, endpoint, onCopy, link, onRequ
     <Card hero>
       <div className="hero-status">
         <Badge type="success">
-          <IconCheckCircle /> Готов к работе
+          <IconCheckCircle /> Подписка активна
         </Badge>
       </div>
 
-      {/* Location Display */}
-      <div className="hero-location">
-        <div className="location-icon">
-          <IconGlobe size={24} color="currentColor" />
-        </div>
-        <div className="location-info">
-          <div className="location-label">Текущая локация</div>
-          <div className="location-name">{endpoint?.label || 'Загрузка...'}</div>
-        </div>
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <div style={{ fontSize: '64px', marginBottom: '16px', animation: 'float 4s ease-in-out infinite' }}>📡</div>
+        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>Твоя Авто-Подписка</h2>
+        <p style={{ color: 'var(--text-hint)', fontSize: '14px', lineHeight: '1.5', maxWidth: '280px', margin: '0 auto' }}>
+          Добавь эту ссылку в приложение (Throne / v2rayNG), и все сервера загрузятся автоматически.
+        </p>
       </div>
 
-      {/* Action Area */}
-      {link ? (
-        <div className="hero-action-area">
-          <Button variant="custom" className="btn-copy-main" onClick={onCopy}>
-            <span className="btn-icon"><IconCopy /></span>
-            Скопировать ссылку
-          </Button>
-          
-          <div className="qr-toggle-container">
-            <Button 
-              variant="custom"
-              className="btn-text-muted" 
-              onClick={() => document.getElementById('qr-wrapper').classList.toggle('qr-wrapper--open')}
-            >
-              Показать QR-код
-            </Button>
-            <div id="qr-wrapper" className="qr-wrapper">
-              <div className="qr-box">
-                <QRCodeSVG
-                  value={link}
-                  size={160}
-                  bgColor="transparent"
-                  fgColor="#090B0F"
-                  level="M"
-                  includeMargin={false}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="hero-action-area">
-          <div className="skeleton skeleton--box" style={{ height: 56, borderRadius: '14px', width: '100%', marginBottom: '16px' }}></div>
-        </div>
-      )}
+      <div className="hero-action-area">
+        <Button variant="custom" className="btn-copy-main" onClick={onCopySubscription} style={{ width: '100%', padding: '18px 24px', fontSize: '18px' }}>
+          <span className="btn-icon"><IconCopy /></span>
+          Скопировать ссылку
+        </Button>
+      </div>
+      
+      <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <p style={{ fontSize: '12px', color: 'var(--text-hint)', textAlign: 'center' }}>
+          Нужен один конкретный сервер или QR-код? Перейди во вкладку <strong>Локации</strong>.
+        </p>
+      </div>
     </Card>
   );
 }

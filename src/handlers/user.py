@@ -59,20 +59,19 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
     if created:
         # New user — clean onboarding
         await message.answer(
-            f"🌍 <b>VPN4Friends</b>\n\n"
+            f"🌍 <b>VPN4Friends Premium</b>\n\n"
             f"Привет, <b>{user.full_name}</b>! 👋\n\n"
-            f"Бесплатный VPN от Дани.\n"
-            f"Нажми кнопку — отправишь заявку.\n"
-            f"Обычно одобряю за пару минут ⚡",
+            f"Это персональный высокоскоростной VPN с обходом блокировок.\n"
+            f"Нажми кнопку ниже, чтобы запросить доступ.",
             reply_markup=get_user_main_kb(user.has_vpn, has_pending),
             parse_mode="HTML",
         )
         return
 
     # Returning user without VPN or with VPN
-    status_emoji = "✅ У вас активный VPN" if user.has_vpn else "👋 С возвращением"
+    status_emoji = "🟢 Подписка активна" if user.has_vpn else "👋 С возвращением"
     await message.answer(
-        f"{status_emoji}, <b>{user.full_name}</b>!",
+        f"<b>VPN4Friends</b>\n\n{status_emoji}, <b>{user.full_name}</b>!",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
         parse_mode="HTML",
     )
@@ -90,9 +89,11 @@ async def cmd_menu(message: Message, session: AsyncSession) -> None:
         return
 
     has_pending = await request_repo.has_pending(user)
+    status_emoji = "🟢 Подписка активна" if user.has_vpn else "🔴 Нет профиля"
     await message.answer(
-        "🏠 Меню",
+        f"<b>Меню управления</b>\nСтатус: {status_emoji}",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
+        parse_mode="HTML",
     )
 
 
@@ -189,6 +190,33 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
     )
 
 
+@router.message(Command("subscription"))
+async def cmd_subscription(message: Message, session: AsyncSession) -> None:
+    """Handle /subscription command."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(message.from_user.id)
+
+    if not user or not user.active_profile:
+        await message.answer("❌ У вас нет активного VPN-профиля.")
+        return
+
+    client_id = user.active_profile.profile_data.get("client_id")
+    if not client_id:
+        await message.answer("❌ Ошибка профиля. Обратитесь в поддержку.")
+        return
+
+    sub_link = f"https://vpn4friends-api.whitebite.ru/api/sub/{client_id}"
+
+    await message.answer(
+        f"📡 <b>Ваша Авто-Подписка</b>\n\n"
+        f"Скопируйте ссылку ниже и вставьте её в приложение (Throne, v2rayNG или Hiddify):\n\n"
+        f"<code>{sub_link}</code>\n\n"
+        f"<i>Все серверы добавятся и будут обновляться автоматически.</i>",
+        parse_mode="HTML",
+        reply_markup=get_back_kb(),
+    )
+
+
 @router.message(Command("stats"))
 async def cmd_stats(message: Message, session: AsyncSession) -> None:
     """Handle /stats command."""
@@ -266,9 +294,11 @@ async def back_to_menu(callback: CallbackQuery, session: AsyncSession) -> None:
         return
 
     has_pending = await request_repo.has_pending(user)
+    status_emoji = "🟢 Подписка активна" if user.has_vpn else "🔴 Нет профиля"
     await callback.message.edit_text(
-        "🏠 Меню",
+        f"<b>Меню управления</b>\nСтатус: {status_emoji}",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
+        parse_mode="HTML",
     )
 
 
@@ -317,6 +347,38 @@ async def pending_info(callback: CallbackQuery) -> None:
     await callback.answer(
         "Заявка на рассмотрении. Обычно одобряю быстро ⚡",
         show_alert=True,
+    )
+
+
+@router.callback_query(F.data == "my_sub")
+async def my_sub(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Show user's auto-subscription link."""
+    await callback.answer()
+
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
+    if not user or not user.active_profile:
+        await callback.message.edit_text(
+            "❌ У вас нет активного VPN-профиля.", reply_markup=get_back_kb()
+        )
+        return
+
+    client_id = user.active_profile.profile_data.get("client_id")
+    if not client_id:
+        await callback.message.edit_text(
+            "❌ Ошибка профиля. Обратитесь в поддержку.", reply_markup=get_back_kb()
+        )
+        return
+
+    sub_link = f"https://vpn4friends-api.whitebite.ru/api/sub/{client_id}"
+
+    await callback.message.edit_text(
+        f"📡 <b>Ваша Авто-Подписка</b>\n\n"
+        f"Скопируйте ссылку ниже и вставьте её в приложение (Throne, v2rayNG или Hiddify):\n\n"
+        f"<code>{sub_link}</code>\n\n"
+        f"<i>Все серверы добавятся и будут обновляться автоматически.</i>",
+        parse_mode="HTML",
+        reply_markup=get_back_kb(),
     )
 
 

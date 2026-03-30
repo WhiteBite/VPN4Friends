@@ -228,6 +228,33 @@ async def get_link(
     )
 
 
+@router.delete("/revoke", response_model=GenericResponse)
+async def revoke_vpn(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> GenericResponse:
+    """Revoke user's VPN access (delete profile)."""
+    if not user.active_profile:
+        return GenericResponse(
+            success=False,
+            message="У вас нет активного VPN-профиля.",
+        )
+
+    vpn_service = VPNService(session)
+    success = await vpn_service.revoke_vpn(user)
+
+    if not success:
+        return GenericResponse(
+            success=False,
+            message="Не удалось отозвать VPN. Попробуйте позже.",
+        )
+
+    return GenericResponse(
+        success=True,
+        message="Ваш VPN успешно удален.",
+    )
+
+
 @router.get("/stats", response_model=StatsResponse)
 async def get_stats(
     user: User = Depends(get_current_user),

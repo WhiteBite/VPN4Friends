@@ -151,6 +151,30 @@ function App() {
     }
   };
 
+  const handleRevokeVpn = async () => {
+    if (!window.confirm("Вы уверены, что хотите удалить свой VPN? Это действие необратимо.")) {
+      return;
+    }
+    
+    try {
+      setBusy('revoke');
+      const res = await fetch('/api/me/revoke', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      
+      showToast(data.message || 'VPN удален', 'success');
+      await loadAll();
+    } catch (err) {
+      showToast(err.message || 'Ошибка удаления VPN', 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+
   // ----- Render -----
 
   const activeEndpoint = endpoints.find((ep) => ep.name === currentEndpoint) || null;
@@ -208,9 +232,7 @@ function App() {
           <div className="tab-pane fade-in">
             <ConnectionCard
               profile={me?.profile}
-              endpoint={activeEndpoint}
-              link={vpnLink}
-              onCopy={handleCopy}
+              onCopySubscription={handleCopySubscription}
               onRequest={handleRequestVpn}
               isBusy={busy === 'request'}
             />
@@ -241,18 +263,26 @@ function App() {
 
         {activeTab === 'profile' && (
           <div className="tab-pane fade-in">
-            {me?.subscription_url && (
-              <Card>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ fontSize: '28px' }}>📡</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '4px' }}>Авто-подписка</div>
-                    <div style={{ fontSize: '12px', opacity: 0.6 }}>Добавь в Throne / v2rayNG — сервера обновятся автоматически</div>
-                  </div>
-                  <Button size="sm" onClick={handleCopySubscription}>Копировать</Button>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <div style={{ background: 'var(--primary)', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+                  {me?.user?.full_name ? me.user.full_name.charAt(0).toUpperCase() : 'U'}
                 </div>
-              </Card>
-            )}
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '15px' }}>{me?.user?.full_name || 'Пользователь'}</div>
+                  <div style={{ color: 'var(--text-hint)', fontSize: '13px' }}>@{me?.user?.username || 'Без имени'}</div>
+                </div>
+              </div>
+
+              {me?.profile?.has_profile && (
+                <div className="stat-row">
+                  <div className="stat-label">VPN-клиент ID</div>
+                  <div className="stat-value" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                    {me.profile.client_id ? `${me.profile.client_id.substring(0, 8)}...` : 'Неизвестно'}
+                  </div>
+                </div>
+              )}
+            </Card>
             <StatsCard
               visible={true}
               onError={(msg) => showToast(msg, 'error')}
@@ -263,7 +293,8 @@ function App() {
               protocols={protocols}
               onSwitchProtocol={handleSwitchProtocol}
               onUpdateSni={handleUpdateSni}
-              busy={busy === 'protocol' || busy === 'sni'}
+              onRevokeVpn={handleRevokeVpn}
+              busy={busy === 'protocol' || busy === 'sni' || busy === 'revoke'}
             />
             <SupportForm 
               onError={(msg) => showToast(msg, 'error')} 

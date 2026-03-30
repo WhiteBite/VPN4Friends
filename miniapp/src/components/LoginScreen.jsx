@@ -67,6 +67,23 @@ export default function LoginScreen({ onLogin }) {
         </form>
 
         <div className="login-help">
+          <p style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>Телеграм не грузится?</p>
+          <a
+            href={import.meta.env.VITE_MTPROTO_URL || "tg://proxy?server=vpn4friends-api.whitebite.ru&port=443&secret=dddbab1715494d4d67ab0f5cc76efc250d"}
+            className="login-button"
+            style={{
+              display: 'block',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: 'var(--text-hint)',
+              textAlign: 'center',
+              textDecoration: 'none',
+              marginBottom: '16px',
+            }}
+          >
+            Подключить публичный Прокси
+          </a>
+          
           <p>Как получить токен?</p>
           <ol>
             <li>Откройте <a href="https://t.me/whitebite_vpn_bot" target="_blank" rel="noopener noreferrer">@whitebite_vpn_bot</a></li>

@@ -18,33 +18,30 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
     builder = InlineKeyboardBuilder()
 
     if has_vpn:
-        # User clicks this to see all available VPN options (VLESS nodes, MTProto, etc)
-        builder.button(text="🔗 Мой VPN", callback_data="my_link")
-        builder.button(text="📊 Статистика", callback_data="my_stats")
-
         if settings.miniapp_url:
             builder.button(
-                text="⚙️ Настройки",
+                text="🔵 Открыть Кабинет",
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
-        builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
-        builder.adjust(2, 1, 1)
+        builder.button(text="🔗 Ссылка на подписку", callback_data="my_sub")
+        builder.button(text="🆘 Поддержка", callback_data="contact_admin")
+        builder.adjust(1, 1, 1)
     elif has_pending:
-        builder.button(text="⏳ Заявка на рассмотрении", callback_data="pending_info")
         if settings.miniapp_url:
             builder.button(
-                text="🚀 Мой Кабинет",
+                text="🔵 Открыть Кабинет",
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
-        builder.button(text="✉️ Написать Дане", callback_data="contact_admin")
+        builder.button(text="⏳ Заявка на рассмотрении", callback_data="pending_info")
+        builder.button(text="🆘 Поддержка", callback_data="contact_admin")
         builder.adjust(1, 1, 1)
     else:
-        builder.button(text="🔑 Попросить VPN", callback_data="request_vpn")
         if settings.miniapp_url:
             builder.button(
-                text="🚀 Открыть Приложение",
+                text="🔵 Открыть Кабинет (Запросить VPN)",
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
+        builder.button(text="🔑 Попросить VPN тут", callback_data="request_vpn")
         builder.adjust(1, 1)
 
     return builder.as_markup()
