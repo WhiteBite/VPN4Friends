@@ -19,11 +19,11 @@ const getTransportTooltip = (transport, isRelay) => {
 };
 
 const GROUP_INFO = {
-  'fast': { title: '⚡ Оптимальные серверы', desc: 'Максимальная скорость. Для ежедневного использования.' },
+  'fast': { title: '⚡ Для обычного использования', desc: 'Wi-Fi, домашний интернет и быстрая загрузка без потерь скорости.' },
   'warp': { title: '🎬 Видео и Соцсети (WARP)', desc: 'Обход блокировок по IP (Netflix, Instagram, ChatGPT).' },
   'stealth': { title: '🛡 Строгая блокировка (Stealth)', desc: 'Использовать, если провайдер жестко блокирует VPN. Работает медленнее обычных.' },
   'stealth_warp': { title: '🛡🎬 Stealth + WARP', desc: 'Строгий обход провайдера + доступ к западным сервисам.' },
-  'moscow': { title: '🇷🇺 Базовые (Москва)', desc: 'Точка входа в РФ.' }
+  'moscow': { title: '📶 Для мобильного интернета', desc: 'Проходит через РФ-релей. Лучший вариант от блокировок МТС, Теле2, Мегафон и др.' }
 };
 
 export default function ServerSelector({ endpoints, currentEndpoint, onSelect, onCopy, busy, showTelegramProxies = true }) {

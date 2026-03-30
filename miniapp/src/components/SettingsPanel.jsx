@@ -20,7 +20,7 @@ export default function SettingsPanel({
       <div className="card-title">⚙️ Настройки</div>
 
       {/* SNI Selection */}
-      {profile.available_snis?.length > 0 && (
+      {profile.available_snis?.length > 1 && (
         <>
           <div className="section-title" style={{ marginTop: '16px' }}>SNI маскировка</div>
           <div className="chips-row" style={{ marginBottom: '24px' }}>
