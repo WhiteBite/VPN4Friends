@@ -60,6 +60,13 @@ class ServerEndpoint(BaseModel):
     ssh_key: str | None = None
     ssh_port: int = 22
 
+    # Subscription grouping & display
+    group: str = "fast"  # "fast", "warp", "stealth", "stealth_warp", "moscow", "cdn"
+    sub_label: str = ""  # Label in subscription: "⚡ 🇫🇮 Финляндия"
+    sort_order: int = 100  # Sorting within subscription (lower = higher)
+    visible_in_sub: bool = True  # Include in subscription output
+    routing_tag: str = "direct"  # Outbound tag for provisioner routing: "direct" or "warp"
+
 
 class Settings(BaseSettings):
     """Bot configuration loaded from environment variables."""

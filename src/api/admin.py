@@ -16,6 +16,7 @@ from src.api.schemas import (
     GenericResponse,
     SendMessageSchema,
 )
+from src.bot.config import settings
 from src.database.models import User
 from src.database.repositories import RequestRepository, SupportRepository, UserRepository
 from src.database.session import get_session
@@ -434,3 +435,170 @@ async def reload_config(
         endpoints_count=len(new_endpoints),
         nodes_count=len(new_nodes),
     )
+
+
+# ---------------------------------------------------------------------------
+#  Endpoint management (CRUD)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/endpoints")
+async def list_endpoints(
+    admin: User = Depends(require_admin),
+) -> list[dict]:
+    """List all configured VPN endpoints with their subscription group info."""
+    from src.api.routers.subscription import GROUP_ORDER
+
+    result = []
+    for ep in settings.endpoints:
+        group_order, group_label = GROUP_ORDER.get(ep.group, (99, ep.group))
+        result.append(
+            {
+                "name": ep.name,
+                "label": ep.label,
+                "host": ep.host,
+                "port": ep.port,
+                "protocol": ep.protocol,
+                "transport": ep.transport,
+                "country": ep.country,
+                "category": ep.category,
+                "is_relay": ep.is_relay,
+                "group": ep.group,
+                "group_label": group_label,
+                "sub_label": ep.sub_label,
+                "sort_order": ep.sort_order,
+                "visible_in_sub": ep.visible_in_sub,
+                "routing_tag": ep.routing_tag,
+                "has_panel": bool(ep.panel_config and ep.panel_config.get("api_url")),
+            }
+        )
+
+    result.sort(key=lambda x: (GROUP_ORDER.get(x["group"], (99, ""))[0], x["sort_order"]))
+    return result
+
+
+class EndpointCreateRequest(BaseModel):
+    """Request body for creating a new endpoint."""
+
+    name: str
+    label: str
+    host: str
+    port: int = 443
+    protocol: str = "vless"
+    transport: str = "tcp"
+    security: str = "reality"
+    sni: str = "max.ru"
+    flow: str | None = None
+    country: str = "Финляндия"
+    category: str = "vpn"
+    is_relay: bool = False
+    group: str = "fast"
+    sub_label: str = ""
+    sort_order: int = 100
+    routing_tag: str = "direct"
+    node: str | None = None  # Node name from nodes_config (e.g. "finland", "germany")
+
+    # Optional fields for REALITY
+    pbk: str | None = None
+    sid: str | None = None
+    pk: str | None = None
+    serviceName: str | None = None
+    path: str | None = None
+
+
+@router.post("/endpoints", response_model=GenericResponse)
+async def create_endpoint(
+    payload: EndpointCreateRequest,
+    admin: User = Depends(require_admin),
+) -> GenericResponse:
+    """Create a new VPN endpoint and optionally provision it on the server."""
+    from src.bot.config import ServerEndpoint
+
+    # Check for duplicate
+    existing = [ep for ep in settings.endpoints if ep.name == payload.name]
+    if existing:
+        return GenericResponse(success=False, message=f"Endpoint '{payload.name}' already exists")
+
+    # Look up panel_config from node
+    panel_config = {}
+    if payload.node and payload.node in settings.nodes_config:
+        node_cfg = settings.nodes_config[payload.node]
+        panel_config = node_cfg.get("panel_config", {})
+
+    # Build the endpoint
+    ep_data = payload.model_dump(exclude_none=True)
+    ep_data.pop("node", None)
+    ep_data["panel_config"] = panel_config
+    ep_data["panel_type"] = "3xui" if panel_config else "none"
+    ep_data["visible_in_sub"] = True
+
+    new_ep = ServerEndpoint(**ep_data)
+    settings.endpoints.append(new_ep)
+
+    logger.info(f"Admin {admin.username} created endpoint: {payload.name}")
+
+    # Auto-provision if we have panel config
+    if panel_config and panel_config.get("api_url"):
+        asyncio.create_task(_provision_single_endpoint(new_ep))
+
+    return GenericResponse(success=True, message=f"Endpoint '{payload.name}' created successfully")
+
+
+@router.delete("/endpoints/{name}", response_model=GenericResponse)
+async def delete_endpoint(
+    name: str,
+    admin: User = Depends(require_admin),
+) -> GenericResponse:
+    """Remove an endpoint from the configuration."""
+    idx = None
+    for i, ep in enumerate(settings.endpoints):
+        if ep.name == name:
+            idx = i
+            break
+
+    if idx is None:
+        raise HTTPException(status_code=404, detail=f"Endpoint '{name}' not found")
+
+    settings.endpoints.pop(idx)
+    logger.info(f"Admin {admin.username} deleted endpoint: {name}")
+    return GenericResponse(success=True, message=f"Endpoint '{name}' deleted")
+
+
+@router.post("/endpoints/{name}/sync", response_model=GenericResponse)
+async def sync_endpoint(
+    name: str,
+    admin: User = Depends(require_admin),
+) -> GenericResponse:
+    """Force-sync all clients to a specific endpoint."""
+    target_ep = None
+    for ep in settings.endpoints:
+        if ep.name == name:
+            target_ep = ep
+            break
+
+    if not target_ep:
+        raise HTTPException(status_code=404, detail=f"Endpoint '{name}' not found")
+
+    if not target_ep.panel_config or not target_ep.panel_config.get("api_url"):
+        return GenericResponse(success=False, message="Endpoint has no panel config (relay?)")
+
+    asyncio.create_task(_provision_single_endpoint(target_ep))
+    return GenericResponse(success=True, message=f"Sync started for '{name}'")
+
+
+async def _provision_single_endpoint(ep) -> None:
+    """Provision a single endpoint: create inbound + sync clients."""
+    from src.database import session_factory
+    from src.database.repositories import UserRepository
+    from src.services.xui_provisioner import sync_node_clients, sync_node_inbounds
+
+    try:
+        ok = await sync_node_inbounds(ep)
+        if ok:
+            async with session_factory() as session:
+                user_repo = UserRepository(session)
+                users_with_vpn = await user_repo.get_all_with_vpn()
+                await sync_node_clients(ep, users_with_vpn)
+        logger.info(f"Provisioned endpoint: {ep.name}")
+    except Exception as e:
+        logger.error(f"Failed to provision endpoint {ep.name}: {e}")
