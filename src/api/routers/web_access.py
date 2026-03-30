@@ -120,7 +120,6 @@ async def request_web_access(
     try:
         from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-        bot = create_bot()
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -136,21 +135,20 @@ async def request_web_access(
             ]
         )
 
-        for admin_id in settings.admin_ids:
-            try:
-                await bot.send_message(
-                    admin_id,
-                    f"🌐 <b>Запрос веб-доступа</b>\n\n"
-                    f"Пользователь <b>@{username}</b> ({user.full_name})\n"
-                    f"запрашивает вход через браузер.\n\n"
-                    f"ID запроса: #{req.id}",
-                    reply_markup=kb,
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                logger.warning(f"Failed to notify admin {admin_id}: {e}")
-
-        await bot.session.close()
+        async with create_bot() as bot:
+            for admin_id in settings.admin_ids:
+                try:
+                    await bot.send_message(
+                        admin_id,
+                        f"🌐 <b>Запрос веб-доступа</b>\n\n"
+                        f"Пользователь <b>@{username}</b> ({user.full_name})\n"
+                        f"запрашивает вход через браузер.\n\n"
+                        f"ID запроса: #{req.id}",
+                        reply_markup=kb,
+                        parse_mode="HTML",
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to notify admin {admin_id}: {e}")
     except Exception as e:
         logger.error(f"Failed to send admin notification: {e}")
 
