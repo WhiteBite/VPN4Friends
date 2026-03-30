@@ -285,7 +285,7 @@ class XUIApi(PanelAPI):
                             changed = True
                             logger.info(
                                 f"Fixed flow for {email} on port {inbound_port}: "
-                                f"'{c.get('flow','')}' -> '{correct_flow}'"
+                                f"'{c.get('flow', '')}' -> '{correct_flow}'"
                             )
                 continue
 
