@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { getTelegram } from './telegram';
+import { getTelegram, getInitData, loadTelegramSdk } from './telegram';
 import { useVPN } from './hooks/useVPN';
 import { useWebSocket } from './hooks/useWebSocket';
 
@@ -14,7 +14,6 @@ import SupportForm from './components/SupportForm';
 import LoginScreen from './components/LoginScreen';
 import Card from './ui/Card';
 import Button from './ui/Button';
-import { getInitData } from './telegram';
 
 
 
@@ -75,50 +74,62 @@ function App() {
   // ----- Init (runs once on mount) -----
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const tg = getTelegram();
-    if (tg) {
-      try {
-        tg.ready();
-        tg.expand();
-      } catch {
-        // ignore
+    async function init() {
+      // Load Telegram SDK only if we're inside Telegram WebView.
+      // Outside Telegram (browser), this resolves immediately with false
+      // so users in Russia aren't blocked by RKN filtering telegram.org.
+      await loadTelegramSdk();
+
+      const tg = getTelegram();
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+        } catch {
+          // ignore
+        }
+        if (tg.colorScheme) {
+          setColorScheme(tg.colorScheme);
+        }
       }
-      if (tg.colorScheme) {
-        setColorScheme(tg.colorScheme);
-      }
-    }
 
-    // Check for ?token= in URL (from /web bot command)
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlToken = urlParams.get('token');
-    if (urlToken) {
-      // Save token and clean URL
-      localStorage.setItem('auth_token', urlToken);
-      window.history.replaceState({}, '', window.location.pathname);
-      // Auto-login with this token
-      loadAll().catch(() => {
-        localStorage.removeItem('auth_token');
-        setNeedsAuth(true);
-      });
-      return;
-    }
-
-    // Check if we have any auth method available
-    const initData = getInitData();
-    const storedToken = localStorage.getItem('auth_token');
-
-    if (!initData && !storedToken && !import.meta.env.DEV) {
-      // No auth available — show login screen
-      setNeedsAuth(true);
-      // No auth, no loading needed
-    } else {
-      loadAll().catch(() => {
-        // If loadAll fails due to auth, show login
-        if (!initData && !localStorage.getItem('auth_token')) {
+      // Check for ?token= in URL (from /web bot command)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      if (urlToken) {
+        // Save token and clean URL
+        localStorage.setItem('auth_token', urlToken);
+        window.history.replaceState({}, '', window.location.pathname);
+        // Auto-login with this token
+        try {
+          await loadAll();
+        } catch {
+          localStorage.removeItem('auth_token');
           setNeedsAuth(true);
         }
-      });
+        return;
+      }
+
+      // Check if we have any auth method available
+      const initData = getInitData();
+      const storedToken = localStorage.getItem('auth_token');
+
+      if (!initData && !storedToken && !import.meta.env.DEV) {
+        // No auth available — show login screen
+        setNeedsAuth(true);
+      } else {
+        try {
+          await loadAll();
+        } catch {
+          // If loadAll fails due to auth, show login
+          if (!initData && !localStorage.getItem('auth_token')) {
+            setNeedsAuth(true);
+          }
+        }
+      }
     }
+
+    init();
   }, []);
 
   // ----- Handlers -----
