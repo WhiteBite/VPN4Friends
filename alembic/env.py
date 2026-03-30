@@ -13,6 +13,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.database.models import Base  # noqa: E402
 
+# Standard environment variable for the database URL
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -46,7 +49,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = DATABASE_URL or config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -72,9 +75,14 @@ async def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # If we have an environment variable, use it. Else fallback to the ini section.
+    section = config.get_section(config.config_ini_section, {})
+    if DATABASE_URL:
+        section["sqlalchemy.url"] = DATABASE_URL
+
     connectable = AsyncEngine(
         engine_from_config(
-            config.get_section(config.config_ini_section, {}),
+            section,
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
             future=True,

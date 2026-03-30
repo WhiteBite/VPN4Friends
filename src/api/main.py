@@ -1,8 +1,11 @@
 """Main FastAPI application for the Mini App backend."""
 
+import asyncio
+import contextlib
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,12 +22,27 @@ from src.api.routers.system import router as system_router
 from src.api.routers.web_access import router as web_access_router
 from src.api.ws import manager as ws_manager
 from src.database.repositories import UserRepository
+from src.tasks.health import health_check_task
 
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle events for the FastAPI application."""
+    # Run health check background task
+    task = asyncio.create_task(health_check_task())
+    yield
+    # Clean up
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
+
 
 app = FastAPI(
     title="VPN4Friends Mini App API",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 

@@ -18,11 +18,11 @@ JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(telegram_id: int) -> str:
     """Create a long-lived JWT token for the user."""
     expire = time.time() + (TOKEN_EXPIRE_DAYS * 24 * 60 * 60)
     to_encode = {
-        "sub": str(user_id),
+        "sub": str(telegram_id),
         "exp": int(expire),
         "iat": int(time.time()),
     }

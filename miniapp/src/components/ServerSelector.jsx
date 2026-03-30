@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 import Card from '../ui/Card';
 import Tooltip from '../ui/Tooltip';
 import { IconGlobe, IconCheck, IconCopy } from '../ui/Icons';
@@ -28,6 +29,7 @@ const GROUP_INFO = {
 
 export default function ServerSelector({ endpoints, currentEndpoint, onSelect, onCopy, busy, showTelegramProxies = true }) {
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [qrModal, setQrModal] = useState(null);
 
   if (!endpoints?.length) return null;
 
@@ -124,29 +126,53 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
                           </div>
                         )}
                         
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: isActive ? '700' : '500', fontSize: '15px' }}>
-                              {ep.label || ep.name}
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {/* Status Indicator */}
+                              <div style={{ 
+                                width: '8px', 
+                                height: '8px', 
+                                borderRadius: '50%', 
+                                background: ep.status === 'up' ? '#4CAF50' : (ep.status === 'down' ? '#F44336' : '#9E9E9E'),
+                                border: '1px solid rgba(255,255,255,0.1)'
+                              }} />
+                              <span style={{ fontWeight: isActive ? '700' : '500', fontSize: '15px' }}>
+                                {ep.label || ep.name}
+                              </span>
+                              <Tooltip text={getTransportTooltip(ep.transport, ep.is_relay)} />
+                              {ep.status === 'up' && ep.latency && (
+                                <span style={{ fontSize: '10px', opacity: 0.6, marginLeft: '4px', fontVariantNumeric: 'tabular-nums' }}>
+                                  {ep.latency}ms
+                                </span>
+                              )}
+                            </div>
+                            <span style={{ fontSize: '12px', opacity: isActive ? 0.8 : 0.6 }}>
+                              {ep.country ? `Локация: ${ep.country}` : (ep.is_relay ? 'Оптимально (через МСК)' : 'Прямое к серверу')}
                             </span>
-                            <Tooltip text={getTransportTooltip(ep.transport, ep.is_relay)} />
                           </div>
-                          <span style={{ fontSize: '12px', opacity: isActive ? 0.8 : 0.6 }}>
-                            {ep.country ? `Локация: ${ep.country}` : (ep.is_relay ? 'Оптимально (через МСК)' : 'Прямое к серверу')}
-                          </span>
-                        </div>
 
-                        {/* Action Box: we have copy for both vpn or telegram proxies */}
-                        <div 
-                          className="btn-icon btn-icon--copy" 
-                          onClick={(e) => { e.stopPropagation(); onCopy(ep.name); }}
-                          title="Скопировать ссылку"
-                          style={{
-                            background: isActive ? 'rgba(0,0,0,0.1)' : 'var(--bg-elevated)',
-                            color: isActive ? '#000' : 'var(--text)'
-                          }}
-                        >
-                          <IconCopy />
+                        {/* Action Box */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {ep.vpn_link && (
+                            <div 
+                              onClick={(e) => { e.stopPropagation(); setQrModal({ name: ep.label || ep.name, link: ep.vpn_link }); }}
+                              title="Показать QR-код"
+                              style={{ padding: '8px', borderRadius: '8px', background: isActive ? 'rgba(0,0,0,0.1)' : 'var(--bg-elevated)', cursor: 'pointer' }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                            </div>
+                          )}
+                          <div 
+                            className="btn-icon btn-icon--copy" 
+                            onClick={(e) => { e.stopPropagation(); onCopy(ep.name); }}
+                            title="Скопировать ссылку"
+                            style={{
+                              background: isActive ? 'rgba(0,0,0,0.1)' : 'var(--bg-elevated)',
+                              color: isActive ? '#000' : 'var(--text)'
+                            }}
+                          >
+                            <IconCopy />
+                          </div>
                         </div>
                       </div>
                     );
@@ -164,6 +190,69 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
     <div className="server-selector-container" style={{ paddingBottom: '16px' }}>
       {renderCategory('vpn', grouped['vpn'])}
       {showTelegramProxies && renderCategory('telegram', grouped['telegram'])}
+      
+      {qrModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setQrModal(null)}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '300px', width: '100%', color: '#000' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: '700', fontSize: '18px', textAlign: 'center' }}>{qrModal.name}</div>
+            <p style={{ fontSize: '12px', color: '#666', textAlign: 'center', margin: 0 }}>
+              Отсканируйте камерой телефона или VPN-клиентом
+            </p>
+
+            <div style={{ padding: '12px', background: '#fff', borderRadius: '16px', border: '1px solid #eee' }}>
+              <QRCodeCanvas 
+                id="qr-code-canvas"
+                value={qrModal.link} 
+                size={200}
+                level="M"
+                includeMargin={true}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              <button 
+                onClick={() => {
+                  const canvas = document.getElementById("qr-code-canvas");
+                  if (canvas) {
+                    const url = canvas.toDataURL("image/png");
+                    const link = document.createElement("a");
+                    link.download = `vpn-${qrModal.name}.png`;
+                    link.href = url;
+                    link.click();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: 'var(--accent, #ffd900)',
+                  color: '#000',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                📥 Сохранить в галерею
+              </button>
+              
+              <button 
+                onClick={() => setQrModal(null)} 
+                style={{ 
+                  width: '100%', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  border: '1px solid #eee', 
+                  background: '#f5f5f5', 
+                  fontWeight: '600', 
+                  cursor: 'pointer' 
+                }}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

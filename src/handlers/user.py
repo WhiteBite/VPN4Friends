@@ -205,9 +205,13 @@ async def cmd_subscription(message: Message, session: AsyncSession) -> None:
         await message.answer("❌ У вас нет активного VPN-профиля.")
         return
 
-    client_id = user.active_profile.profile_data.get("client_id")
+    client_id = user.active_profile.client_id
     if not client_id:
-        await message.answer("❌ Ошибка профиля. Обратитесь в поддержку.")
+        # This shouldn't happen with the new self-healer, but as a fallback:
+        client_id = user.active_profile.profile_data.get("client_id")
+
+    if not client_id:
+        await message.answer("❌ Ошибка профиля. Попробуйте нажать /start или зайти в Кабинет.")
         return
 
     sub_link = f"https://vpn4friends-api.whitebite.ru/api/sub/{client_id}"

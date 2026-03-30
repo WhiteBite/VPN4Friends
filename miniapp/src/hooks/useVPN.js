@@ -7,7 +7,8 @@ import {
   selectEndpoint,
   switchProtocol,
   updateSni,
-  requestVpn
+  requestVpn,
+  revokeMe
 } from '../api';
 import { MOCK_DATA } from '../mockData';
 
@@ -146,6 +147,19 @@ export function useVPN(showToast) {
     }
   };
 
+  const handleRevokeVpn = async () => {
+    setBusy('revoke');
+    try {
+      const resp = await safeFetch(() => revokeMe(), { success: true, message: 'VPN отозван' });
+      showToast(resp.message || 'VPN отозван!', 'success');
+      await loadAll();
+    } catch (err) {
+      showToast(err.message || 'Ошибка удаления VPN.', 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+
   return {
     loading,
     me,
@@ -159,6 +173,7 @@ export function useVPN(showToast) {
     handleSelectEndpoint,
     handleSwitchProtocol,
     handleUpdateSni,
-    handleRequestVpn
+    handleRequestVpn,
+    handleRevokeVpn
   };
 }

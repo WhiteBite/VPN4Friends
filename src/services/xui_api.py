@@ -149,23 +149,6 @@ class XUIApi(PanelAPI):
                 logger.error(f"add_inbound API error: {result.get('msg')}")
             return success
 
-    async def delete_inbound(self, inbound_id: int) -> bool:
-        """Delete an inbound."""
-        if not self._session:
-            raise XUIApiError("Session not initialized")
-
-        url = self._build_url(f"/api/inbounds/del/{inbound_id}")
-        async with self._session.post(url) as resp:
-            if resp.status != 200:
-                logger.error(f"delete_inbound({inbound_id}) failed: HTTP {resp.status}")
-                return False
-
-            result = await resp.json()
-            success = result.get("success", False)
-            if not success:
-                logger.error(f"delete_inbound({inbound_id}) API error: {result.get('msg')}")
-            return success
-
     def _get_client_template(
         self, protocol: str, client_id: str, email: str, transport: str = "tcp"
     ) -> dict[str, Any]:
@@ -304,14 +287,19 @@ class XUIApi(PanelAPI):
         return await self.update_inbound(inbound_id, inbound)
 
     async def add_client_to_all_inbounds(
-        self, email: str, client_id: str, protocol: str = "vless"
+        self, email: str, client_id: str, protocol: str | list[str] = "vless"
     ) -> int:
-        """Add a client to all enabled inbounds matching the protocol.
+        """Add a client to all enabled inbounds matching the protocol(s).
 
+        If protocol is "all", adds to all supported VPN protocols (vless, trojan, shadowsocks).
         Returns the number of inbounds successfully updated.
         """
         if not self._session:
             raise XUIApiError("Session not initialized")
+
+        protocols = [protocol] if isinstance(protocol, str) else protocol
+        if protocol == "all":
+            protocols = ["vless", "trojan", "shadowsocks", "tuic", "juicity"]
 
         url = self._build_url("/api/inbounds/list")
         async with self._session.get(url) as resp:
@@ -326,7 +314,9 @@ class XUIApi(PanelAPI):
         for inbound in inbounds:
             if not inbound.get("enable"):
                 continue
-            if inbound.get("protocol") != protocol:
+
+            inbound_proto = inbound.get("protocol")
+            if protocols != "all" and inbound_proto not in protocols:
                 continue
 
             # Detect transport from streamSettings for correct flow
@@ -352,7 +342,11 @@ class XUIApi(PanelAPI):
                 clients = settings_data.get("clients", [])
                 for c in clients:
                     if c.get("id") == client_id:
-                        correct_flow = "xtls-rprx-vision" if transport == "tcp" else ""
+                        correct_flow = (
+                            "xtls-rprx-vision"
+                            if (transport == "tcp" and inbound_proto == "vless")
+                            else ""
+                        )
                         if c.get("flow", "") != correct_flow:
                             c["flow"] = correct_flow
                             settings_data["clients"] = clients
@@ -362,7 +356,7 @@ class XUIApi(PanelAPI):
                 success_count += 1
                 continue
 
-            res = await self.create_client(inbound["id"], suffixed_email, protocol, client_id)
+            res = await self.create_client(inbound["id"], suffixed_email, inbound_proto, client_id)
             if res:
                 success_count += 1
 
@@ -418,7 +412,7 @@ class XUIApi(PanelAPI):
         return success_count
 
     async def get_client_traffic(self, email: str) -> dict[str, int]:
-        """Get client traffic statistics."""
+        """Get client traffic statistics for a specific email."""
         if not self._session:
             raise XUIApiError("Session not initialized")
 
@@ -435,6 +429,23 @@ class XUIApi(PanelAPI):
                     "download": result["obj"].get("down", 0),
                 }
             return {"upload": 0, "download": 0}
+
+    async def get_all_client_traffics(self) -> list[dict]:
+        """Get traffic statistics for ALL clients on this panel."""
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        # 3X-UI internal endpoint for all traffic stats
+        url = self._build_url("/api/inbounds/getClientTraffics/all")
+
+        async with self._session.get(url) as resp:
+            if resp.status != 200:
+                return []
+
+            result = await resp.json()
+            if result.get("success") and isinstance(result.get("obj"), list):
+                return result["obj"]
+            return []
 
     async def health_check(self) -> bool:
         """Check if 3X-UI panel is accessible by listing inbounds."""

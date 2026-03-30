@@ -283,3 +283,7 @@ export function fetchUsers() {
 export function revokeUserVpn(userId) {
   return apiRequest(`/staff/users/${userId}/vpn`, { method: 'DELETE' });
 }
+
+export function revokeMe() {
+  return apiRequest('/me/revoke', { method: 'DELETE' });
+}

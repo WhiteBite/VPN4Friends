@@ -303,13 +303,26 @@ async def list_users(
     admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ) -> list[dict]:
-    """List all known users with their VPN status."""
+    """List all known users with their VPN status and traffic stats."""
     user_repo = UserRepository(session)
     users = await user_repo.get_all()
+
+    vpn_service = VPNService(session)
+    # Fetch stats once for all panels
+    all_stats = await vpn_service.get_all_users_stats()
 
     result = []
     for u in users:
         profile = u.active_profile
+        email = profile.profile_data.get("email") if profile else None
+
+        # Get stats from the aggregated map
+        user_stats = (
+            all_stats.get(email, {"upload": 0, "download": 0})
+            if email
+            else {"upload": 0, "download": 0}
+        )
+
         result.append(
             {
                 "id": u.id,
@@ -318,8 +331,9 @@ async def list_users(
                 "full_name": u.full_name,
                 "has_vpn": u.has_vpn,
                 "protocol": profile.protocol_name if profile else None,
-                "email": profile.profile_data.get("email") if profile else None,
+                "email": email,
                 "created_at": u.created_at.isoformat() if u.created_at else None,
+                "stats": {"upload": user_stats["upload"], "download": user_stats["download"]},
             }
         )
     return result
@@ -602,3 +616,48 @@ async def _provision_single_endpoint(ep) -> None:
         logger.info(f"Provisioned endpoint: {ep.name}")
     except Exception as e:
         logger.error(f"Failed to provision endpoint {ep.name}: {e}")
+
+
+@router.post("/sync-all", response_model=GenericResponse)
+async def sync_all_users(
+    background_tasks: BackgroundTasks,
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+) -> GenericResponse:
+    """Trigger a global synchronization of all VPN users to all active panels."""
+    user_repo = UserRepository(session)
+    users = await user_repo.get_all_with_vpn()
+
+    if not users:
+        return GenericResponse(success=False, message="Нет пользователей с активным VPN.")
+
+    async def _sync_task():
+        # Create a new session for the background task
+        from src.database.session import session_factory
+
+        async with session_factory() as bg_session:
+            svc = VPNService(bg_session)
+            success = 0
+            for u in users:
+                profile = u.active_profile
+                if not profile:
+                    continue
+                email = profile.profile_data.get("email")
+                client_id = profile.client_id or profile.profile_data.get("client_id")
+                protocol = profile.protocol_name
+
+                if email and client_id:
+                    try:
+                        res = await svc.sync_client_to_all_panels(email, client_id, protocol)
+                        if res:
+                            success += 1
+                    except Exception as e:
+                        logger.error(f"Background sync error for {email}: {e}")
+                await asyncio.sleep(0.1)
+            logger.info(f"Global sync finished. {success}/{len(users)} users processed.")
+
+    background_tasks.add_task(_sync_task)
+    return GenericResponse(
+        success=True,
+        message=f"Глобальная синхронизация для {len(users)} пользователей запущена в фоновом режиме.",
+    )

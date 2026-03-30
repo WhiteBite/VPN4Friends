@@ -132,6 +132,8 @@ class EndpointSchema(BaseModel):
     category: str = "vpn"
     country: str = "Unknown"
     transport: str = "vless"
+    status: str = "unknown"
+    latency: float | None = None
 
 
 class SelectEndpointRequest(BaseModel):

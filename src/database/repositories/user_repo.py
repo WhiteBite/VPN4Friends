@@ -14,11 +14,26 @@ class UserRepository:
         self.session = session
 
     async def get_by_telegram_id(self, telegram_id: int) -> User | None:
-        """Get user by Telegram ID with profiles eagerly loaded."""
-        result = await self.session.execute(
+        """Get user by Telegram ID including active profile."""
+        stmt = (
             select(User).where(User.telegram_id == telegram_id).options(selectinload(User.profiles))
         )
-        return result.scalar_one_or_none()
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        # Self-healing: if user has a profile but client_id column is empty, fix it
+        if user and user.active_profile:
+            profile = user.active_profile
+            if not profile.client_id and profile.profile_data:
+                cid = profile.profile_data.get("client_id") or profile.profile_data.get("id")
+                if cid:
+                    profile.client_id = cid
+                    # Use internal session to commit this silent fix
+                    await self.session.commit()
+                    # Refresh to ensure we have the latest state
+                    await self.session.refresh(user)
+
+        return user
 
     async def get_by_id(self, user_id: int) -> User | None:
         """Get user by internal database ID with profiles eagerly loaded."""
@@ -110,6 +125,7 @@ class UserRepository:
             user=user,
             protocol_name=protocol_name,
             profile_data=profile_data,
+            client_id=profile_data.get("client_id"),
             is_active=True,
         )
         self.session.add(new_profile)

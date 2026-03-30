@@ -49,24 +49,30 @@ async def list_protocols() -> list[ProtocolSchema]:
 
 @router.get("/endpoints", response_model=list[EndpointSchema])
 async def list_endpoints() -> list[EndpointSchema]:
-    """Return available server endpoints.
+    """Return available server endpoints including health status."""
+    from src.tasks.health import get_server_status
 
-    This endpoint is used by the Mini App to show server selection.
-    """
-    return [
-        EndpointSchema(
-            name=ep.name,
-            label=ep.label,
-            host=ep.host,
-            port=ep.port,
-            is_relay=ep.is_relay,
-            description=ep.description,
-            category=getattr(ep, "category", "vpn"),
-            country=getattr(ep, "country", "Unknown"),
-            transport=getattr(ep, "transport", "vless") or "vless",
+    results = []
+    for ep in settings.endpoints:
+        api_url = (ep.panel_config or {}).get("api_url") or settings.xui_api_url
+        health = get_server_status(api_url)
+
+        results.append(
+            EndpointSchema(
+                name=ep.name,
+                label=ep.label,
+                host=ep.host,
+                port=ep.port,
+                is_relay=ep.is_relay,
+                description=ep.description,
+                category=getattr(ep, "category", "vpn"),
+                country=getattr(ep, "country", "Unknown"),
+                transport=getattr(ep, "transport", "vless") or "vless",
+                status=health["status"],
+                latency=health.get("latency"),
+            )
         )
-        for ep in settings.endpoints
-    ]
+    return results
 
 
 @router.post("/support", response_model=GenericResponse)

@@ -231,7 +231,8 @@ async def sync_node_clients(node_endpoint: ServerEndpoint, users: list[Any]) -> 
 
         profile_data = getattr(active_profile, "profile_data", {})
         email = profile_data.get("email")
-        client_id = profile_data.get("client_id")
+        # Prioritize the DB column (repaired by get_by_telegram_id) over JSON
+        client_id = active_profile.client_id or profile_data.get("client_id")
 
         if email and client_id:
             clients_info.append((email, client_id))

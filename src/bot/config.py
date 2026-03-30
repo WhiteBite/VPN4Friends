@@ -100,8 +100,8 @@ class Settings(BaseSettings):
     nodes_config_raw: str = "{}"
     nodes_config: dict = {}
 
-    # Database (absolute path for Docker)
-    database_url: str = "sqlite+aiosqlite:////app/data/vpn_bot.db"
+    # Database - use env var if set (e.g. in Docker), else fallback to local file
+    database_url: str = "sqlite+aiosqlite:///vpn_bot.db"
 
     # MTProto Proxy for Telegram
     mtproto_proxy_host: str = ""

@@ -165,29 +165,6 @@ function App() {
     }
   };
 
-  const handleRevokeVpn = async () => {
-    if (!window.confirm("Вы уверены, что хотите удалить свой VPN? Это действие необратимо.")) {
-      return;
-    }
-    
-    try {
-      setBusy('revoke');
-      const res = await fetch('/api/me/revoke', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}` },
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
-      
-      showToast(data.message || 'VPN удален', 'success');
-      await loadAll();
-    } catch (err) {
-      showToast(err.message || 'Ошибка удаления VPN', 'error');
-    } finally {
-      setBusy('');
-    }
-  };
 
   // ----- Render -----
 

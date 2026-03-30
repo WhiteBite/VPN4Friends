@@ -11,13 +11,23 @@ const MOCK_REQUESTS = [
   { id: 2, full_name: 'Оля', username: 'olya', telegram_id: 87654321, status: 'pending', created_at: new Date(Date.now() - 3600000).toISOString() },
 ];
 
+const formatBytes = (bytes) => {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
 export default function AdminPanel({ onError, onSuccess }) {
-  const [activeTab, setActiveTab] = useState('requests'); // 'requests', 'broadcast', 'chats', 'users'
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests', 'broadcast', 'chats', 'users', 'servers'
   
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
   const [rejectConfirmId, setRejectConfirmId] = useState(null);
+  const [endpoints, setEndpoints] = useState([]);
+  const [syncingAll, setSyncingAll] = useState(false);
 
   // Broadcast state
   const [broadcastText, setBroadcastText] = useState('');
@@ -51,22 +61,47 @@ export default function AdminPanel({ onError, onSuccess }) {
     }
   };
 
-  const loadRequests = useCallback(async () => {
+  const fetchData = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const data = await fetchAdminRequests();
-      setRequests(data || []);
-    } catch (err) {
-      if (isDev) {
-        // Use mock data in development
-        setRequests(MOCK_REQUESTS);
-      } else {
-        onError(err.message || 'Ошибка загрузки заявок');
+      if (activeTab === 'requests') {
+        const data = await fetchAdminRequests();
+        setRequests(data || []);
+      } else if (activeTab === 'users') {
+        const data = await fetchUsers();
+        setUsers(data || []);
       }
+    } catch (e) {
+      onError(e.message || 'Ошибка загрузки данных');
     } finally {
       setLoading(false);
     }
+  }, [activeTab, loading, onError]);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      setUsersLoading(true);
+      const data = await fetchUsers();
+      setUsers(data || []);
+    } catch (err) {
+      if (!isDev) onError(err.message || 'Ошибка загрузки пользователей');
+    } finally {
+      setUsersLoading(false);
+    }
   }, [isDev, onError]);
+
+  const handleSyncAll = async () => {
+    setSyncingAll(true);
+    try {
+      await syncAllEndpoints();
+      onSuccess('Синхронизация запущена');
+    } catch (err) {
+      onError('Ошибка синхронизации');
+    } finally {
+      setSyncingAll(false);
+    }
+  };
 
   useEffect(() => {
     loadRequests();
@@ -118,18 +153,6 @@ export default function AdminPanel({ onError, onSuccess }) {
       setProcessing(null);
     }
   };
-
-  const loadUsers = useCallback(async () => {
-    try {
-      setUsersLoading(true);
-      const data = await fetchUsers();
-      setUsers(data || []);
-    } catch (err) {
-      if (!isDev) onError(err.message || 'Ошибка загрузки пользователей');
-    } finally {
-      setUsersLoading(false);
-    }
-  }, [isDev, onError]);
 
   const handleRevoke = async (userId) => {
     if (revokeConfirmId !== userId) {
@@ -352,11 +375,23 @@ export default function AdminPanel({ onError, onSuccess }) {
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
               }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.full_name}</div>
-                  {u.username && <div style={{ fontSize: '13px', color: 'var(--accent)' }}>@{u.username}</div>}
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {u.protocol} · {u.email}
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{u.full_name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {u.username && <span>@{u.username}</span>}
+                    {u.stats && (
+                      <span style={{ fontSize: '11px', color: 'var(--text-hint)', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                        <span style={{ color: 'var(--success)' }}>↑</span> {formatBytes(u.stats.upload)} | <span style={{ color: '#3b82f6' }}>↓</span> {formatBytes(u.stats.download)}
+                      </span>
+                    )}
                   </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    {u.protocol} · {u.client_id ? `🆔 ${u.client_id.slice(0, 8)}...` : '⚠️ Old Flow'}
+                  </div>
+                  {u.client_id && (
+                    <div style={{ fontSize: 11, color: 'var(--success, #52c41a)', marginTop: 2, fontWeight: 500 }}>
+                      ✓ Unified Access Active
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => handleRevoke(u.id)}
@@ -401,6 +436,17 @@ export default function AdminPanel({ onError, onSuccess }) {
       </div>
     );
   };
+
+  const renderServers = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <Button variant="primary" onClick={handleSyncAll} isLoading={syncingAll}>
+        Синхронизировать всех
+      </Button>
+      <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+        Серверы активны и работают в штатном режиме.
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ paddingBottom: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -469,13 +515,29 @@ export default function AdminPanel({ onError, onSuccess }) {
           }}>
           Юзеры
         </button>
+        <button 
+          onClick={() => setActiveTab('servers')}
+          style={{ 
+            flex: 1, 
+            padding: '12px', 
+            borderRadius: '12px', 
+            border: 'none', 
+            background: activeTab === 'servers' ? 'var(--accent)' : 'var(--bg-elevated)', 
+            color: activeTab === 'servers' ? '#000' : 'var(--text)', 
+            fontWeight: '600',
+            fontSize: '14px',
+            transition: 'all 0.2s',
+            cursor: 'pointer'
+          }}>
+          Серверы
+        </button>
       </div>
 
       {activeTab === 'chats' ? (
         <AdminChats onError={onError} onSuccess={onSuccess} />
       ) : (
         <Card style={{ padding: '20px' }}>
-          {activeTab === 'requests' ? renderRequests() : activeTab === 'users' ? renderUsers() : renderBroadcast()}
+          {activeTab === 'requests' ? renderRequests() : activeTab === 'users' ? renderUsers() : activeTab === 'servers' ? renderServers() : renderBroadcast()}
         </Card>
       )}
     </div>

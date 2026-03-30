@@ -103,6 +103,66 @@ async def noop(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.message(Command("sync_all"))
+async def cmd_sync_all(message: Message, session: AsyncSession) -> None:
+    """Force sync all users with VPN to all configured panels."""
+    await message.answer("🔄 Запуск глобальной синхронизации всех пользователей...")
+
+    user_repo = UserRepository(session)
+    vpn_service = VPNService(session)
+
+    users = await user_repo.get_all_with_vpn()
+    if not users:
+        await message.answer("ℹ️ Нет пользователей с активным VPN для синхронизации.")
+        return
+
+    success_count = 0
+    fail_count = 0
+
+    progress_msg = await message.answer(f"⏳ Синхронизация... 0/{len(users)}")
+
+    for i, user in enumerate(users):
+        profile = user.active_profile
+        if not profile or not profile.profile_data:
+            fail_count += 1
+            continue
+
+        email = profile.profile_data.get("email")
+        # Use client_id from column (new flow) or fallback to JSON
+        client_id = profile.client_id or profile.profile_data.get("client_id")
+        protocol = profile.protocol_name
+
+        if not email or not client_id:
+            fail_count += 1
+            continue
+
+        try:
+            # Broadcast to all panels
+            res = await vpn_service.sync_client_to_all_panels(email, client_id, protocol)
+            if res:
+                success_count += 1
+            else:
+                fail_count += 1
+        except Exception as e:
+            logger.error(f"Sync failed for {email}: {e}")
+            fail_count += 1
+
+        # Update progress every 5 users
+        if (i + 1) % 5 == 0:
+            await progress_msg.edit_text(f"⏳ Синхронизация... {i+1}/{len(users)}")
+            await asyncio.sleep(0.5)
+
+    await progress_msg.delete()
+    await message.answer(
+        f"✅ <b>Синхронизация завершена!</b>\n\n"
+        f"🚀 Успешно: {success_count}\n"
+        f"❌ Ошибок: {fail_count}\n"
+        f"👥 Всего обработано: {len(users)}\n\n"
+        f"<i>Все пользователи теперь имеют доступ ко всем серверам из конфига.</i>",
+        parse_mode="HTML",
+    )
+
+
 # ============ DASHBOARD ============
 
 
@@ -198,11 +258,11 @@ async def approve_request(
     """Handle approve — auto-approve with vless and notify user."""
     await callback.answer("Одобряем и создаем профили...")
 
+    from src.services.vpn_service import VPNService
+
     vpn_service = VPNService(session)
-    # Automatically provision a default vless profile - the subscription will handle routing
-    success, result = await vpn_service.approve_request(
-        request_id=callback_data.request_id, protocol_name="vless"
-    )
+    # Provision global access - user will be synced to all available panels/inbounds
+    success, result = await vpn_service.approve_request(request_id=callback_data.request_id)
 
     if not success:
         await callback.message.edit_text(

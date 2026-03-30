@@ -42,27 +42,27 @@ export default function SettingsPanel({
         </>
       )}
 
-      {/* Danger Zone */}
-      <div style={{ borderTop: '1px solid rgba(255,100,100,0.2)', paddingTop: '16px', marginTop: '16px' }}>
-        <div style={{ fontSize: '12px', color: 'var(--text-hint)', marginBottom: '12px', lineHeight: '1.4' }}>
-          Если вы хотите полностью удалить свой VPN-профиль (например, устройство утеряно или ключ скомпрометирован), вы можете отозвать его. Для получения нового нужно будет отправить новую заявку.
-        </div>
+      {/* Compact Danger Zone */}
+      <div style={{ marginTop: '24px', borderTop: '1px dotted var(--border)' }}>
         <button
-          onClick={() => !busy && onRevokeVpn && onRevokeVpn()}
+          onClick={() => {
+            if (window.confirm("⚠️ Вы уверены, что хотите полностью удалить свой VPN? Это действие необратимо.")) {
+              onRevokeVpn();
+            }
+          }}
           disabled={busy}
           style={{
+            background: 'none',
+            border: 'none',
+            color: 'rgba(239, 68, 68, 0.6)',
+            fontSize: '13px',
+            padding: '12px 0',
             width: '100%',
-            padding: '12px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            color: '#ef4444',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: busy ? 'not-allowed' : 'pointer'
+            cursor: 'pointer',
+            textAlign: 'center'
           }}
         >
-          {busy ? 'Удаление...' : 'Отозвать VPN'}
+          {busy ? 'Удаление...' : 'Отозвать доступ'}
         </button>
       </div>
     </Card>

@@ -70,40 +70,63 @@ async def get_me(
         if not hasattr(app.state, "sni_cache"):
             app.state.sni_cache = {}
 
-        inbound_id = active_profile.profile_data.get("inbound_id")
+        # Determine current endpoint (default or from settings)
+        endpoint_name = (active_profile.settings or {}).get("endpoint") or "finland_tcp"
+        endpoint = settings.get_endpoint(endpoint_name)
 
-        # Check cache validity (TTL = 300s)
-        cache_entry = app.state.sni_cache.get(inbound_id)
-        needs_fetch = True
+        # Fallback if endpoint not found
+        if not endpoint:
+            for ep in settings.endpoints:
+                if ep.protocol == "vless":
+                    endpoint = ep
+                    break
+
+        # SNI resolution
         available_snis = ["max.ru", "vk.com", "www.google.com"]
+        # If we have reality settings in global config for this endpoint, use them
+        if endpoint and endpoint.sni:
+            available_snis = [endpoint.sni]
 
-        if cache_entry and (time.time() - cache_entry["ts"]) < 300:
-            needs_fetch = False
-            available_snis = cache_entry["snis"]
+        # Async background fetch of actual SNIs from the panel if we have an inbound_id
+        inbound_id = active_profile.profile_data.get("inbound_id")
+        if inbound_id is not None:
+            cache_entry = app.state.sni_cache.get(inbound_id)
+            if cache_entry and (time.time() - cache_entry["ts"]) < 300:
+                available_snis = cache_entry["snis"]
+            else:
 
-        if inbound_id is not None and needs_fetch:
+                async def _fetch_snis(iid: int) -> None:
+                    try:
+                        async with XUIApi() as api:
+                            ps = await api.get_protocol_settings(iid)
+                            found = ps.get("reality", {}).get("sni_options", [])
+                            if found:
+                                app.state.sni_cache[iid] = {"snis": found, "ts": time.time()}
+                    except Exception as exc:
+                        logger.warning(f"Failed to fetch SNIs for inbound {iid}: {exc}")
 
-            async def _fetch_snis(iid: int) -> None:
-                try:
-                    async with XUIApi() as api:
-                        ps = await api.get_protocol_settings(iid)
-                        found = ps.get("reality", {}).get("sni_options", [])
-                        if found:
-                            app.state.sni_cache[iid] = {"snis": found, "ts": time.time()}
-                except Exception as exc:
-                    logger.warning(f"Failed to fetch SNIs for inbound {iid}: {exc}")
+                asyncio.create_task(_fetch_snis(inbound_id), name=f"fetch_snis_{inbound_id}")
 
-            asyncio.create_task(_fetch_snis(inbound_id), name=f"fetch_snis_{inbound_id}")
+        # Self-healing: if client_id column is empty but present in profile_data, fix it
+        db_client_id = active_profile.client_id
+        if not db_client_id and active_profile.profile_data:
+            db_client_id = active_profile.profile_data.get(
+                "client_id"
+            ) or active_profile.profile_data.get("id")
+            if db_client_id:
+                active_profile.client_id = db_client_id
+                user_repo = UserRepository(session)
+                await user_repo.update_vpn_profile(active_profile)
 
         profile_schema = ProfileSchema(
             has_profile=True,
             request_status="approved",
             protocol=active_profile.protocol_name,
-            label=active_profile.label,
-            client_id=active_profile.profile_data.get("client_id")
-            if active_profile.profile_data
-            else None,
-            sni=active_profile.settings.get("sni") if active_profile.settings else None,
+            label=endpoint.label if endpoint else active_profile.label,
+            client_id=db_client_id,
+            sni=active_profile.settings.get("sni")
+            if active_profile.settings
+            else (endpoint.sni if endpoint else None),
             available_snis=available_snis,
         )
     else:
@@ -127,9 +150,10 @@ async def get_me(
     # Build subscription URL if user has active profile
     subscription_url = None
     if active_profile:
-        client_id = active_profile.profile_data.get("client_id")
-        if client_id:
-            subscription_url = f"/api/sub/{client_id}"
+        cid = active_profile.client_id or active_profile.profile_data.get("client_id")
+        if cid:
+            # Origin resolution for full URL (important for MiniApp)
+            subscription_url = f"/api/sub/{cid}"
 
     return MeResponse(
         user=user_schema,

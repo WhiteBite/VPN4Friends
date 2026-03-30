@@ -119,10 +119,10 @@ export default function ConnectionCard({ profile, onCopySubscription, onRequest,
       </div>
 
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-        <div style={{ fontSize: '64px', marginBottom: '16px', animation: 'float 4s ease-in-out infinite' }}>📡</div>
-        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>Твоя Авто-Подписка</h2>
-        <p style={{ color: 'var(--text-hint)', fontSize: '14px', lineHeight: '1.5', maxWidth: '280px', margin: '0 auto' }}>
-          Добавь эту ссылку в приложение (Throne / v2rayNG), и все сервера загрузятся автоматически.
+        <div style={{ fontSize: '64px', marginBottom: '16px', animation: 'float 4s ease-in-out infinite' }}>🚀</div>
+        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>Личный VPN готов!</h2>
+        <p style={{ color: 'var(--text-hint)', fontSize: '14px', lineHeight: '1.5', maxWidth: '300px', margin: '0 auto' }}>
+          Лучший способ — скопировать подписку. Все серверы добавятся автоматически.
         </p>
       </div>
 
@@ -132,10 +132,45 @@ export default function ConnectionCard({ profile, onCopySubscription, onRequest,
           Скопировать ссылку
         </Button>
       </div>
+
+      {/* 3-Step Guide with Icons */}
+      <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>
+          Как подключиться за 1 минуту:
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <img src="https://v2rayng.org/assets/images/logo.png" style={{ width: '32px', height: '32px', borderRadius: '8px' }} alt="v2rayNG" />
+            <div style={{ fontSize: '12px', fontWeight: '600' }}>v2rayNG</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-hint)' }}>Android</div>
+          </div>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '32px', height: '32px', background: '#3b82f6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '18px' }}>S</div>
+            <div style={{ fontSize: '12px', fontWeight: '600' }}>Streisand</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-hint)' }}>iOS / iPhone</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[
+            { step: '1', text: 'Скопируй ссылку выше' },
+            { step: '2', text: 'Открой приложение (выше)' },
+            { step: '3', text: 'Нажми + и "Импорт из буфера"' }
+          ].map((item) => (
+            <div key={item.step} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700' }}>
+                {item.step}
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: '500' }}>{item.text}</div>
+            </div>
+          ))}
+        </div>
+      </div>
       
-      <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)', opacity: 0.8 }}>
         <p style={{ fontSize: '12px', color: 'var(--text-hint)', textAlign: 'center' }}>
-          Нужен один конкретный сервер или QR-код? Перейди во вкладку <strong>Локации</strong>.
+          Нужен QR-код или Apple-профиль? Зайди в <strong>Локации</strong>.
         </p>
       </div>
     </Card>

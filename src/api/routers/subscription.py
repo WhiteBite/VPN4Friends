@@ -107,21 +107,20 @@ async def get_subscription(token: str) -> PlainTextResponse:
     """
 
     # Find the user by their client_id
+    # Find the user by their client_id efficiently using JSON search in DB
     async with session_factory() as session:
+        # PostgreSQL/SQLite json search for client_id
+        # We look for profiles where profile_data->>'client_id' == token
         stmt = (
             select(VpnProfile)
-            .where(VpnProfile.is_active == True)  # noqa: E712
+            .where(
+                VpnProfile.is_active == True,  # noqa: E712
+                VpnProfile.client_id == token,
+            )
             .options(selectinload(VpnProfile.user))
         )
         result = await session.execute(stmt)
-        profiles = result.scalars().all()
-
-        # Find profile matching the token (client_id)
-        target_profile = None
-        for p in profiles:
-            if p.profile_data.get("client_id") == token:
-                target_profile = p
-                break
+        target_profile = result.scalar_one_or_none()
 
     if not target_profile:
         raise HTTPException(status_code=404, detail="Invalid subscription token")

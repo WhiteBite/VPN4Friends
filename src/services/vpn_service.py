@@ -1,5 +1,6 @@
 """VPN service for business logic."""
 
+import asyncio
 import logging
 import uuid
 from typing import Any
@@ -64,12 +65,14 @@ class VPNService:
         logger.info(f"Created VPN request {request.id} for user {user.telegram_id}")
         return request
 
-    async def approve_request(self, request_id: int, protocol_name: str) -> tuple[bool, str]:
+    async def approve_request(
+        self, request_id: int, protocol_name: str | None = None
+    ) -> tuple[bool, str]:
         """
-        Approve VPN request and create a profile for the specified protocol.
+        Approve VPN request and create a global profile.
 
-        Returns:
-            Tuple of (success, message/vpn_link)
+        The user is synced to all available panels and protocols.
+        The `protocol_name` is now optional and acts as a hint for the default endpoint.
         """
         request = await self.request_repo.get_by_id(request_id)
         if not request:
@@ -85,11 +88,6 @@ class VPNService:
             await self.request_repo.approve(request)
             return False, "У пользователя уже есть активный VPN."
 
-        # Get endpoint configuration
-        endpoint = settings.get_endpoint(protocol_name)
-        if not endpoint:
-            return False, f"Протокол '{protocol_name}' не настроен."
-
         # BUG-2 FIX: Immediately mark as approved to prevent race condition
         # (double-click on "Approve" button)
         await self.request_repo.approve(request)
@@ -97,35 +95,41 @@ class VPNService:
         client_name = generate_client_name(user.username, user.telegram_id)
         client_id = str(uuid.uuid4())
 
-        # We need a stable profile_data to store in the DB.
-        # It won't have the exact server keys since they are overridden in URL gen.
+        # Minimal profile_data: only UUID and email.
+        # Connection specifics (host, port, etc.) are resolved dynamically in API.
         full_profile_data = {
             "client_id": client_id,
             "email": client_name,
-            "protocol": endpoint.name,
-            "remark": "VPN4Friends",
+            "remark": f"VPN4Friends ({user.telegram_id})",
         }
 
         try:
-            synced_any = await self.sync_client_to_all_panels(client_name, client_id, "vless")
+            # Sync to ALL supported protocols on ALL panels
+            synced_any = await self.sync_client_to_all_panels(client_name, client_id, "all")
             if not synced_any:
                 await self.request_repo.revert_to_pending(request)
                 return False, "Ошибка создания профиля: ни одна панель не доступна"
         except Exception as e:
-            logger.error(f"Failed to create client for request {request_id}: {e}")
+            logger.error(f"Failed to sync client for request {request_id}: {e}")
             await self.request_repo.revert_to_pending(request)
-            return False, "Ошибка создания профиля в 3X-UI"
+            return False, "Ошибка синхронизации с серверами"
 
+        # Use finland_tcp as default starting location if none given
+        default_endpoint = protocol_name or "finland_tcp"
         profile = await self.user_repo.create_vpn_profile(
-            user=user, protocol_name=endpoint.name, profile_data=full_profile_data
+            user=user,
+            protocol_name="vless",  # Display protocol
+            profile_data=full_profile_data,
         )
 
-        # Get actual protocol type (vless, trojan, etc) from endpoint
-        protocol_type = getattr(endpoint, "protocol", "vless") or "vless"
-        vpn_link = generate_vpn_link(protocol_type, profile.profile_data, profile.settings)
+        # Set default endpoint settings
+        profile.settings = {"endpoint": default_endpoint}
+        await self.user_repo.update_vpn_profile(profile)
+
+        # Return the link for the default endpoint
+        vpn_link = await self.get_active_vpn_link(user)
         if not vpn_link:
-            logger.error(f"Failed to generate VPN link for protocol {protocol_type}")
-            return False, "Не удалось сгенерировать ссылку для VPN."
+            return False, "Доступ одобрен, но ссылка будет доступна через минуту в Кабинете."
 
         logger.info(f"Approved request {request_id} for user {user.telegram_id}")
         return True, vpn_link
@@ -155,40 +159,6 @@ class VPNService:
         await self.user_repo.delete_active_profile(user)
         logger.info(f"Revoked VPN for user {user.telegram_id}")
         return True
-
-    async def sync_client_to_all_panels(self, email: str, client_id: str, protocol: str) -> bool:
-        """Broadcast user creation to all configured VPN panels."""
-        success_count = 0
-        seen_urls = set()
-
-        # Include default XUIApi
-        panels_to_sync = [XUIApi()]
-        seen_urls.add(settings.xui_api_url)
-
-        for ep in settings.endpoints:
-            if ep.panel_config and ep.panel_type == "3xui":
-                api_url = ep.panel_config.get("api_url")
-                if api_url and api_url not in seen_urls:
-                    panels_to_sync.append(XUIApi(ep.panel_config))
-                    seen_urls.add(api_url)
-            elif ep.panel_config and ep.panel_type == "hiddify":
-                from src.services.hiddify_api import HiddifyApi
-
-                api_url = ep.panel_config.get("api_url")
-                if api_url and api_url not in seen_urls:
-                    panels_to_sync.append(HiddifyApi(ep.panel_config))
-                    seen_urls.add(api_url)
-
-        for panel in panels_to_sync:
-            try:
-                async with panel:
-                    res = await panel.add_client_to_all_inbounds(email, client_id, protocol)
-                    if res > 0:
-                        success_count += 1
-            except Exception as e:
-                logger.error(f"Error syncing {email} to panel: {e}")
-
-        return success_count > 0
 
     async def remove_client_from_all_panels(self, email: str) -> bool:
         """Broadcast user deletion to all configured VPN panels."""
@@ -223,6 +193,57 @@ class VPNService:
                 logger.error(f"Error removing {email} from panel: {e}")
 
         return deleted
+
+    async def sync_client_to_all_panels(
+        self, email: str, client_id: str, protocol: str = "vless"
+    ) -> bool:
+        """Propagate a client to all active VPN panels defined in settings.
+
+        This is the core 'self-healing' engine that ensures a user exists
+        on all servers in the cluster using their unique client_id.
+        """
+        success = False
+        seen_urls = set()
+
+        # 1. Identify unique panels to sync to
+        panels_to_sync = []
+
+        # Always include the primary panel
+        panels_to_sync.append(XUIApi())
+        seen_urls.add(settings.xui_api_url)
+
+        for ep in settings.endpoints:
+            if ep.panel_config and ep.panel_type == "3xui":
+                api_url = ep.panel_config.get("api_url")
+                if api_url and api_url not in seen_urls:
+                    panels_to_sync.append(XUIApi(ep.panel_config))
+                    seen_urls.add(api_url)
+            elif ep.panel_config and ep.panel_type == "hiddify":
+                from src.services.hiddify_api import HiddifyApi
+
+                api_url = ep.panel_config.get("api_url")
+                if api_url and api_url not in seen_urls:
+                    # Note: Hiddify uses different client management
+                    panels_to_sync.append(HiddifyApi(ep.panel_config))
+                    seen_urls.add(api_url)
+
+        # 2. Add client to all panels
+        for panel in panels_to_sync:
+            try:
+                async with panel:
+                    # Panel-agnostic "ensure client exists" call
+                    res = await panel.add_client_to_all_inbounds(
+                        email=email, client_id=client_id, protocol=protocol
+                    )
+                    if res:
+                        success = True
+                    logger.info(
+                        f"Sync complete for {email} on {panel.api_url if hasattr(panel, 'api_url') else 'panel'}"
+                    )
+            except Exception as e:
+                logger.error(f"Failed to sync {email} to panel: {e}")
+
+        return success
 
     async def get_user_stats(self, user: User) -> dict[str, Any] | None:
         """Get traffic statistics for the user's active profile."""
@@ -357,3 +378,61 @@ class VPNService:
         await self.user_repo.update_vpn_profile(active_profile)
         logger.info(f"Updated SNI to {sni} for user {user.telegram_id}")
         return True
+
+    async def get_all_users_stats(self) -> dict[str, dict[str, int]]:
+        """Fetch traffic stats for ALL users from all panels in bulk.
+
+        Returns a mapping of {email: {"upload": N, "download": M}}.
+        """
+        aggregated_stats = {}
+        seen_urls = set()
+
+        # 1. Identify unique panels
+        panels = []
+        panels.append(XUIApi())
+        seen_urls.add(settings.xui_api_url)
+
+        for ep in settings.endpoints:
+            api_url = ep.panel_config.get("api_url") if ep.panel_config else None
+            if not api_url or api_url in seen_urls:
+                continue
+
+            if ep.panel_type == "3xui":
+                panels.append(XUIApi(ep.panel_config))
+                seen_urls.add(api_url)
+            elif ep.panel_type == "hiddify":
+                from src.services.hiddify_api import HiddifyApi
+
+                panels.append(HiddifyApi(ep.panel_config))
+                seen_urls.add(api_url)
+
+        # 2. Fetch stats in parallel from all panels
+        results = await asyncio.gather(
+            *[self._fetch_panel_stats(p) for p in panels], return_exceptions=True
+        )
+
+        for res in results:
+            if isinstance(res, list):
+                for stat in res:
+                    email = stat.get("email")
+                    if not email:
+                        continue
+
+                    # Strip port suffix if present (e.g. "user@domain.com-443")
+                    base_email = email.split("-")[0] if "-" in email else email
+
+                    if base_email not in aggregated_stats:
+                        aggregated_stats[base_email] = {"upload": 0, "download": 0}
+
+                    aggregated_stats[base_email]["upload"] += stat.get("up", 0)
+                    aggregated_stats[base_email]["download"] += stat.get("down", 0)
+
+        return aggregated_stats
+
+    async def _fetch_panel_stats(self, panel) -> list[dict]:
+        try:
+            async with panel:
+                return await panel.get_all_client_traffics()
+        except Exception as e:
+            logger.error(f"Failed to fetch stats from {panel.api_url}: {e}")
+            return []

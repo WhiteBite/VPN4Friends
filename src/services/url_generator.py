@@ -82,6 +82,12 @@ def generate_vless_url(
 
     # Endpoint override takes priority over profile_data and settings
     country_name = "VPN"
+
+    # client_id detection (from profile_data or settings)
+    cid = profile_data.get("client_id")
+    if not cid and "id" in profile_data:
+        cid = profile_data["id"]
+
     if endpoint:
         country_name = getattr(endpoint, "country", getattr(endpoint, "label", "VPN"))
         host = endpoint.host
@@ -177,7 +183,7 @@ def generate_vless_url(
     # URL-encode the fragment for strict clients
     fragment_encoded = quote(fragment)
 
-    return f"vless://{profile_data['client_id']}@{host}:{port}?{query_string}#{fragment_encoded}"
+    return f"vless://{cid}@{host}:{port}?{query_string}#{fragment_encoded}"
 
 
 def generate_shadowsocks_url(profile_data: dict[str, Any]) -> str:

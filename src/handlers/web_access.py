@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.dependencies import create_access_token
 from src.bot.config import settings
 from src.bot.middlewares.admin import AdminFilter
 from src.database.models import WebAccessRequest, WebAccessStatus
@@ -40,18 +41,14 @@ async def approve_web_access(callback: CallbackQuery, session: AsyncSession, bot
         return
 
     # Create JWT
-    from src.api.dependencies import create_access_token
-
-    token = create_access_token(req.user_id)
-
-    req.status = WebAccessStatus.APPROVED
-    req.jwt_token = token
-    req.processed_at = datetime.now()
-    await session.commit()
-
     user_repo = UserRepository(session)
     user = await user_repo.get_by_id(req.user_id)
-    name = user.display_name if user else f"@{req.username}"
+    if not user:
+        await callback.answer("❌ Пользователь не найден", show_alert=True)
+        return
+
+    create_access_token(user.telegram_id)  # validates token can be created
+    name = user.display_name
 
     await callback.message.edit_text(
         f"✅ <b>Вход разрешён</b>\n\n"

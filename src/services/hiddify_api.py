@@ -155,19 +155,30 @@ class HiddifyApi(PanelAPI):
         res = await self.delete_client(inbound_id=1, email=email)
         return 1 if res else 0
 
-    async def get_client_traffic(self, email: str) -> dict[str, Any] | None:
-        """Get traffic stats for a Hiddify user."""
+    async def get_all_client_traffics(self) -> list[dict]:
+        """Get traffic statistics for ALL clients on this Hiddify panel."""
         if not self._session:
             raise HiddifyApiError("Session not initialized")
 
-        user = await self._find_user(email)
-        if not user:
-            return None
-
-        return {
-            "upload": user.get("current_usage_GB", 0) * 1073741824,  # GB → bytes
-            "download": 0,  # Hiddify reports combined traffic
-        }
+        url = self._url("/admin/user/")
+        try:
+            async with self._session.get(url) as resp:
+                if resp.status != 200:
+                    return []
+                users = await resp.json()
+                # Map Hiddify format to a common format
+                # Hiddify reports combined traffic in current_usage_GB
+                return [
+                    {
+                        "email": u.get("name"),
+                        "up": int(u.get("current_usage_GB", 0) * 1073741824),
+                        "down": 0,
+                    }
+                    for u in users
+                ]
+        except Exception as e:
+            logger.error(f"Hiddify get_all_client_traffics error: {e}")
+            return []
 
     async def get_protocol_settings(self, inbound_id: int) -> dict[str, Any]:  # noqa: ARG002
         """Get protocol settings from Hiddify.
