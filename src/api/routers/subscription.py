@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.bot.config import ServerEndpoint, settings
-from src.database.models import VPNProfile
+from src.database.models import VpnProfile
 from src.database.session import session_factory
 from src.services.url_generator import generate_vless_url
 
@@ -80,11 +80,9 @@ def _generate_endpoint_link(
 
     # Build the label
     label = _build_sub_label(endpoint)
-    transport = endpoint.transport or "tcp"
-    security = endpoint.security or "reality"
 
-    # Fragment = display name in client
-    fragment = f"[VLESS] {label} {transport.upper()} {security.upper()} - {email}"
+    # Fragment = display name in client (clean label, no duplication)
+    fragment = f"{label} - {email}"
 
     # Use generate_vless_url with endpoint override
     try:
@@ -111,9 +109,9 @@ async def get_subscription(token: str) -> PlainTextResponse:
     # Find the user by their client_id
     async with session_factory() as session:
         stmt = (
-            select(VPNProfile)
-            .where(VPNProfile.is_active == True)  # noqa: E712
-            .options(selectinload(VPNProfile.user))
+            select(VpnProfile)
+            .where(VpnProfile.is_active == True)  # noqa: E712
+            .options(selectinload(VpnProfile.user))
         )
         result = await session.execute(stmt)
         profiles = result.scalars().all()
