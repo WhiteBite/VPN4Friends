@@ -47,16 +47,13 @@ describe('ConnectionCard Component', () => {
     expect(onRequestMock).toHaveBeenCalledWith('test reason');
   });
 
-  it('renders VPN key and copy button when profile exists', () => {
+  it('renders copy button when profile exists', () => {
     const profile = { has_profile: true };
-    const endpoint = { label: 'Finland' };
-    const link = 'vless://test-link';
     const onCopyMock = vi.fn();
     
-    render(<ConnectionCard profile={profile} endpoint={endpoint} link={link} onCopy={onCopyMock} />);
+    render(<ConnectionCard profile={profile} onCopySubscription={onCopyMock} />);
     
     expect(screen.getByText('Скопировать ссылку')).toBeInTheDocument();
-    expect(screen.getByText('Показать QR-код')).toBeInTheDocument();
     
     const copyButton = screen.getByText('Скопировать ссылку');
     fireEvent.click(copyButton);
