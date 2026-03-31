@@ -323,6 +323,11 @@ async def list_users(
             else {"upload": 0, "download": 0}
         )
 
+        # Read from column or fallback to profile.profile_data dictionary for older ones
+        client_id = getattr(profile, "client_id", None) if profile else None
+        if not client_id and profile and profile.profile_data:
+            client_id = profile.profile_data.get("client_id")
+
         result.append(
             {
                 "id": u.id,
@@ -332,6 +337,7 @@ async def list_users(
                 "has_vpn": u.has_vpn,
                 "protocol": profile.protocol_name if profile else None,
                 "email": email,
+                "client_id": client_id,
                 "created_at": u.created_at.isoformat() if u.created_at else None,
                 "stats": {"upload": user_stats["upload"], "download": user_stats["download"]},
             }
