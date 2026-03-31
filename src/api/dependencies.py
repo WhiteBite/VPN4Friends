@@ -78,11 +78,9 @@ async def get_current_user(
             token = authorization.split(" ")[1]
             payload = jwt.decode(token, settings.jwt_secret, algorithms=[JWT_ALGORITHM])
             telegram_id = int(payload.get("sub"))
-        except (jwt.PyJWTError, ValueError, TypeError) as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or expired session token",
-            ) from e
+        except (jwt.PyJWTError, ValueError, TypeError):
+            # Token invalid or expired. We will fallback to TG init data if available.
+            pass
 
     # 2. Try Telegram Init Data (for Mini App)
     if not telegram_id and x_telegram_init_data:
@@ -93,7 +91,7 @@ async def get_current_user(
     if not telegram_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
+            detail="Invalid or expired session token. Please re-open the mini app.",
         )
 
     user_repo = UserRepository(session)
