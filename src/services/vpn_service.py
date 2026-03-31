@@ -279,6 +279,14 @@ class VPNService:
         if not active_profile:
             return []
 
+        GROUP_EXPLANATIONS = {
+            "fast": "Прямое подключение, мин. пинг",
+            "moscow": "Обход блокировок (если не заходит)",
+            "warp": "Для Netflix, ChatGPT и др.",
+            "stealth": "Скрытый протокол для сложных сетей",
+            "stealth_warp": "Скрытый вход + разблокировка",
+        }
+
         links = []
         for endpoint in settings.endpoints:
             user_proto = (active_profile.protocol_name or "").lower()
@@ -299,6 +307,9 @@ class VPNService:
                     )
                     if link:
                         label = endpoint.sub_label or f"{endpoint.country} ({endpoint.label})"
+                        explanation = GROUP_EXPLANATIONS.get(endpoint.group)
+                        if explanation:
+                            label = f"{label} ({explanation})"
                         links.append((label, link))
                 except Exception as e:
                     logger.error(f"Error generating link for {endpoint.name}: {e}")
@@ -314,6 +325,7 @@ class VPNService:
                 )
                 if link:
                     label = endpoint.sub_label or f"Telegram Proxy ({endpoint.country})"
+                    label = f"💬 {label} (Только для Telegram)"
                     links.append((label, link))
 
         # Fallback if no specific endpoints matched

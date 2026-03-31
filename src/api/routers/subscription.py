@@ -37,26 +37,37 @@ GROUP_ORDER = {
 
 def _build_sub_label(endpoint: ServerEndpoint) -> str:
     """Build display label for the subscription link."""
-    if endpoint.sub_label:
-        return endpoint.sub_label
+    label = endpoint.sub_label
+    if not label:
+        # Auto-generate from endpoint fields
+        country_flag = "🇫🇮" if "финл" in endpoint.country.lower() else "🇩🇪"
+        group_prefix = GROUP_ORDER.get(endpoint.group, (99, ""))[1].split(" ")[0]  # emoji only
 
-    # Auto-generate from endpoint fields
-    country_flag = "🇫🇮" if "финл" in endpoint.country.lower() else "🇩🇪"
-    group_prefix = GROUP_ORDER.get(endpoint.group, (99, ""))[1].split(" ")[0]  # emoji only
+        transport_suffix = ""
+        if endpoint.transport and endpoint.transport not in ("tcp",):
+            transport_suffix = f" {endpoint.transport.upper()}"
 
-    transport_suffix = ""
-    if endpoint.transport and endpoint.transport not in ("tcp",):
-        transport_suffix = f" {endpoint.transport.upper()}"
+        warp_suffix = ""
+        if endpoint.routing_tag == "warp" or "warp" in endpoint.name.lower():
+            warp_suffix = " WARP"
 
-    warp_suffix = ""
-    if endpoint.routing_tag == "warp" or "warp" in endpoint.name.lower():
-        warp_suffix = " WARP"
+        relay_suffix = ""
+        if endpoint.is_relay:
+            relay_suffix = " МСК"
+        label = f"{group_prefix} {country_flag} {endpoint.country}{transport_suffix}{warp_suffix}{relay_suffix}"
 
-    relay_suffix = ""
-    if endpoint.is_relay:
-        relay_suffix = " МСК"
-
-    return f"{group_prefix} {country_flag} {endpoint.country}{transport_suffix}{warp_suffix}{relay_suffix}"
+    GROUP_EXPLANATIONS = {
+        "fast": "Прямое подключение, мин. пинг",
+        "moscow": "Обход блокировок (если не заходит)",
+        "warp": "Для Netflix, ChatGPT и др.",
+        "stealth": "Скрытый протокол для сложных сетей",
+        "stealth_warp": "Скрытый вход + разблокировка",
+        "cdn": "Медленный, через Cloudflare",
+    }
+    explanation = GROUP_EXPLANATIONS.get(endpoint.group)
+    if explanation:
+        return f"{label} ({explanation})"
+    return label
 
 
 def _generate_endpoint_link(
