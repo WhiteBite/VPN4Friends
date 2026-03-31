@@ -60,9 +60,9 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
         return
 
     # Returning user
-    status_emoji = "🟢 Подписка активна" if user.has_vpn else "👋 С возвращением"
+    status_text = "🟢 <b>Подписка активна</b>" if user.has_vpn else "👋 <b>С возвращением</b>"
     await message.answer(
-        f"<b>VPN4Friends</b>\n\n{status_emoji}, <b>{user.full_name}</b>!",
+        f"<b>VPN4Friends</b>\n\n{status_text}\nПривет, <b>{user.full_name}</b>!",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
         parse_mode="HTML",
     )
@@ -120,18 +120,20 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
 
     msg = await message.answer("Загрузка...")
     vpn_service = VPNService(session)
-    link = await vpn_service.get_active_vpn_link(user)
+    links = await vpn_service.get_all_active_vpn_links(user)
 
-    if link:
-        await msg.edit_text(
-            f"🔗 <b>Твоя персональная ссылка для подключения:</b>\n\n"
-            f"<code>{link}</code>\n\n"
-            f"Просто скопируй её (нажми на текст) и вставь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun</b> (iPhone).",
-            parse_mode="HTML",
+    if links:
+        lines = ["🔗 <b>Твои персональные ссылки для подключения:</b>\n"]
+        for label, link in links:
+            lines.append(f"• <b>{label}</b>:\n<code>{link}</code>\n")
+
+        lines.append(
+            "Просто скопируй нужную (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun</b> (iPhone)."
         )
+        await msg.edit_text("\n".join(lines), parse_mode="HTML")
     else:
         await msg.edit_text(
-            "⚠️ Не удалось сформировать ссылку. Возможно, профиль еще не синхронизирован."
+            "⚠️ Не удалось сформировать ссылки. Возможно, профиль еще не синхронизирован."
         )
 
 
@@ -214,19 +216,24 @@ async def show_my_vpn(callback: CallbackQuery, session: AsyncSession) -> None:
 
     await callback.answer("Загрузка...")
     vpn_service = VPNService(session)
-    link = await vpn_service.get_active_vpn_link(user)
+    links = await vpn_service.get_all_active_vpn_links(user)
 
-    if link:
+    if links:
+        lines = ["🔗 <b>Твои персональные ссылки для подключения:</b>\n"]
+        for label, link in links:
+            lines.append(f"• <b>{label}</b>:\n<code>{link}</code>\n")
+
+        lines.append(
+            "Просто скопируй нужную (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun</b> (iPhone)."
+        )
         await callback.message.edit_text(
-            f"🔗 <b>Твоя персональная ссылка для подключения:</b>\n\n"
-            f"<code>{link}</code>\n\n"
-            f"Просто скопируй её (нажми на текст) и вставь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun</b> (iPhone).",
+            "\n".join(lines),
             parse_mode="HTML",
             reply_markup=get_back_kb(),
         )
     else:
         await callback.message.edit_text(
-            "⚠️ Не удалось сформировать ссылку. Возможно, профиль еще не синхронизирован.",
+            "⚠️ Не удалось сформировать ссылки. Возможно, профиль еще не синхронизирован.",
             reply_markup=get_back_kb(),
         )
 

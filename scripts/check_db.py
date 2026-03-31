@@ -28,14 +28,14 @@ print("\nUsers with VPN profiles:")
 for u in users:
     telegram_id, username, full_name, profile_data = u
     print(f"\n  Telegram ID: {telegram_id}")
-    print(f'  Username: @{username or "no_username"}')
+    print(f"  Username: @{username or 'no_username'}")
     print(f"  Full Name: {full_name}")
 
     if profile_data:
         try:
             profile = json.loads(profile_data)
-            print(f'  Email: {profile.get("email", "N/A")}')
-            print(f'  Client ID: {profile.get("client_id", "N/A")[:20]}...')
+            print(f"  Email: {profile.get('email', 'N/A')}")
+            print(f"  Client ID: {profile.get('client_id', 'N/A')[:20]}...")
         except:
             print(f"  Profile data: {profile_data[:50]}...")
 

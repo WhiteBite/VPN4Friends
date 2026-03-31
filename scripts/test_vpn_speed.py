@@ -165,7 +165,7 @@ async def test_with_xray(vless_url: str) -> dict:
                 elapsed = time.time() - start_time
                 speed_mbps = (downloaded * 8) / (elapsed * 1_000_000)
 
-                print(f"✅ Downloaded: {downloaded / (1024*1024):.2f} MB")
+                print(f"✅ Downloaded: {downloaded / (1024 * 1024):.2f} MB")
                 print(f"⏱️  Time: {elapsed:.1f}s")
                 print(f"🚀 Speed: {speed_mbps:.2f} Mbps")
 

@@ -258,12 +258,11 @@ class VPNService:
         }
 
     async def get_active_vpn_link(self, user: User) -> str | None:
-        """Get the connection link for the user's active VPN profile."""
+        """Get the connection link for the user's active VPN profile (default endpoint)."""
         active_profile = user.active_profile
         if not active_profile:
             return None
 
-        # The profile_data in DB already contains all necessary info; merge with settings
         endpoint_name = (active_profile.settings or {}).get("endpoint")
         endpoint = settings.get_endpoint(endpoint_name) if endpoint_name else None
 
@@ -273,6 +272,47 @@ class VPNService:
             active_profile.settings,
             endpoint=endpoint,
         )
+
+    async def get_all_active_vpn_links(self, user: User) -> list[tuple[str, str]]:
+        """Get all connection links across visible endpoints for the user's active VPN profile."""
+        active_profile = user.active_profile
+        if not active_profile:
+            return []
+
+        links = []
+        for endpoint in settings.endpoints:
+            # We only generate links for endpoints that match the user's current protocol
+            if endpoint.visible_in_sub and endpoint.protocol == active_profile.protocol_name:
+                link = generate_vpn_link(
+                    active_profile.protocol_name,
+                    active_profile.profile_data,
+                    active_profile.settings,
+                    endpoint=endpoint,
+                )
+                if link:
+                    label = endpoint.sub_label or f"{endpoint.country} ({endpoint.label})"
+                    links.append((label, link))
+
+        # Also always include MTProto proxies for Telegram if they exist
+        for endpoint in settings.endpoints:
+            if endpoint.category == "telegram" and endpoint.protocol == "mtproto":
+                link = generate_vpn_link(
+                    endpoint.protocol,
+                    {},
+                    None,
+                    endpoint=endpoint,
+                )
+                if link:
+                    label = endpoint.sub_label or f"Telegram Proxy ({endpoint.country})"
+                    links.append((label, link))
+
+        # Fallback if no specific endpoints matched
+        if not links:
+            base_link = await self.get_active_vpn_link(user)
+            if base_link:
+                links.append(("Основное подключение", base_link))
+
+        return links
 
     async def get_pending_requests(self) -> list[VPNRequest]:
         """Get all pending VPN requests."""

@@ -69,7 +69,7 @@ def build_matrix():
 
         ep = {
             "name": f"{country}_{'msk_' if is_relay else ''}{fname}",
-            "label": f"{'Финляндия' if country=='finland' else 'Германия'} ({lsuffix}{' МСК' if is_relay else ''})",
+            "label": f"{'Финляндия' if country == 'finland' else 'Германия'} ({lsuffix}{' МСК' if is_relay else ''})",
             "category": "vpn",
             "country": "Финляндия" if country == "finland" else "Германия",
             "host": stealth_hosts["moscow"] if is_relay else stealth_hosts[country],
@@ -99,7 +99,7 @@ def build_matrix():
 
         # Sub-label
         ep["sub_label"] = (
-            f"{emoji if not is_relay else '📱'} {flag} {'Финляндия' if country=='finland' else 'Германия'} {lsuffix}{' МСК' if is_relay else ''}".replace(
+            f"{emoji if not is_relay else '📱'} {flag} {'Финляндия' if country == 'finland' else 'Германия'} {lsuffix}{' МСК' if is_relay else ''}".replace(
                 " Direct", ""
             ).strip()
         )
