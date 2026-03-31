@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.bot_utils import create_bot
 from src.api.dependencies import get_current_user
 from src.api.schemas import (
+    EndpointSchema,
     GenericResponse,
     LinkResponse,
     MeResponse,
@@ -182,6 +183,58 @@ async def get_link(
         protocol=active_profile.protocol_name,
         endpoint=endpoint_name,
     )
+
+
+@router.get("/endpoints", response_model=list[EndpointSchema])
+async def get_my_endpoints(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[EndpointSchema]:
+    """Get the VPN endpoints, populated with user's connection links."""
+    from src.tasks.health import get_server_status
+
+    results = []
+    has_profile = bool(user.active_profile)
+    for ep in settings.endpoints:
+        api_url = (ep.panel_config or {}).get("api_url") or settings.xui_api_url
+        health = get_server_status(api_url)
+
+        vpn_link = None
+        if has_profile and ep.transport not in ("mtproto", "socks"):
+            vpn_link = generate_vpn_link(
+                user.active_profile.protocol_name,
+                user.active_profile.profile_data,
+                user.active_profile.settings,
+                endpoint=ep,
+            )
+
+        # Static proxy links
+        if ep.transport == "mtproto":
+            vpn_link = (
+                f"tg://proxy?server={ep.host}&port={ep.port}&secret={getattr(ep, 'secret', '')}"
+            )
+        elif ep.transport == "socks" and getattr(ep, "panel_config", None):
+            usr = ep.panel_config.get("user", "")
+            pwd = ep.panel_config.get("pass", "")
+            vpn_link = f"tg://socks?server={ep.host}&port={ep.port}&user={usr}&pass={pwd}"
+
+        results.append(
+            EndpointSchema(
+                name=ep.name,
+                label=ep.label,
+                host=ep.host,
+                port=ep.port,
+                is_relay=ep.is_relay,
+                description=ep.description,
+                category=getattr(ep, "category", "vpn"),
+                country=getattr(ep, "country", "Unknown"),
+                transport=getattr(ep, "transport", "vless") or "vless",
+                status=health.get("status", "unknown"),
+                latency=health.get("latency"),
+                vpn_link=vpn_link,
+            )
+        )
+    return results
 
 
 @router.delete("/revoke", response_model=GenericResponse)

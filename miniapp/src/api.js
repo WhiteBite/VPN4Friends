@@ -91,7 +91,7 @@ export function fetchStats() {
 // ----- Endpoints -----
 
 export function fetchEndpoints() {
-  return apiRequest('/endpoints');
+  return apiRequest('/me/endpoints');
 }
 
 export function selectEndpoint(endpoint) {

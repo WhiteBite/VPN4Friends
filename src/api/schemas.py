@@ -123,6 +123,7 @@ class EndpointSchema(BaseModel):
     transport: str = "vless"
     status: str = "unknown"
     latency: float | None = None
+    vpn_link: str | None = None
 
 
 class SelectEndpointRequest(BaseModel):
