@@ -281,7 +281,7 @@ class VPNService:
 
         links = []
         for endpoint in settings.endpoints:
-            user_proto = active_profile.protocol_name.lower()
+            user_proto = (active_profile.protocol_name or "").lower()
             if "reality" in user_proto or "finland_xhttp" in user_proto:
                 user_proto = "vless"
             ep_proto = (endpoint.protocol or "").lower()
@@ -290,15 +290,18 @@ class VPNService:
 
             # We only generate links for endpoints that match the user's current protocol
             if endpoint.visible_in_sub and ep_proto == user_proto:
-                link = generate_vpn_link(
-                    active_profile.protocol_name,
-                    active_profile.profile_data,
-                    active_profile.settings,
-                    endpoint=endpoint,
-                )
-                if link:
-                    label = endpoint.sub_label or f"{endpoint.country} ({endpoint.label})"
-                    links.append((label, link))
+                try:
+                    link = generate_vpn_link(
+                        active_profile.protocol_name or "vless",
+                        active_profile.profile_data or {},
+                        active_profile.settings or {},
+                        endpoint=endpoint,
+                    )
+                    if link:
+                        label = endpoint.sub_label or f"{endpoint.country} ({endpoint.label})"
+                        links.append((label, link))
+                except Exception as e:
+                    logger.error(f"Error generating link for {endpoint.name}: {e}")
 
         # Also always include MTProto proxies for Telegram if they exist
         for endpoint in settings.endpoints:

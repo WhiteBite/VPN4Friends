@@ -123,7 +123,7 @@ def generate_vless_url(
         remark = profile_data.get("remark", "VPN")
         country_name = remark
 
-    spider_x_encoded = quote(spider_x, safe="")
+    spider_x_encoded = quote(spider_x or "", safe="")
 
     params_dict = {
         "type": transport,
@@ -168,7 +168,7 @@ def generate_vless_url(
 
     # Label formatting: {Location} {Transport} {Security} - {Nickname}
     email = profile_data.get("email", "User")
-    protocol_desc = f"{transport.upper()}"
+    protocol_desc = f"{(transport or '').upper()}"
     if security and security != "none":
         protocol_desc += f" {security.upper()}"
 

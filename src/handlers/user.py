@@ -124,13 +124,20 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
 
     if links:
         lines = ["🔗 <b>Твои персональные ссылки для подключения:</b>\n"]
+
+        # Add subscription link at the top
+        client_id = user.active_profile.client_id if user.active_profile else ""
+        if client_id:
+            sub_url = f"{settings.miniapp_url}/api/sub/{client_id}"
+            lines.append(f"📦 <b>АВТО-ПОДПИСКА (Рекомендуется)</b>:\n<code>{sub_url}</code>\n")
+
         for label, link in links:
             lines.append(f"• <b>{label}</b>:\n<code>{link}</code>\n")
 
         lines.append(
-            "Просто скопируй нужную (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun</b> (iPhone)."
+            "Просто скопируй нужную ссылку (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun / V2Box</b> (iPhone)."
         )
-        await msg.edit_text("\n".join(lines), parse_mode="HTML")
+        await msg.edit_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
     else:
         await msg.edit_text(
             "⚠️ Не удалось сформировать ссылки. Возможно, профиль еще не синхронизирован."
@@ -220,15 +227,23 @@ async def show_my_vpn(callback: CallbackQuery, session: AsyncSession) -> None:
 
     if links:
         lines = ["🔗 <b>Твои персональные ссылки для подключения:</b>\n"]
+
+        # Add subscription link at the top
+        client_id = user.active_profile.client_id if user.active_profile else ""
+        if client_id:
+            sub_url = f"{settings.miniapp_url}/api/sub/{client_id}"
+            lines.append(f"📦 <b>АВТО-ПОДПИСКА (Рекомендуется)</b>:\n<code>{sub_url}</code>\n")
+
         for label, link in links:
             lines.append(f"• <b>{label}</b>:\n<code>{link}</code>\n")
 
         lines.append(
-            "Просто скопируй нужную (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun</b> (iPhone)."
+            "Просто скопируй нужную ссылку (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun / V2Box</b> (iPhone)."
         )
         await callback.message.edit_text(
             "\n".join(lines),
             parse_mode="HTML",
+            disable_web_page_preview=True,
             reply_markup=get_back_kb(),
         )
     else:
