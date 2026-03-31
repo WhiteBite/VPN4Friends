@@ -137,7 +137,15 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
         lines.append(
             "Просто скопируй нужную ссылку (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun / V2Box</b> (iPhone)."
         )
-        await msg.edit_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
+        from src.utils.messaging import send_smart_message
+
+        await msg.delete()
+        await send_smart_message(
+            message,
+            "\n".join(lines),
+            disable_web_page_preview=True,
+        )
     else:
         await msg.edit_text(
             "⚠️ Не удалось сформировать ссылки. Возможно, профиль еще не синхронизирован."
@@ -240,9 +248,13 @@ async def show_my_vpn(callback: CallbackQuery, session: AsyncSession) -> None:
         lines.append(
             "Просто скопируй нужную ссылку (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun / V2Box</b> (iPhone)."
         )
-        await callback.message.edit_text(
+
+        from src.utils.messaging import send_smart_message
+
+        await callback.message.delete()
+        await send_smart_message(
+            callback.message,
             "\n".join(lines),
-            parse_mode="HTML",
             disable_web_page_preview=True,
             reply_markup=get_back_kb(),
         )
