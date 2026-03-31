@@ -5,6 +5,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 
 import ConnectionCard from './components/ConnectionCard';
 import ServerSelector from './components/ServerSelector';
+import { copyToClipboard } from './utils/clipboard';
 import StatsCard from './components/StatsCard';
 import SettingsPanel from './components/SettingsPanel';
 import Toast from './components/Toast';
@@ -172,46 +173,18 @@ function App() {
     return `${origin}${subUrl}`;
   };
 
-  const handleCopySubscription = async () => {
+  const handleCopySubscription = () => {
     const fullUrl = getFullSubscriptionUrl();
     if (!fullUrl) {
       showToast('Подписка недоступна.', 'error');
       return;
     }
     
-    try {
-      const tg = getTelegram();
-      if (tg && tg.isVersionAtLeast && tg.isVersionAtLeast('6.4')) {
-        tg.writeTextToClipboard(fullUrl, () => {
-          showToast('Ссылка на подписку скопирована!', 'success');
-        });
-        return;
-      }
-      
-      // Fallback to navigator clipboard
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(fullUrl);
-        showToast('Ссылка на подписку скопирована!', 'success');
-      } else {
-        // Fallback for older browsers (create textarea, copy)
-        const textArea = document.createElement("textarea");
-        textArea.value = fullUrl;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          showToast('Ссылка на подписку скопирована!', 'success');
-        } catch (err) {
-          showToast('Не удалось скопировать.', 'error');
-        }
-        textArea.remove();
-      }
-    } catch (err) {
-      showToast('Не удалось скопировать.', 'error');
-    }
+    copyToClipboard(
+      fullUrl,
+      () => showToast('Ссылка на подписку скопирована!', 'success'),
+      () => showToast('Не удалось скопировать. Выделите текст и скопируйте.', 'error')
+    );
   };
 
 

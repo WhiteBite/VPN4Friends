@@ -1,5 +1,6 @@
 import React from 'react';
 import Card from '../ui/Card';
+import { getTelegram } from '../telegram';
 
 export default function SettingsPanel({
   visible,
@@ -7,6 +8,7 @@ export default function SettingsPanel({
   protocols,
   onSwitchProtocol,
   onUpdateSni,
+  onRevokeVpn,
   busy,
 }) {
   if (!visible || !profile?.has_profile) return null;
@@ -46,8 +48,16 @@ export default function SettingsPanel({
       <div style={{ marginTop: '24px', borderTop: '1px dotted var(--border)' }}>
         <button
           onClick={() => {
-            if (window.confirm("⚠️ Вы уверены, что хотите полностью удалить свой VPN? Это действие необратимо.")) {
-              onRevokeVpn();
+            const msg = "⚠️ Вы уверены, что хотите полностью удалить свой VPN? Это действие необратимо.";
+            const tg = getTelegram();
+            if (tg && tg.showConfirm) {
+              tg.showConfirm(msg, (confirmed) => {
+                if (confirmed) onRevokeVpn();
+              });
+            } else {
+              if (window.confirm(msg)) {
+                onRevokeVpn();
+              }
             }
           }}
           disabled={busy}

@@ -11,6 +11,7 @@ import {
   revokeMe
 } from '../api';
 import { MOCK_DATA } from '../mockData';
+import { copyToClipboard } from '../utils/clipboard';
 
 const isDev = import.meta.env.DEV;
 
@@ -90,13 +91,19 @@ export function useVPN(showToast) {
         showToast('Точка входа изменена.', 'success');
         
         if (andCopy) {
-           await navigator.clipboard.writeText(linkData.link);
-           setTimeout(() => showToast('Ссылка скопирована!', 'success'), 300);
+           copyToClipboard(
+             linkData.link,
+             () => setTimeout(() => showToast('Ссылка скопирована!', 'success'), 300),
+             () => showToast('Не удалось скопировать.', 'error')
+           );
         }
       } else if (andCopy) {
          if (vpnLink) {
-           await navigator.clipboard.writeText(vpnLink);
-           showToast('Ссылка скопирована!', 'success');
+           copyToClipboard(
+             vpnLink,
+             () => showToast('Ссылка скопирована!', 'success'),
+             () => showToast('Не удалось скопировать.', 'error')
+           );
          }
       }
     } catch {
