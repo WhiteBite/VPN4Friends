@@ -194,8 +194,21 @@ export default function AdminPanel({ onError, onSuccess }) {
   };
 
   useEffect(() => {
-    if (activeTab === 'users') loadUsers();
-  }, [activeTab, loadUsers]);
+    if (activeTab === 'users') {
+      loadUsers();
+    } else if (activeTab === 'servers') {
+      if (isDev) {
+        setServerStats([
+          { name: 'Финляндия (TCP)', online: true, clients: 104, upload: 124000000, download: 555000000, inbounds: 4 },
+          { name: 'Германия (VLESS)', online: false, error: 'Connection refused' }
+        ]);
+      } else {
+        fetchAdminServerStats()
+          .then(data => setServerStats(data || []))
+          .catch(e => onError(e.message || 'Ошибка загрузки статусов'));
+      }
+    }
+  }, [activeTab, loadUsers, isDev, onError]);
 
   if (loading) {
     return <div className="empty-state">Загрузка панели...</div>;
