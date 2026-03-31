@@ -138,6 +138,13 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
             "Просто скопируй нужную ссылку (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun / V2Box</b> (iPhone)."
         )
 
+        lines.append(
+            "\n🤝 <b>Хочешь поделиться с друзьями?</b>\n"
+            "Если у них пока нет VPN, просто отправь им ссылку на наш кабинет:\n"
+            f"🔗 {settings.miniapp_url}\n"
+            "Там они смогут оставить заявку и получить доступ!"
+        )
+
         from src.utils.messaging import send_smart_message
 
         await msg.delete()

@@ -77,8 +77,7 @@ def _find_curl() -> str | None:
 def _run(cmd: list[str], timeout_s: float) -> tuple[int, str, str]:
     p = subprocess.run(
         cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
         timeout=timeout_s,
     )

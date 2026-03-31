@@ -122,10 +122,6 @@ def main() -> int:
             ]
 
             # Test sites that should go direct
-            direct_sites = [
-                ("ipify (direct)", "http://api.ipify.org"),
-                ("Cloudflare trace", "http://www.cloudflare.com/cdn-cgi/trace"),
-            ]
 
             print("\n[1] Sites that should go through WARP (Cloudflare IP):")
             print("-" * 50)
@@ -215,7 +211,7 @@ def main() -> int:
             proc.terminate()
             try:
                 proc.wait(timeout=5)
-            except:
+            except Exception:
                 proc.kill()
 
 

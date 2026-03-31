@@ -314,9 +314,9 @@ class VPNService:
                 except Exception as e:
                     logger.error(f"Error generating link for {endpoint.name}: {e}")
 
-        # Also always include MTProto proxies for Telegram if they exist
+        # Also always include MTProto/SOCKS proxies for Telegram if they exist
         for endpoint in settings.endpoints:
-            if endpoint.category == "telegram" and endpoint.protocol == "mtproto":
+            if endpoint.category == "telegram" and endpoint.protocol in ("mtproto", "socks"):
                 link = generate_vpn_link(
                     endpoint.protocol,
                     {},
@@ -325,7 +325,10 @@ class VPNService:
                 )
                 if link:
                     label = endpoint.sub_label or f"Telegram Proxy ({endpoint.country})"
-                    label = f"💬 {label} (Только для Telegram)"
+                    if "socks" in endpoint.protocol:
+                        label = f"🔓 {label} (Только для Telegram — SOCKS5)"
+                    else:
+                        label = f"💬 {label} (Только для Telegram — MTProto)"
                     links.append((label, link))
 
         # Fallback if no specific endpoints matched
