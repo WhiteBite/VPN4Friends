@@ -488,7 +488,7 @@ class XUIApi(PanelAPI):
                 raise XUIApiError(f"Get inbounds failed: {result.get('msg')}")
 
             inbounds = result.get("obj", [])
-            total_clients = 0
+            unique_clients = set()
             total_up = 0
             total_down = 0
 
@@ -497,9 +497,19 @@ class XUIApi(PanelAPI):
                     continue
                 settings_data = json.loads(inbound.get("settings", "{}"))
                 clients = settings_data.get("clients", [])
-                total_clients += len([c for c in clients if c.get("enable", True)])
+
+                # Count unique active clients across all inbounds
+                for c in clients:
+                    if c.get("enable", True):
+                        # Use id (VLESS/VMess), password (Trojan), or email as unique identifier
+                        identifier = c.get("id") or c.get("password") or c.get("email")
+                        if identifier:
+                            unique_clients.add(identifier)
+
                 total_up += inbound.get("up", 0)
                 total_down += inbound.get("down", 0)
+
+            total_clients = len(unique_clients)
 
             return {
                 "online": True,
