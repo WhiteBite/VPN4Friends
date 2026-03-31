@@ -3,7 +3,6 @@
 
 import asyncio
 import time
-from urllib.parse import urlparse
 
 import aiohttp
 
@@ -19,9 +18,6 @@ async def test_speed(proxy_url: str, test_size_mb: int = 10) -> dict:
     Returns:
         dict with speed results
     """
-    # Parse VLESS URL
-    parsed = urlparse(proxy_url)
-
     # For testing, we'll use a simple HTTP proxy approach
     # Note: aiohttp doesn't support VLESS directly, need xray-core
 
@@ -40,28 +36,30 @@ async def test_speed(proxy_url: str, test_size_mb: int = 10) -> dict:
         try:
             start_time = time.time()
 
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                    if response.status == 200:
-                        downloaded = 0
-                        async for chunk in response.content.iter_chunked(8192):
-                            downloaded += len(chunk)
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response,
+            ):
+                if response.status == 200:
+                    downloaded = 0
+                    async for chunk in response.content.iter_chunked(8192):
+                        downloaded += len(chunk)
 
-                        elapsed = time.time() - start_time
-                        speed_mbps = (downloaded * 8) / (elapsed * 1_000_000)
+                    elapsed = time.time() - start_time
+                    speed_mbps = (downloaded * 8) / (elapsed * 1_000_000)
 
-                        results.append(
-                            {
-                                "url": url,
-                                "size_mb": downloaded / (1024 * 1024),
-                                "time_sec": elapsed,
-                                "speed_mbps": speed_mbps,
-                            }
-                        )
+                    results.append(
+                        {
+                            "url": url,
+                            "size_mb": downloaded / (1024 * 1024),
+                            "time_sec": elapsed,
+                            "speed_mbps": speed_mbps,
+                        }
+                    )
 
-                        print(f"✅ {url.split('/')[-1]}: {speed_mbps:.2f} Mbps ({elapsed:.1f}s)")
-                    else:
-                        print(f"❌ {url}: HTTP {response.status}")
+                    print(f"✅ {url.split('/')[-1]}: {speed_mbps:.2f} Mbps ({elapsed:.1f}s)")
+                else:
+                    print(f"❌ {url}: HTTP {response.status}")
         except Exception as e:
             print(f"❌ {url}: {e}")
 

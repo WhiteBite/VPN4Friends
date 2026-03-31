@@ -36,7 +36,7 @@ for u in users:
             profile = json.loads(profile_data)
             print(f"  Email: {profile.get('email', 'N/A')}")
             print(f"  Client ID: {profile.get('client_id', 'N/A')[:20]}...")
-        except:
+        except Exception:
             print(f"  Profile data: {profile_data[:50]}...")
 
 conn.close()
