@@ -395,7 +395,7 @@ export default function AdminPanel({ onError, onSuccess }) {
                     {u.username && <span>@{u.username}</span>}
                     {u.stats && (
                       <span style={{ fontSize: '11px', color: 'var(--text-hint)', background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                        <span data-tooltip="Отдано" style={{ color: 'var(--success)', cursor: 'help' }}>↑</span> {formatBytes(u.stats.upload)} <span style={{opacity: 0.5}}>|</span> <span data-tooltip="Скачано" style={{ color: '#3b82f6', cursor: 'help' }}>↓</span> {formatBytes(u.stats.download)}
+                        <span style={{ color: 'var(--success)', cursor: 'help' }} onClick={() => showToast('Отдано', 'info')}>↑</span> {formatBytes(u.stats.upload)} <span style={{opacity: 0.5}}>|</span> <span style={{ color: '#3b82f6', cursor: 'help' }} onClick={() => showToast('Скачано', 'info')}>↓</span> {formatBytes(u.stats.download)}
                       </span>
                     )}
                   </div>
@@ -405,7 +405,7 @@ export default function AdminPanel({ onError, onSuccess }) {
                     {u.client_id ? (
                       <span style={{ fontFamily: 'monospace' }}>🆔 {u.client_id.slice(0, 8)}...</span>
                     ) : (
-                      <span data-tooltip="Старый формат профиля без Client ID" style={{ padding: '2px 6px', background: 'rgba(239, 68, 68, 0.2)', color: '#EF4444', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'help' }}>
+                      <span onClick={() => showToast('Старый формат профиля. Пользователю рекомендуется удалить VPN и пересоздать.', 'warning')} style={{ padding: '2px 6px', background: 'rgba(239, 68, 68, 0.2)', color: '#EF4444', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
                         ⚠️ Устаревший
                       </span>
                     )}
@@ -417,7 +417,7 @@ export default function AdminPanel({ onError, onSuccess }) {
                   )}
                 </div>
                 <button
-                  data-tooltip="Отозвать VPN"
+                  title="Отозвать VPN"
                   onClick={() => handleRevoke(u.id)}
                   disabled={revoking === u.id}
                   style={{

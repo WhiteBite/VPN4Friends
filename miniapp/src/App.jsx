@@ -308,7 +308,7 @@ function App() {
                   <div className="stat-label" style={{ fontWeight: 600 }}>VPN-клиент ID</div>
                   <div 
                     className="stat-value" 
-                    data-tooltip="Нажмите, чтобы скопировать ID (нужен для поддержки)"
+                    title="Нажмите, чтобы скопировать ID (нужен для поддержки)"
                     onClick={() => {
                       if (me.profile.client_id) {
                         navigator.clipboard.writeText(me.profile.client_id);

@@ -21,9 +21,10 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
                 text="🔵 Открыть Кабинет",
                 web_app=WebAppInfo(url=settings.miniapp_url),
             )
-        builder.button(text="📱 Как подключить?", callback_data="how_to_connect")
+        builder.button(text="🔗 Показать VPN ссылку", callback_data="show_my_vpn")
+        builder.button(text="📱 Как подключиться?", callback_data="how_to_connect")
         builder.button(text="💬 Поддержка", callback_data="contact_admin")
-        builder.adjust(1, 2)
+        builder.adjust(1, 1, 2)
     elif has_pending:
         if settings.miniapp_url:
             builder.button(

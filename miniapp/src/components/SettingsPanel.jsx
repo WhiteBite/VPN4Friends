@@ -24,11 +24,13 @@ export default function SettingsPanel({
       {/* Protocol Selection */}
       {sortedProtocols.length > 1 && (
         <>
-          <div className="section-title" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="section-title" style={{ marginTop: '16px' }}>
             Протокол
-            <span data-tooltip="Разные протоколы обхода блокировок. Выбирайте VLESS по умолчанию." style={{ color: 'var(--text-hint)', cursor: 'help' }}>ℹ️</span>
           </div>
-          <div className="chips-row" style={{ marginBottom: '24px', marginTop: '12px' }}>
+          <div className="text-secondary" style={{ fontSize: '11px', marginTop: '-4px', marginBottom: '12px' }}>
+            Способ подключения к серверу. VLESS считается самым надежным.
+          </div>
+          <div className="chips-row" style={{ marginBottom: '24px' }}>
             {sortedProtocols.map((p) => {
               const isActive = profile.protocol === p.name;
               return (
@@ -53,11 +55,13 @@ export default function SettingsPanel({
       {/* SNI Selection */}
       {profile.available_snis?.length > 1 && (
         <>
-          <div className="section-title" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            SNI маскировка 
-            <span data-tooltip="Маскировка трафика под другие сайты для обхода блокировок" style={{ color: 'var(--text-hint)', cursor: 'help' }}>ℹ️</span>
+          <div className="section-title" style={{ marginTop: '16px' }}>
+            SNI Маскировка
           </div>
-          <div className="chips-row" style={{ marginBottom: '24px', marginTop: '12px' }}>
+          <div className="text-secondary" style={{ fontSize: '11px', marginTop: '-4px', marginBottom: '12px' }}>
+            Сайт, под который маскируется ваш VPN-трафик для обхода блокировок.
+          </div>
+          <div className="chips-row" style={{ marginBottom: '24px' }}>
             {profile.available_snis.map((sni) => {
               const isActive = profile.sni === sni;
               return (

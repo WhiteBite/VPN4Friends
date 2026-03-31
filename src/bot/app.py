@@ -67,11 +67,10 @@ async def setup_bot_commands(bot: Bot) -> None:
     """Register bot commands in Telegram menu."""
     # Commands for all users
     user_commands = [
-        BotCommand(command="start", description="🚀 Запустить бота"),
-        BotCommand(command="menu", description="📋 Главное меню"),
-        BotCommand(command="support", description="✉️ Написать админу"),
-        BotCommand(command="web", description="🌐 Войти через браузер"),
-        BotCommand(command="help", description="❓ Справка"),
+        BotCommand(command="link", description="🔗 Получить VPN ключ"),
+        BotCommand(command="start", description="📋 Главное меню"),
+        BotCommand(command="support", description="✉️ Задать вопрос / Помощь"),
+        BotCommand(command="help", description="❓ Инструкция по настройке"),
     ]
 
     # Additional commands for admins

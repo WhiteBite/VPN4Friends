@@ -142,7 +142,7 @@ export default function ConnectionCard({ profile, subscriptionUrl, onCopySubscri
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text)' }}>Ссылка подписки</div>
             <button 
-              data-tooltip="QR-код для быстрой настройки на другом устройстве"
+              title="QR-код для быстрой настройки на другом устройстве"
               onClick={() => setShowQr(!showQr)} 
               style={{ 
                 background: 'rgba(255, 255, 255, 0.08)', 

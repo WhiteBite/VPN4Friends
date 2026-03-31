@@ -108,6 +108,33 @@ async def cmd_support(message: Message, state: FSMContext) -> None:
     )
 
 
+@router.message(Command("link"))
+async def cmd_link(message: Message, session: AsyncSession) -> None:
+    """Handle /link command - show VPN link immediately."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(message.from_user.id)
+
+    if not user or not user.has_vpn:
+        await message.answer("У вас нет активного VPN. Получите доступ через /start")
+        return
+
+    msg = await message.answer("Загрузка...")
+    vpn_service = VPNService(session)
+    link = await vpn_service.get_active_vpn_link(user)
+
+    if link:
+        await msg.edit_text(
+            f"🔗 <b>Твоя персональная ссылка для подключения:</b>\n\n"
+            f"<code>{link}</code>\n\n"
+            f"Просто скопируй её (нажми на текст) и вставь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun</b> (iPhone).",
+            parse_mode="HTML",
+        )
+    else:
+        await msg.edit_text(
+            "⚠️ Не удалось сформировать ссылку. Возможно, профиль еще не синхронизирован."
+        )
+
+
 @router.message(Command("web"))
 async def cmd_web(message: Message, session: AsyncSession) -> None:
     """Handle /web command - generate magic link for browser access."""
@@ -173,6 +200,35 @@ async def back_to_menu_new(callback: CallbackQuery, session: AsyncSession) -> No
         "🏠 Меню",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
     )
+
+
+@router.callback_query(F.data == "show_my_vpn")
+async def show_my_vpn(callback: CallbackQuery, session: AsyncSession) -> None:
+    """Handle request to show the user's VPN link."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
+
+    if not user or not user.has_vpn:
+        await callback.answer("У вас нет активного VPN.", show_alert=True)
+        return
+
+    await callback.answer("Загрузка...")
+    vpn_service = VPNService(session)
+    link = await vpn_service.get_active_vpn_link(user)
+
+    if link:
+        await callback.message.edit_text(
+            f"🔗 <b>Твоя персональная ссылка для подключения:</b>\n\n"
+            f"<code>{link}</code>\n\n"
+            f"Просто скопируй её (нажми на текст) и вставь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun</b> (iPhone).",
+            parse_mode="HTML",
+            reply_markup=get_back_kb(),
+        )
+    else:
+        await callback.message.edit_text(
+            "⚠️ Не удалось сформировать ссылку. Возможно, профиль еще не синхронизирован.",
+            reply_markup=get_back_kb(),
+        )
 
 
 @router.callback_query(F.data == "request_vpn")
