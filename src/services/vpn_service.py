@@ -359,32 +359,6 @@ class VPNService:
         logger.info(f"Switched protocol to {protocol_name} for user {user.telegram_id}")
         return True, vpn_link
 
-    async def update_profile_settings(self, user: User, sni: str) -> bool:
-        """Update user-specific settings for the active profile, e.g., SNI."""
-        active_profile = user.active_profile
-        if not active_profile:
-            return False
-
-        # Validate SNI against allowed list from the panel
-        async with XUIApi() as api:
-            protocol_settings = await api.get_protocol_settings(
-                active_profile.profile_data.get("inbound_id")
-            )
-            allowed_snis = protocol_settings.get("reality", {}).get("sni_options", [])
-
-        if sni not in allowed_snis:
-            logger.warning(f"User {user.telegram_id} tried to set an invalid SNI: {sni}")
-            return False
-
-        # Store the selected SNI in the profile's settings
-        if not active_profile.settings:
-            active_profile.settings = {}
-        active_profile.settings["sni"] = sni
-
-        await self.user_repo.update_vpn_profile(active_profile)
-        logger.info(f"Updated SNI to {sni} for user {user.telegram_id}")
-        return True
-
     async def get_all_users_stats(self) -> dict[str, dict[str, int]]:
         """Fetch traffic stats for ALL users from all panels in bulk.
 

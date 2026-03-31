@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import logging
 
@@ -19,8 +18,6 @@ from src.api.schemas import (
     StatsResponse,
     SwitchProtocolRequest,
     SwitchProtocolResponse,
-    UpdateSNIRequest,
-    UpdateSNIResponse,
     UserSchema,
 )
 from src.api.ws import manager as ws_manager
@@ -28,7 +25,7 @@ from src.bot.config import settings
 from src.database.models import User, VPNRequest
 from src.database.repositories import RequestRepository, UserRepository
 from src.database.session import get_session
-from src.services import PresetService, VPNService, XUIApi
+from src.services import PresetService, VPNService
 from src.services.url_generator import generate_vpn_link
 
 logger = logging.getLogger(__name__)
@@ -51,7 +48,6 @@ async def get_me(
     session: AsyncSession = Depends(get_session),
 ) -> MeResponse:
     """Get consolidated state for the current user."""
-    from src.api.main import app
 
     preset_service = PresetService(session)
 
@@ -61,15 +57,10 @@ async def get_me(
         is_admin=user.is_admin,
     )
 
-    import time
 
     # Get profile info
     active_profile = user.active_profile
     if active_profile:
-        # Cache SNIs globally with 5 min TTL to avoid hitting XUIApi every time
-        if not hasattr(app.state, "sni_cache"):
-            app.state.sni_cache = {}
-
         # Determine current endpoint (default or from settings)
         endpoint_name = (active_profile.settings or {}).get("endpoint") or "finland_tcp"
         endpoint = settings.get_endpoint(endpoint_name)
@@ -80,32 +71,6 @@ async def get_me(
                 if ep.protocol == "vless":
                     endpoint = ep
                     break
-
-        # SNI resolution
-        available_snis = ["max.ru", "vk.com", "www.google.com"]
-        # If we have reality settings in global config for this endpoint, use them
-        if endpoint and endpoint.sni:
-            available_snis = [endpoint.sni]
-
-        # Async background fetch of actual SNIs from the panel if we have an inbound_id
-        inbound_id = active_profile.profile_data.get("inbound_id")
-        if inbound_id is not None:
-            cache_entry = app.state.sni_cache.get(inbound_id)
-            if cache_entry and (time.time() - cache_entry["ts"]) < 300:
-                available_snis = cache_entry["snis"]
-            else:
-
-                async def _fetch_snis(iid: int) -> None:
-                    try:
-                        async with XUIApi() as api:
-                            ps = await api.get_protocol_settings(iid)
-                            found = ps.get("reality", {}).get("sni_options", [])
-                            if found:
-                                app.state.sni_cache[iid] = {"snis": found, "ts": time.time()}
-                    except Exception as exc:
-                        logger.warning(f"Failed to fetch SNIs for inbound {iid}: {exc}")
-
-                asyncio.create_task(_fetch_snis(inbound_id), name=f"fetch_snis_{inbound_id}")
 
         # Self-healing: if client_id column is empty but present in profile_data, fix it
         db_client_id = active_profile.client_id
@@ -124,10 +89,7 @@ async def get_me(
             protocol=active_profile.protocol_name,
             label=endpoint.label if endpoint else active_profile.label,
             client_id=db_client_id,
-            sni=active_profile.settings.get("sni")
-            if active_profile.settings
-            else (endpoint.sni if endpoint else None),
-            available_snis=available_snis,
+            sni=endpoint.sni if endpoint else None,
         )
     else:
         req = await session.execute(
@@ -186,37 +148,6 @@ async def switch_protocol(
         link=result,
     )
 
-
-@router.post("/sni", response_model=UpdateSNIResponse)
-async def update_sni(
-    payload: UpdateSNIRequest,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-) -> UpdateSNIResponse:
-    """Update SNI for the user's active VPN profile."""
-    # Ensure user has an active profile
-    if not user.active_profile:
-        return UpdateSNIResponse(
-            success=False,
-            message="У тебя нет активного VPN-профиля.",
-            sni=None,
-        )
-
-    vpn_service = VPNService(session)
-    success = await vpn_service.update_profile_settings(user, payload.sni)
-
-    if not success:
-        return UpdateSNIResponse(
-            success=False,
-            message=("Не удалось обновить SNI. Возможно, он недопустим для текущего протокола."),
-            sni=None,
-        )
-
-    return UpdateSNIResponse(
-        success=True,
-        message="SNI обновлён.",
-        sni=payload.sni,
-    )
 
 
 @router.get("/link", response_model=LinkResponse)

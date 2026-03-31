@@ -53,7 +53,6 @@ function App() {
     refreshMe,
     handleSelectEndpoint,
     handleSwitchProtocol,
-    handleUpdateSni,
     handleRequestVpn,
     handleRevokeVpn
   } = useVPN(showToast);
@@ -331,9 +330,8 @@ function App() {
               profile={me?.profile}
               protocols={protocols}
               onSwitchProtocol={handleSwitchProtocol}
-              onUpdateSni={handleUpdateSni}
               onRevokeVpn={handleRevokeVpn}
-              busy={busy === 'protocol' || busy === 'sni' || busy === 'revoke'}
+              busy={busy === 'protocol' || busy === 'revoke'}
             />
           </div>
         )}

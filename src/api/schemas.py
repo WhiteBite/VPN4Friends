@@ -32,7 +32,6 @@ class ProfileSchema(BaseModel):
     label: str | None = None
     client_id: str | None = None
     sni: str | None = None
-    available_snis: list[str] = []
 
 
 class MeResponse(BaseModel):
@@ -56,8 +55,6 @@ class SupportMessageRequest(BaseModel):
     text: str
 
 
-class UpdateSNIRequest(BaseModel):
-    sni: str
 
 
 class CreatePresetRequest(BaseModel):
@@ -83,10 +80,6 @@ class SwitchProtocolResponse(BaseModel):
     link: str | None = None
 
 
-class UpdateSNIResponse(BaseModel):
-    success: bool
-    message: str
-    sni: str | None = None
 
 
 class GenericResponse(BaseModel):

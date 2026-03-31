@@ -6,7 +6,6 @@ import {
   fetchEndpoints,
   selectEndpoint,
   switchProtocol,
-  updateSni,
   requestVpn,
   revokeMe
 } from '../api';
@@ -127,19 +126,7 @@ export function useVPN(showToast) {
     }
   };
 
-  const handleUpdateSni = async (sni) => {
-    setBusy('sni');
-    try {
-      await safeFetch(() => updateSni(sni), { success: true });
-      await refreshMe();
-      await refreshLink();
-      showToast('SNI обновлён.', 'success');
-    } catch {
-      showToast('Не удалось обновить SNI.', 'error');
-    } finally {
-      setBusy('');
-    }
-  };
+
 
   const handleRequestVpn = async (comment = '') => {
     setBusy('request');
@@ -179,7 +166,6 @@ export function useVPN(showToast) {
     refreshMe,
     handleSelectEndpoint,
     handleSwitchProtocol,
-    handleUpdateSni,
     handleRequestVpn,
     handleRevokeVpn
   };

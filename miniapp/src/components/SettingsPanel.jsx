@@ -7,7 +7,6 @@ export default function SettingsPanel({
   profile,
   protocols,
   onSwitchProtocol,
-  onUpdateSni,
   onRevokeVpn,
   busy,
 }) {
@@ -45,37 +44,6 @@ export default function SettingsPanel({
                   }}
                 >
                   {p.label}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* SNI Selection */}
-      {profile.available_snis?.length > 1 && (
-        <>
-          <div className="section-title" style={{ marginTop: '16px' }}>
-            SNI Маскировка
-          </div>
-          <div className="text-secondary" style={{ fontSize: '11px', marginTop: '-4px', marginBottom: '12px' }}>
-            Сайт, под который маскируется ваш VPN-трафик для обхода блокировок.
-          </div>
-          <div className="chips-row" style={{ marginBottom: '24px' }}>
-            {profile.available_snis.map((sni) => {
-              const isActive = profile.sni === sni;
-              return (
-                <button
-                  key={sni}
-                  type="button"
-                  className={`chip ${isActive ? 'chip--active' : ''}`}
-                  onClick={() => !busy && !isActive && onUpdateSni(sni)}
-                  disabled={busy}
-                  style={{
-                    opacity: busy && !isActive ? 0.5 : 1
-                  }}
-                >
-                  {sni}
                 </button>
               );
             })}

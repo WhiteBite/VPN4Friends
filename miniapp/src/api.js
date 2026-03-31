@@ -110,13 +110,6 @@ export function switchProtocol(protocol) {
   });
 }
 
-export function updateSni(sni) {
-  return apiRequest('/me/sni', {
-    method: 'POST',
-    body: JSON.stringify({ sni }),
-  });
-}
-
 // ----- VPN Requests & Admin -----
 
 export function requestVpn(comment = '') {
