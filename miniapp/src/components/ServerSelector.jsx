@@ -228,44 +228,68 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
       {showTelegramProxies && renderCategory('telegram', grouped['telegram'])}
       
       {qrModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setQrModal(null)}>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', maxWidth: '300px', width: '100%', color: '#000' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: '700', fontSize: '18px', textAlign: 'center' }}>{qrModal.name}</div>
-            <p style={{ fontSize: '12px', color: '#666', textAlign: 'center', margin: 0 }}>
-              Отсканируйте камерой телефона или VPN-клиентом
-            </p>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setQrModal(null)}>
+          <div style={{ 
+            background: 'rgba(30, 30, 35, 0.85)', 
+            border: '1px solid rgba(255, 255, 255, 0.1)', 
+            boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
+            padding: '24px', 
+            borderRadius: '24px', 
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', 
+            maxWidth: '320px', width: '100%', color: 'var(--text)' 
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'center' }}>
+              <div style={{ fontWeight: '800', fontSize: '18px', letterSpacing: '-0.3px' }}>{qrModal.name}</div>
+              <p style={{ fontSize: '13px', color: 'var(--text-hint)', margin: 0, lineHeight: 1.4 }}>
+                Отсканируйте камерой телефона или VPN-клиентом
+              </p>
+            </div>
 
-            <div style={{ padding: '12px', background: '#fff', borderRadius: '16px', border: '1px solid #eee' }}>
+            <div style={{ padding: '16px', background: '#fff', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}>
               <QRCodeCanvas 
                 id="qr-code-canvas"
                 value={qrModal.link} 
-                size={200}
+                size={220}
                 level="M"
-                includeMargin={true}
+                includeMargin={false}
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(qrModal.link).then(() => {
+                    if (window.showToast) window.showToast('Ссылка скопирована', 'success');
+                  }).catch(() => {
+                    // fallback if showToast doesn't exist globally
+                  });
+                  setQrModal(null);
+                  onCopy(qrModal.name); // Calling onCopy also shows toast usually
+                }}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: '16px', border: 'none',
+                  background: 'rgba(14, 165, 233, 0.15)', color: '#7DD3FC', fontWeight: '700', fontSize: '15px',
+                  cursor: 'pointer', transition: 'background 0.2s'
+                }}
+              >
+                📋 Скопировать ссылку
+              </button>
+
               <button 
                 onClick={() => {
                   const canvas = document.getElementById("qr-code-canvas");
                   if (canvas) {
                     const url = canvas.toDataURL("image/png");
                     const link = document.createElement("a");
-                    link.download = `vpn-${qrModal.name}.png`;
+                    link.download = `vpn-${qrModal.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
                     link.href = url;
                     link.click();
                   }
                 }}
                 style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  background: 'var(--accent, #ffd900)',
-                  color: '#000',
-                  fontWeight: '700',
-                  cursor: 'pointer'
+                  width: '100%', padding: '14px', borderRadius: '16px', border: 'none',
+                  background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text)', fontWeight: '600', fontSize: '14px',
+                  cursor: 'pointer', transition: 'background 0.2s'
                 }}
               >
                 📥 Сохранить в галерею
@@ -274,13 +298,9 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
               <button 
                 onClick={() => setQrModal(null)} 
                 style={{ 
-                  width: '100%', 
-                  padding: '12px', 
-                  borderRadius: '12px', 
-                  border: '1px solid #eee', 
-                  background: '#f5f5f5', 
-                  fontWeight: '600', 
-                  cursor: 'pointer' 
+                  width: '100%', padding: '14px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', 
+                  background: 'transparent', color: 'var(--text-hint)', fontWeight: '600', fontSize: '14px',
+                  cursor: 'pointer', transition: 'all 0.2s', marginTop: '4px'
                 }}
               >
                 Закрыть
