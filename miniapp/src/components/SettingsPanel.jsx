@@ -23,13 +23,13 @@ export default function SettingsPanel({
       {/* Protocol Selection */}
       {sortedProtocols.length > 1 && (
         <>
-          <div className="section-title" style={{ marginTop: '16px' }}>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', marginTop: '12px', marginBottom: '4px' }}>
             Протокол
           </div>
-          <div className="text-secondary" style={{ fontSize: '11px', marginTop: '-4px', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-hint)', marginBottom: '12px' }}>
             Способ подключения к серверу. VLESS считается самым надежным.
           </div>
-          <div className="chips-row" style={{ marginBottom: '24px' }}>
+          <div className="chips-row" style={{ marginBottom: '20px' }}>
             {sortedProtocols.map((p) => {
               const isActive = profile.protocol === p.name;
               return (
@@ -51,8 +51,8 @@ export default function SettingsPanel({
         </>
       )}
 
-      {/* Compact Danger Zone */}
-      <div style={{ marginTop: '24px' }}>
+      {/* Danger Zone — subtle, not aggressive */}
+      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <button
           onClick={() => {
             const msg = "⚠️ Вы уверены, что хотите полностью удалить свой VPN? Это действие необратимо.";
@@ -69,12 +69,12 @@ export default function SettingsPanel({
           }}
           disabled={busy}
           style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#EF4444',
+            background: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.15)',
+            color: '#F87171',
             fontSize: '14px',
             fontWeight: '600',
-            padding: '12px 16px',
+            padding: '14px 16px',
             borderRadius: '12px',
             width: '100%',
             cursor: 'pointer',
@@ -84,10 +84,10 @@ export default function SettingsPanel({
             justifyContent: 'center',
             gap: '8px',
             transition: 'all 0.2s',
+            opacity: busy ? 0.5 : 1
           }}
         >
-          <span style={{ fontSize: '18px' }}>🗑️</span>
-          {busy ? 'Удаление...' : 'Отозвать доступ (Удалить VPN)'}
+          {busy ? '⏳ Удаление...' : '🗑️ Удалить VPN'}
         </button>
       </div>
     </Card>

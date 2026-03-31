@@ -374,8 +374,20 @@ export default function AdminPanel({ onError, onSuccess }) {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-          Всего: {users.length} | С VPN: {vpnUsers.length} | Без VPN: {noVpnUsers.length}
+        {/* Dashboard stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+          <div style={{ padding: '12px', background: 'rgba(14, 165, 233, 0.06)', border: '1px solid rgba(14, 165, 233, 0.12)', borderRadius: '12px', textAlign: 'center' }}>
+            <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--text)' }}>{users.length}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-hint)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Всего</div>
+          </div>
+          <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.12)', borderRadius: '12px', textAlign: 'center' }}>
+            <div style={{ fontWeight: 800, fontSize: '20px', color: '#34D399' }}>{vpnUsers.length}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-hint)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>С VPN</div>
+          </div>
+          <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '12px', textAlign: 'center' }}>
+            <div style={{ fontWeight: 800, fontSize: '20px', color: 'var(--text-hint)' }}>{noVpnUsers.length}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-hint)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Без VPN</div>
+          </div>
         </div>
 
         {vpnUsers.length > 0 && (
@@ -474,87 +486,43 @@ export default function AdminPanel({ onError, onSuccess }) {
 
   return (
     <div style={{ paddingBottom: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <button 
-          onClick={() => setActiveTab('requests')}
-          style={{ 
-            flex: 1, 
-            padding: '12px', 
-            borderRadius: '12px', 
-            border: 'none', 
-            background: activeTab === 'requests' ? 'var(--accent)' : 'var(--bg-elevated)', 
-            color: activeTab === 'requests' ? '#000' : 'var(--text)', 
-            fontWeight: '600',
-            fontSize: '14px',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}>
-          Заявки {requests.length > 0 && `(${requests.length})`}
-        </button>
-        <button 
-          onClick={() => setActiveTab('broadcast')}
-          style={{ 
-            flex: 1, 
-            padding: '12px', 
-            borderRadius: '12px', 
-            border: 'none', 
-            background: activeTab === 'broadcast' ? 'var(--accent)' : 'var(--bg-elevated)', 
-            color: activeTab === 'broadcast' ? '#000' : 'var(--text)', 
-            fontWeight: '600',
-            fontSize: '14px',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}>
-          Рассылка
-        </button>
-        <button 
-          onClick={() => setActiveTab('chats')}
-          style={{ 
-            flex: 1, 
-            padding: '12px', 
-            borderRadius: '12px', 
-            border: 'none', 
-            background: activeTab === 'chats' ? 'var(--accent)' : 'var(--bg-elevated)', 
-            color: activeTab === 'chats' ? '#000' : 'var(--text)', 
-            fontWeight: '600',
-            fontSize: '14px',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}>
-          Чаты
-        </button>
-        <button 
-          onClick={() => setActiveTab('users')}
-          style={{ 
-            flex: 1, 
-            padding: '12px', 
-            borderRadius: '12px', 
-            border: 'none', 
-            background: activeTab === 'users' ? 'var(--accent)' : 'var(--bg-elevated)', 
-            color: activeTab === 'users' ? '#000' : 'var(--text)', 
-            fontWeight: '600',
-            fontSize: '14px',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}>
-          Юзеры
-        </button>
-        <button 
-          onClick={() => setActiveTab('servers')}
-          style={{ 
-            flex: 1, 
-            padding: '12px', 
-            borderRadius: '12px', 
-            border: 'none', 
-            background: activeTab === 'servers' ? 'var(--accent)' : 'var(--bg-elevated)', 
-            color: activeTab === 'servers' ? '#000' : 'var(--text)', 
-            fontWeight: '600',
-            fontSize: '14px',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}>
-          Серверы
-        </button>
+      {/* Segmented Control Tabs */}
+      <div style={{ 
+        display: 'flex', gap: '4px', 
+        background: 'rgba(255,255,255,0.03)', 
+        borderRadius: '14px', 
+        padding: '4px', 
+        border: '1px solid rgba(255,255,255,0.06)',
+        flexWrap: 'wrap'
+      }}>
+        {[
+          { id: 'requests', label: requests.length > 0 ? `Заявки (${requests.length})` : 'Заявки' },
+          { id: 'broadcast', label: 'Рассылка' },
+          { id: 'chats', label: 'Чаты' },
+          { id: 'users', label: 'Юзеры' },
+          { id: 'servers', label: 'Серверы' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              flex: 1,
+              padding: '10px 6px',
+              borderRadius: '10px',
+              border: 'none',
+              background: activeTab === tab.id ? 'rgba(14, 165, 233, 0.15)' : 'transparent',
+              color: activeTab === tab.id ? '#7DD3FC' : 'var(--text-hint)',
+              fontWeight: activeTab === tab.id ? '700' : '500',
+              fontSize: '13px',
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              minWidth: 0
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {activeTab === 'chats' ? (

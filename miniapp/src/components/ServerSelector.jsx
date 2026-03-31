@@ -56,10 +56,12 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
     if (!groupsMap || Object.keys(groupsMap).length === 0) return null;
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-        <h4 style={{ margin: 0, paddingLeft: '8px', opacity: 0.8, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {categoryName === 'vpn' ? '📍 Выбор отдельного сервера' : '✈️ Прокси для Telegram'}
-        </h4>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+        {categoryName !== 'vpn' && (
+          <h4 style={{ margin: 0, paddingLeft: '8px', opacity: 0.8, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '700' }}>
+            ✈️ Прокси для Telegram
+          </h4>
+        )}
 
         {Object.entries(groupsMap).map(([groupId, eps]) => {
           const hasActive = eps.some(e => e.name === currentEndpoint);

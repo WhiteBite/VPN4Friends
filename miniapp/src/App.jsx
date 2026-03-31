@@ -16,7 +16,7 @@ import LoginScreen from './components/LoginScreen';
 import Card from './ui/Card';
 import Button from './ui/Button';
 
-const APP_VERSION = "1.0.43";
+const APP_VERSION = "1.0.44";
 
 
 function App() {
@@ -258,25 +258,20 @@ function App() {
             {me?.profile?.has_profile ? (
               <>
                 <div style={{
-                  background: 'linear-gradient(90deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.02))',
-                  border: '1px solid rgba(14, 165, 233, 0.15)',
-                  borderLeft: '4px solid var(--neon-blue)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '20px',
-                  fontSize: '13px',
-                  color: '#CBD5E1',
-                  lineHeight: '1.5',
+                  background: 'rgba(14, 165, 233, 0.06)',
+                  border: '1px solid rgba(14, 165, 233, 0.12)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  fontSize: '12px',
+                  color: '#94A3B8',
+                  lineHeight: '1.4',
                   display: 'flex',
-                  gap: '12px',
-                  alignItems: 'flex-start',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  gap: '8px',
+                  alignItems: 'center',
                 }}>
-                  <div style={{ fontSize: '18px', filter: 'drop-shadow(0 2px 4px rgba(14,165,233,0.3))' }}>ℹ️</div>
-                  <div>
-                    <span style={{ color: 'var(--text)', fontWeight: '600' }}>Важно:</span> Если вы используете <b style={{ color: 'var(--text)' }}>подписку</b> (со вкладки «Главная»), то все серверы уже добавлены в ваш клиент автоматически.<br/>
-                    <span style={{ opacity: 0.8, display: 'inline-block', marginTop: '6px' }}>Здесь вы можете выбрать и скопировать конфигурацию <b>конкретного сервера</b> для настройки вручную.</span>
-                  </div>
+                  <span style={{ fontSize: '14px', flexShrink: 0 }}>💡</span>
+                  <span>Если вы используете <b style={{ color: '#CBD5E1' }}>подписку</b> — серверы уже добавлены. Здесь можно скопировать ссылку на конкретный сервер.</span>
                 </div>
                 <ServerSelector
                   endpoints={endpoints}
@@ -300,32 +295,58 @@ function App() {
 
         {activeTab === 'profile' && (
           <div className="tab-pane fade-in">
-            <Card>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                <div style={{ background: 'var(--primary)', color: '#fff', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+            <Card style={{ padding: '24px', overflow: 'hidden', position: 'relative' }}>
+              {/* Decorative glow */}
+              <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '100px', height: '100px', background: 'var(--primary)', filter: 'blur(60px)', opacity: 0.1, borderRadius: '50%' }} />
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', position: 'relative' }}>
+                <div style={{ 
+                  background: 'linear-gradient(135deg, #0EA5E9, #3B82F6)', 
+                  color: '#fff', 
+                  width: '48px', height: '48px', 
+                  borderRadius: '14px', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  fontWeight: 'bold', fontSize: '20px',
+                  boxShadow: '0 4px 12px rgba(14, 165, 233, 0.3)',
+                  flexShrink: 0
+                }}>
                   {me?.user?.full_name ? me.user.full_name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '15px' }}>{me?.user?.full_name || 'Пользователь'}</div>
-                  <div style={{ color: 'var(--text-hint)', fontSize: '13px' }}>@{me?.user?.username || 'Без имени'}</div>
+                  <div style={{ fontWeight: 700, fontSize: '17px', letterSpacing: '-0.3px' }}>{me?.user?.full_name || 'Пользователь'}</div>
+                  <div style={{ color: 'var(--text-hint)', fontSize: '13px', fontWeight: '500' }}>@{me?.user?.username || 'Без имени'}</div>
                 </div>
               </div>
 
               {me?.profile?.has_profile && (
-                <div className="stat-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '12px', background: 'var(--bg-elevated)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                  <div className="stat-label" style={{ fontWeight: 600 }}>VPN-клиент ID</div>
-                  <div 
-                    className="stat-value" 
-                    title="Нажмите, чтобы скопировать ID (нужен для поддержки)"
-                    onClick={() => {
-                      if (me.profile.client_id) {
-                        navigator.clipboard.writeText(me.profile.client_id);
-                        showToast('Client ID скопирован', 'success');
-                      }
-                    }}
-                    style={{ fontFamily: 'monospace', fontSize: '14px', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
-                  >
+                <div 
+                  onClick={() => {
+                    if (me.profile.client_id) {
+                      navigator.clipboard.writeText(me.profile.client_id);
+                      showToast('Client ID скопирован', 'success');
+                    }
+                  }}
+                  style={{ 
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                    padding: '12px 16px', 
+                    background: 'rgba(255,255,255,0.03)', 
+                    borderRadius: '12px', 
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    cursor: me.profile.client_id ? 'pointer' : 'default',
+                    transition: 'background 0.2s'
+                  }}
+                >
+                  <div style={{ fontSize: '13px', color: 'var(--text-hint)', fontWeight: '500' }}>VPN-клиент ID</div>
+                  <div style={{ 
+                    fontFamily: 'monospace', fontSize: '13px', 
+                    background: 'rgba(14, 165, 233, 0.1)', 
+                    color: '#7DD3FC',
+                    padding: '4px 10px', borderRadius: '6px',
+                    border: '1px solid rgba(14, 165, 233, 0.15)',
+                    display: 'flex', alignItems: 'center', gap: '6px'
+                  }}>
                     {me.profile.client_id ? `${me.profile.client_id.substring(0, 8)}...` : 'Неизвестно'}
+                    {me.profile.client_id && <span style={{ fontSize: '11px', opacity: 0.6 }}>📋</span>}
                   </div>
                 </div>
               )}
