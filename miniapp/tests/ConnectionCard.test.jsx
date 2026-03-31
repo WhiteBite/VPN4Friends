@@ -53,9 +53,9 @@ describe('ConnectionCard Component', () => {
     
     render(<ConnectionCard profile={profile} onCopySubscription={onCopyMock} />);
     
-    expect(screen.getByText('Скопировать ссылку')).toBeInTheDocument();
+    expect(screen.getByText('Копировать')).toBeInTheDocument();
     
-    const copyButton = screen.getByText('Скопировать ссылку');
+    const copyButton = screen.getByText('Копировать');
     fireEvent.click(copyButton);
     
     expect(onCopyMock).toHaveBeenCalled();
