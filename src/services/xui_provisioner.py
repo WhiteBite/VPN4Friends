@@ -392,11 +392,9 @@ async def sync_node_routing(node_name: str, node_config: dict) -> bool:
                     # Update existing outbound settings if different
                     for i, co in enumerate(current_outbounds):
                         if co.get("tag") == tag:
-                            if (
-                                co.get("protocol") != expected_ob.get("protocol")
-                                or tag == "warp"
-                                and co.get("settings") != expected_ob.get("settings")
-                            ):
+                            if co.get("protocol") != expected_ob.get("protocol") or co.get(
+                                "settings"
+                            ) != expected_ob.get("settings"):
                                 current_outbounds[i] = expected_ob
                                 changed = True
                             break
