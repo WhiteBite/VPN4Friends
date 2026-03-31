@@ -55,8 +55,6 @@ class SupportMessageRequest(BaseModel):
     text: str
 
 
-
-
 class CreatePresetRequest(BaseModel):
     name: str
     app_type: str
@@ -78,8 +76,6 @@ class SwitchProtocolResponse(BaseModel):
     message: str
     protocol: str | None = None
     link: str | None = None
-
-
 
 
 class GenericResponse(BaseModel):

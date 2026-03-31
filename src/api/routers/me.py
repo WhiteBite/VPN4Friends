@@ -57,7 +57,6 @@ async def get_me(
         is_admin=user.is_admin,
     )
 
-
     # Get profile info
     active_profile = user.active_profile
     if active_profile:
@@ -147,7 +146,6 @@ async def switch_protocol(
         protocol=payload.protocol,
         link=result,
     )
-
 
 
 @router.get("/link", response_model=LinkResponse)
