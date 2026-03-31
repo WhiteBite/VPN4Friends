@@ -190,13 +190,19 @@ def generate_shadowsocks_url(profile_data: dict[str, Any]) -> str:
     """Generate Shadowsocks connection URL from profile data.
 
     Expects ``profile_data['shadowsocks']`` to contain at least
-    ``method`` and ``password``. Host is taken from ``profile_data['host']``
-    if present, otherwise from ``settings.xui_host``.
+    ``method``. The ``password`` is taken from ``client_id`` (or stored directly).
+    Host is taken from ``profile_data['host']`` if present, otherwise from ``settings.xui_host``.
     """
 
     shadowsocks = profile_data.get("shadowsocks", {})
     method = shadowsocks.get("method", "")
-    password = shadowsocks.get("password", "")
+
+    # Password comes from client_id since we generated it as such in X-UI API
+    # Or explicitly from shadowsocks if it was there
+    password = (
+        profile_data.get("client_id") or profile_data.get("id") or shadowsocks.get("password", "")
+    )
+
     host = profile_data.get("host", settings.xui_host)
     port = profile_data["port"]
 

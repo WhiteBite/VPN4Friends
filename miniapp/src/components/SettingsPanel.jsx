@@ -21,6 +21,35 @@ export default function SettingsPanel({
     <Card>
       <div className="card-title">⚙️ Настройки</div>
 
+      {/* Protocol Selection */}
+      {sortedProtocols.length > 1 && (
+        <>
+          <div className="section-title" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            Протокол
+            <span data-tooltip="Разные протоколы обхода блокировок. Выбирайте VLESS по умолчанию." style={{ color: 'var(--text-hint)', cursor: 'help' }}>ℹ️</span>
+          </div>
+          <div className="chips-row" style={{ marginBottom: '24px', marginTop: '12px' }}>
+            {sortedProtocols.map((p) => {
+              const isActive = profile.protocol === p.name;
+              return (
+                <button
+                  key={p.name}
+                  type="button"
+                  className={`chip ${isActive ? 'chip--active' : ''}`}
+                  onClick={() => !busy && !isActive && onSwitchProtocol(p.name)}
+                  disabled={busy}
+                  style={{
+                    opacity: busy && !isActive ? 0.5 : 1
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* SNI Selection */}
       {profile.available_snis?.length > 1 && (
         <>

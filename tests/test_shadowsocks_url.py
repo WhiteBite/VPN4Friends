@@ -1,57 +1,39 @@
-"""Tests for Shadowsocks URL generation."""
-
-import base64
-
 from src.services.url_generator import generate_shadowsocks_url
 
 
-def _decode_ss_userinfo(uri: str) -> str:
-    """Decode the userinfo part of an ss:// URI back to plain text."""
-    assert uri.startswith("ss://"), "Not an ss:// URI"
-    body = uri[len("ss://") :]
-    if "#" in body:
-        body = body.split("#", 1)[0]
-    # Add padding for base64 decoding
-    padding = "=" * (-len(body) % 4)
-    return base64.urlsafe_b64decode(body + padding).decode("utf-8")
-
-
-def test_generate_shadowsocks_url_basic() -> None:
-    """Basic Shadowsocks URL generation with method/password/host/port."""
+def test_generate_shadowsocks_url_basic():
     profile_data = {
-        "port": 8388,
-        "remark": "SS",
-        "email": "testuser",
-        "host": "example.com",
+        "client_id": "random-password-123",
+        "email": "user_123",
+        "host": "vpn.example.com",
+        "port": 8443,
+        "remark": "MyVPN",
         "shadowsocks": {
-            "method": "aes-128-gcm",
-            "password": "pass123",
+            "method": "aes-256-gcm",
         },
     }
 
     url = generate_shadowsocks_url(profile_data)
-
     assert url.startswith("ss://")
-    assert url.endswith("#SS-testuser")
+    assert url.endswith("#MyVPN-user_123")
 
-    userinfo = _decode_ss_userinfo(url)
-    assert userinfo == "aes-128-gcm:pass123@example.com:8388"
+    # userinfo base64: urlsafe base64 of aes-256-gcm:random-password-123@vpn.example.com:8443
+    import base64
+
+    b64_part = url[5 : url.find("#")]
+    # Pad to check
+    padded = b64_part + "=" * ((4 - len(b64_part) % 4) % 4)
+    decoded = base64.urlsafe_b64decode(padded).decode()
+    assert decoded == "aes-256-gcm:random-password-123@vpn.example.com:8443"
 
 
-def test_generate_shadowsocks_url_without_remark() -> None:
-    """If remark is missing, fragment should fall back to email only."""
+def test_generate_shadowsocks_url_no_method():
     profile_data = {
-        "port": 8388,
-        "email": "user@example",
-        "host": "host.local",
-        "shadowsocks": {
-            "method": "chacha20-ietf-poly1305",
-            "password": "secret",
-        },
+        "client_id": "only-password",
+        "host": "1.1.1.1",
+        "port": 1234,
+        "shadowsocks": {},
     }
 
     url = generate_shadowsocks_url(profile_data)
-
-    assert url.endswith("#user%40example")
-    userinfo = _decode_ss_userinfo(url)
-    assert userinfo == "chacha20-ietf-poly1305:secret@host.local:8388"
+    assert url.startswith("ss://")

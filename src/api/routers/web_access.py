@@ -72,6 +72,29 @@ class WebAccessResponse(BaseModel):
     poll_token: str | None = None
 
 
+class ProtocolResponse(BaseModel):
+    name: str
+    label: str
+    description: str
+    recommended: bool
+
+
+@router.get("/protocols", response_model=list[ProtocolResponse])
+async def get_protocols():
+    """Get list of available VPN protocols."""
+    from src.bot.config import settings
+
+    return [
+        ProtocolResponse(
+            name=p.name,
+            label=p.label,
+            description=p.description,
+            recommended=p.recommended,
+        )
+        for p in settings.protocols
+    ]
+
+
 @router.post("/request-access", response_model=WebAccessResponse)
 async def request_web_access(
     payload: WebAccessRequestPayload,

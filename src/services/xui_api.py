@@ -158,7 +158,6 @@ class XUIApi(PanelAPI):
         For gRPC, xHTTP, WS — flow MUST be empty or the connection will fail silently.
         """
         base_template = {
-            "id": client_id,
             "email": email,
             "limitIp": 0,
             "totalGB": 0,
@@ -168,6 +167,15 @@ class XUIApi(PanelAPI):
             "subId": "",
             "reset": 0,
         }
+
+        # Depending on protocol, the primary identifier field differs
+        if protocol in ("shadowsocks", "shadowsocks_2022", "trojan"):
+            base_template["password"] = client_id
+            # 3x-ui uses 'method' within client only if overriding inbound method, we leave it empty to inherit
+            base_template["method"] = ""
+        else:
+            base_template["id"] = client_id
+
         if protocol == "vless":
             # flow is ONLY for TCP+REALITY. gRPC/xHTTP/WS must have empty flow!
             if transport == "tcp":
@@ -254,11 +262,11 @@ class XUIApi(PanelAPI):
         inbound_port = inbound.get("port", 0)
         settings_data = json.loads(inbound["settings"])
         clients = settings_data.get("clients", [])
-        existing_uuids = {c.get("id") for c in clients}
+        existing_keys = {c.get("id") or c.get("password") for c in clients}
 
         changed = False
         for email, client_id in clients_info:
-            if client_id in existing_uuids:
+            if client_id in existing_keys:
                 # Client already exists (matched by UUID) — fix flow if wrong
                 for c in clients:
                     if c.get("id") == client_id:
@@ -319,10 +327,9 @@ class XUIApi(PanelAPI):
             if protocols != "all" and inbound_proto not in protocols:
                 continue
 
-            # Safety: never add UUID-based clients to password-based protocols
-            # Shadowsocks requires 'password' field; adding UUID-only clients crashes Xray
-            if inbound_proto in ("shadowsocks", "shadowsocks_2022"):
-                continue
+            # Shadowsocks requires 'password' field, which we now provide
+            # if inbound_proto in ("shadowsocks", "shadowsocks_2022"):
+            #     continue
 
             # Detect transport from streamSettings for correct flow
             port = inbound.get("port", 0)
@@ -340,13 +347,15 @@ class XUIApi(PanelAPI):
                 settings_data = json.loads(inbound.get("settings", "{}"))
             except (json.JSONDecodeError, TypeError):
                 settings_data = {}
-            existing_uuids = {c.get("id") for c in settings_data.get("clients", [])}
+            existing_keys = {
+                c.get("id") or c.get("password") for c in settings_data.get("clients", [])
+            }
 
-            if client_id in existing_uuids:
+            if client_id in existing_keys:
                 # Already exists, fix flow if needed
                 clients = settings_data.get("clients", [])
                 for c in clients:
-                    if c.get("id") == client_id:
+                    if (c.get("id") or c.get("password")) == client_id:
                         correct_flow = (
                             "xtls-rprx-vision"
                             if (transport == "tcp" and inbound_proto == "vless")
@@ -544,11 +553,14 @@ class XUIApi(PanelAPI):
                 "default_short_id": short_ids[0] if short_ids else "",
                 "spider_x": reality_inner.get("spiderX", "/"),
             }
-        elif protocol == "shadowsocks":
-            ss_settings = json.loads(inbound["settings"])
+        elif protocol in ("shadowsocks", "shadowsocks_2022"):
+            try:
+                ss_settings = json.loads(inbound.get("settings", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                ss_settings = {}
             settings_data["shadowsocks"] = {
-                "method": ss_settings.get("method", ""),
-                "password": ss_settings.get("password", ""),
+                "method": ss_settings.get("method", ""),  # The default method inherited by clients
+                "network": ss_settings.get("network", "tcp,udp"),
             }
 
         return settings_data
