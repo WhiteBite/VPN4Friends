@@ -394,37 +394,46 @@ export default function AdminPanel({ onError, onSuccess }) {
                   <div style={{ fontSize: 13, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     {u.username && <span>@{u.username}</span>}
                     {u.stats && (
-                      <span style={{ fontSize: '11px', color: 'var(--text-hint)', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                        <span style={{ color: 'var(--success)' }}>↑</span> {formatBytes(u.stats.upload)} | <span style={{ color: '#3b82f6' }}>↓</span> {formatBytes(u.stats.download)}
+                      <span style={{ fontSize: '11px', color: 'var(--text-hint)', background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                        <span data-tooltip="Отдано" style={{ color: 'var(--success)', cursor: 'help' }}>↑</span> {formatBytes(u.stats.upload)} <span style={{opacity: 0.5}}>|</span> <span data-tooltip="Скачано" style={{ color: '#3b82f6', cursor: 'help' }}>↓</span> {formatBytes(u.stats.download)}
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                    {u.protocol} · {u.client_id ? `🆔 ${u.client_id.slice(0, 8)}...` : '⚠️ Old Flow'}
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                    <span>{u.protocol}</span>
+                    <span style={{opacity: 0.5}}>·</span>
+                    {u.client_id ? (
+                      <span style={{ fontFamily: 'monospace' }}>🆔 {u.client_id.slice(0, 8)}...</span>
+                    ) : (
+                      <span data-tooltip="Старый формат профиля без Client ID" style={{ padding: '2px 6px', background: 'rgba(239, 68, 68, 0.2)', color: '#EF4444', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', cursor: 'help' }}>
+                        ⚠️ Устаревший
+                      </span>
+                    )}
                   </div>
                   {u.client_id && (
-                    <div style={{ fontSize: 11, color: 'var(--success, #52c41a)', marginTop: 2, fontWeight: 500 }}>
-                      ✓ Unified Access Active
+                    <div style={{ fontSize: 11, color: 'var(--success, #52c41a)', marginTop: 4, fontWeight: 500 }}>
+                      ✓ Unified Access
                     </div>
                   )}
                 </div>
                 <button
+                  data-tooltip="Отозвать VPN"
                   onClick={() => handleRevoke(u.id)}
                   disabled={revoking === u.id}
                   style={{
-                    padding: '8px 14px',
+                    padding: '8px',
                     borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '13px',
+                    border: '1px solid ' + (revokeConfirmId === u.id ? '#ff4d4f' : 'rgba(255,255,255,0.1)'),
+                    fontSize: '16px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    background: revokeConfirmId === u.id ? '#ff4d4f' : 'var(--surface)',
-                    color: revokeConfirmId === u.id ? '#fff' : 'var(--text)',
+                    background: revokeConfirmId === u.id ? '#ff4d4f' : 'rgba(239, 68, 68, 0.1)',
+                    color: revokeConfirmId === u.id ? '#fff' : '#EF4444',
                     opacity: revoking === u.id ? 0.5 : 1,
                   }}
                 >
-                  {revoking === u.id ? '...' : revokeConfirmId === u.id ? '🗑 Точно удалить?' : 'Удалить VPN'}
+                  {revoking === u.id ? '⌛' : revokeConfirmId === u.id ? 'Точно?' : '🗑️'}
                 </button>
               </div>
             ))}
@@ -465,7 +474,7 @@ export default function AdminPanel({ onError, onSuccess }) {
 
   return (
     <div style={{ paddingBottom: '30px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', gap: '8px' }}>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <button 
           onClick={() => setActiveTab('requests')}
           style={{ 

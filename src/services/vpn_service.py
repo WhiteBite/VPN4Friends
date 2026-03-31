@@ -49,6 +49,27 @@ class VPNService:
         self.user_repo = UserRepository(session)
         self.request_repo = RequestRepository(session)
 
+    def _get_active_panels(self) -> list[PanelAPI]:
+        """Return a list of unique active PanelAPI instances."""
+        from src.services.hiddify_api import HiddifyApi
+
+        panels: list[PanelAPI] = [XUIApi()]
+        seen_urls = {settings.xui_api_url}
+
+        for ep in settings.endpoints:
+            api_url = ep.panel_config.get("api_url") if ep.panel_config else None
+            if not api_url or api_url in seen_urls:
+                continue
+
+            if ep.panel_type == "3xui":
+                panels.append(XUIApi(ep.panel_config))
+                seen_urls.add(api_url)
+            elif ep.panel_type == "hiddify":
+                panels.append(HiddifyApi(ep.panel_config))
+                seen_urls.add(api_url)
+
+        return panels
+
     async def create_request(
         self, user: User, user_comment: str | None = None
     ) -> VPNRequest | None:
@@ -162,25 +183,7 @@ class VPNService:
 
     async def remove_client_from_all_panels(self, email: str) -> bool:
         """Broadcast user deletion to all configured VPN panels."""
-        seen_urls = set()
-
-        # Include default XUIApi
-        panels_to_sync = [XUIApi()]
-        seen_urls.add(settings.xui_api_url)
-
-        for ep in settings.endpoints:
-            if ep.panel_config and ep.panel_type == "3xui":
-                api_url = ep.panel_config.get("api_url")
-                if api_url and api_url not in seen_urls:
-                    panels_to_sync.append(XUIApi(ep.panel_config))
-                    seen_urls.add(api_url)
-            elif ep.panel_config and ep.panel_type == "hiddify":
-                from src.services.hiddify_api import HiddifyApi
-
-                api_url = ep.panel_config.get("api_url")
-                if api_url and api_url not in seen_urls:
-                    panels_to_sync.append(HiddifyApi(ep.panel_config))
-                    seen_urls.add(api_url)
+        panels_to_sync = self._get_active_panels()
 
         deleted = False
         for panel in panels_to_sync:
@@ -203,29 +206,7 @@ class VPNService:
         on all servers in the cluster using their unique client_id.
         """
         success = False
-        seen_urls = set()
-
-        # 1. Identify unique panels to sync to
-        panels_to_sync = []
-
-        # Always include the primary panel
-        panels_to_sync.append(XUIApi())
-        seen_urls.add(settings.xui_api_url)
-
-        for ep in settings.endpoints:
-            if ep.panel_config and ep.panel_type == "3xui":
-                api_url = ep.panel_config.get("api_url")
-                if api_url and api_url not in seen_urls:
-                    panels_to_sync.append(XUIApi(ep.panel_config))
-                    seen_urls.add(api_url)
-            elif ep.panel_config and ep.panel_type == "hiddify":
-                from src.services.hiddify_api import HiddifyApi
-
-                api_url = ep.panel_config.get("api_url")
-                if api_url and api_url not in seen_urls:
-                    # Note: Hiddify uses different client management
-                    panels_to_sync.append(HiddifyApi(ep.panel_config))
-                    seen_urls.add(api_url)
+        panels_to_sync = self._get_active_panels()
 
         # 2. Add client to all panels
         for panel in panels_to_sync:
@@ -258,22 +239,7 @@ class VPNService:
         total_up = 0
         total_down = 0
 
-        panels_to_check = [XUIApi()]
-        seen_urls = {settings.xui_api_url}
-
-        for ep in settings.endpoints:
-            if ep.panel_config and ep.panel_type == "3xui":
-                api_url = ep.panel_config.get("api_url")
-                if api_url and api_url not in seen_urls:
-                    panels_to_check.append(XUIApi(ep.panel_config))
-                    seen_urls.add(api_url)
-            elif ep.panel_config and ep.panel_type == "hiddify":
-                from src.services.hiddify_api import HiddifyApi
-
-                api_url = ep.panel_config.get("api_url")
-                if api_url and api_url not in seen_urls:
-                    panels_to_check.append(HiddifyApi(ep.panel_config))
-                    seen_urls.add(api_url)
+        panels_to_check = self._get_active_panels()
 
         for panel in panels_to_check:
             try:
@@ -385,26 +351,7 @@ class VPNService:
         Returns a mapping of {email: {"upload": N, "download": M}}.
         """
         aggregated_stats = {}
-        seen_urls = set()
-
-        # 1. Identify unique panels
-        panels = []
-        panels.append(XUIApi())
-        seen_urls.add(settings.xui_api_url)
-
-        for ep in settings.endpoints:
-            api_url = ep.panel_config.get("api_url") if ep.panel_config else None
-            if not api_url or api_url in seen_urls:
-                continue
-
-            if ep.panel_type == "3xui":
-                panels.append(XUIApi(ep.panel_config))
-                seen_urls.add(api_url)
-            elif ep.panel_type == "hiddify":
-                from src.services.hiddify_api import HiddifyApi
-
-                panels.append(HiddifyApi(ep.panel_config))
-                seen_urls.add(api_url)
+        panels = self._get_active_panels()
 
         # 2. Fetch stats in parallel from all panels
         results = await asyncio.gather(

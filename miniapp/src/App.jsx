@@ -240,7 +240,7 @@ function App() {
         </div>
       </header>
 
-      <div className="tab-content" style={{ paddingBottom: '70px' }}>
+      <div className="tab-content" style={{ paddingBottom: 'calc(120px + env(safe-area-inset-bottom))' }}>
         {activeTab === 'home' && (
           <div className="tab-pane fade-in">
             <ConnectionCard
@@ -304,9 +304,19 @@ function App() {
               </div>
 
               {me?.profile?.has_profile && (
-                <div className="stat-row">
-                  <div className="stat-label">VPN-клиент ID</div>
-                  <div className="stat-value" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                <div className="stat-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '12px', background: 'var(--bg-elevated)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <div className="stat-label" style={{ fontWeight: 600 }}>VPN-клиент ID</div>
+                  <div 
+                    className="stat-value" 
+                    data-tooltip="Нажмите, чтобы скопировать ID (нужен для поддержки)"
+                    onClick={() => {
+                      if (me.profile.client_id) {
+                        navigator.clipboard.writeText(me.profile.client_id);
+                        showToast('Client ID скопирован', 'success');
+                      }
+                    }}
+                    style={{ fontFamily: 'monospace', fontSize: '14px', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                  >
                     {me.profile.client_id ? `${me.profile.client_id.substring(0, 8)}...` : 'Неизвестно'}
                   </div>
                 </div>

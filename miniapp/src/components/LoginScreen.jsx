@@ -1,147 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
+import { useLogin } from '../hooks/useLogin';
+import { PROXY_LINKS } from '../config/constants';
 
 /**
  * LoginScreen — shown when the app is opened outside Telegram.
- * 
- * Three modes:
- * 1. username: enter @username → server decides: instant login or pending approval
- * 2. pending: auto-poll every 3s waiting for admin approval
- * 3. token: paste JWT token from /web bot command
  */
-
-// Public proxy links (hardcoded — these are public endpoints)
-const PROXY_LINKS = [
-  {
-    label: '🇫🇮 Финляндия MTProto',
-    url: 'tg://proxy?server=fi.vpn4friends.whitebite.ru&port=4443&secret=***REMOVED***',
-    type: 'mtproto',
-  },
-  {
-    label: '🇩🇪 Германия MTProto',
-    url: 'tg://proxy?server=de.vpn4friends.whitebite.ru&port=4443&secret=***REMOVED***',
-    type: 'mtproto',
-  },
-];
-
 export default function LoginScreen({ onLogin }) {
-  const [token, setToken] = useState('');
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState('username'); // 'username' | 'pending' | 'token'
-  const [pollToken, setPollToken] = useState(null);
-  const [pendingMessage, setPendingMessage] = useState('');
-  const pollInterval = useRef(null);
-
-  // Clean up polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollInterval.current) clearInterval(pollInterval.current);
-    };
-  }, []);
-
-  // Start polling when we have a poll token
-  useEffect(() => {
-    if (mode !== 'pending' || !pollToken) return;
-
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/auth/poll-status?poll_token=${pollToken}`);
-        const data = await res.json();
-
-        if (data.status === 'approved' && data.token) {
-          // Success! Admin approved
-          if (pollInterval.current) clearInterval(pollInterval.current);
-          localStorage.setItem('auth_token', data.token);
-          await onLogin();
-        } else if (data.status === 'rejected') {
-          if (pollInterval.current) clearInterval(pollInterval.current);
-          setMode('username');
-          setError('Заявка отклонена администратором. Попробуйте ещё раз.');
-          setPollToken(null);
-        }
-        // else: still pending, keep polling
-      } catch (err) {
-        // Network error, keep trying
-        console.warn('Poll error:', err);
-      }
-    };
-
-    // Poll immediately and then every 3 seconds
-    poll();
-    pollInterval.current = setInterval(poll, 3000);
-
-    return () => {
-      if (pollInterval.current) clearInterval(pollInterval.current);
-    };
-  }, [mode, pollToken, onLogin]);
-
-  // Handle direct JWT token login (from /web command)
-  const handleTokenSubmit = async (e) => {
-    e.preventDefault();
-    const trimmed = token.trim();
-    if (!trimmed) {
-      setError('Вставьте токен');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    localStorage.setItem('auth_token', trimmed);
-
-    try {
-      await onLogin();
-    } catch (err) {
-      localStorage.removeItem('auth_token');
-      setError(err?.message || 'Неверный или просроченный токен');
-      setLoading(false);
-    }
-  };
-
-  // Handle username submit — instant JWT if approved, or pending state
-  const handleUsernameSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    const clean = username.trim().replace(/^@/, '');
-    if (!clean || clean.length < 2) {
-      setError('Введите корректный @username');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const res = await fetch('/api/auth/request-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: clean })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || 'Ошибка сервера');
-      }
-
-      if (data.status === 'approved' && data.token) {
-        // Instant login — user already has VPN
-        localStorage.setItem('auth_token', data.token);
-        await onLogin();
-      } else if (data.status === 'pending' && data.poll_token) {
-        // Need admin approval — switch to polling mode
-        setPollToken(data.poll_token);
-        setPendingMessage(data.message || 'Заявка отправлена! Ожидайте одобрения.');
-        setMode('pending');
-        setLoading(false);
-      } else {
-        throw new Error(data.message || 'Неожиданный ответ сервера');
-      }
-    } catch (err) {
-      setLoading(false);
-      setError(err.message);
-    }
-  };
+  const {
+    mode,
+    switchMode,
+    username,
+    setUsername,
+    token,
+    setToken,
+    error,
+    loading,
+    pendingMessage,
+    handleUsernameSubmit,
+    handleTokenSubmit,
+    cancelPending,
+  } = useLogin(onLogin);
 
   return (
     <div className="app" data-theme="dark">
@@ -204,12 +82,7 @@ export default function LoginScreen({ onLogin }) {
                 marginTop: '8px',
                 maxWidth: '320px',
               }}
-              onClick={() => {
-                if (pollInterval.current) clearInterval(pollInterval.current);
-                setMode('username');
-                setPollToken(null);
-                setError('');
-              }}
+              onClick={cancelPending}
             >
               ← Вернуться
             </button>
@@ -269,7 +142,6 @@ export default function LoginScreen({ onLogin }) {
         {/* ---- HELP SECTION ---- */}
         {mode !== 'pending' && (
           <div className="login-help">
-            {/* Proxy links section */}
             <div style={{
               background: 'rgba(59, 130, 246, 0.08)',
               border: '1px solid rgba(59, 130, 246, 0.15)',
@@ -337,7 +209,7 @@ export default function LoginScreen({ onLogin }) {
               Есть токен от бота?{' '}
               <span 
                 style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}
-                onClick={() => { setMode('token'); setError(''); }}
+                onClick={() => switchMode('token')}
               >
                 Войти по токену
               </span>
@@ -346,7 +218,7 @@ export default function LoginScreen({ onLogin }) {
               <p style={{ textAlign: 'center', marginTop: '12px' }}>
                 <span 
                   style={{ color: 'var(--text-hint)', cursor: 'pointer', textDecoration: 'underline', fontSize: '13px' }}
-                  onClick={() => { setMode('username'); setError(''); }}
+                  onClick={() => switchMode('username')}
                 >
                   Вернуться к вводу @username
                 </span>
@@ -356,7 +228,6 @@ export default function LoginScreen({ onLogin }) {
         )}
       </div>
 
-      {/* Inline CSS for spinner animation */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }

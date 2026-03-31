@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.bot.config import settings
 from src.bot.middlewares.admin import AdminFilter
 from src.database.repositories import RequestRepository, UserRepository
+from src.handlers.messaging import BroadcastStates
 from src.keyboards.admin_kb import (
     USERS_PER_PAGE,
     get_admin_main_kb,
@@ -21,6 +22,8 @@ from src.keyboards.admin_kb import (
     get_user_detail_kb,
 )
 from src.keyboards.callbacks import AdminPage, RequestAction, UserAction
+from src.keyboards.messaging_kb import get_broadcast_target_kb
+from src.keyboards.user_kb import get_approval_onboarding_kb
 from src.services.vpn_service import VPNService
 from src.utils.formatters import format_traffic
 
@@ -207,8 +210,6 @@ async def approve_request(
     """Handle approve — auto-approve with vless and notify user."""
     await callback.answer("Одобряем и создаем профили...")
 
-    from src.services.vpn_service import VPNService
-
     vpn_service = VPNService(session)
     # Provision global access - user will be synced to all available panels/inbounds
     success, result = await vpn_service.approve_request(request_id=callback_data.request_id)
@@ -236,8 +237,6 @@ async def _notify_user_approved(callback, request):
     )
 
     try:
-        from src.keyboards.user_kb import get_approval_onboarding_kb
-
         await bot.send_message(
             request.user.telegram_id,
             "🎉 <b>Доступ к VPN активирован!</b>\n\n"
@@ -354,12 +353,8 @@ async def user_detail(
     """Show detailed view for a single user."""
     await callback.answer()
 
-    from sqlalchemy import select
-
-    from src.database.models import User
-
-    result = await session.execute(select(User).where(User.id == callback_data.user_id))
-    user = result.scalar_one_or_none()
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_id(callback_data.user_id)
 
     if not user:
         await callback.message.edit_text("❌ Юзер не найден")
@@ -385,12 +380,8 @@ async def user_stats(
     """Show user statistics."""
     await callback.answer()
 
-    from sqlalchemy import select
-
-    from src.database.models import User
-
-    result = await session.execute(select(User).where(User.id == callback_data.user_id))
-    user = result.scalar_one_or_none()
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_id(callback_data.user_id)
 
     if not user:
         await callback.message.edit_text("❌ Юзер не найден")
@@ -425,12 +416,8 @@ async def revoke_user_vpn(
     """Revoke user's VPN access."""
     await callback.answer()
 
-    from sqlalchemy import select
-
-    from src.database.models import User
-
-    result = await session.execute(select(User).where(User.id == callback_data.user_id))
-    user = result.scalar_one_or_none()
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_id(callback_data.user_id)
 
     if not user:
         await callback.message.edit_text("❌ Юзер не найден")
@@ -464,9 +451,6 @@ async def revoke_user_vpn(
 @router.message(Command("broadcast"))
 async def cmd_broadcast(message: Message, state: FSMContext) -> None:
     """Handle /broadcast command — start broadcast flow."""
-    from src.handlers.messaging import BroadcastStates
-    from src.keyboards.messaging_kb import get_broadcast_target_kb
-
     await state.set_state(BroadcastStates.select_target)
     await message.answer(
         "📢 Рассылка\n\nВыбери, кому отправить:",
@@ -478,9 +462,6 @@ async def cmd_broadcast(message: Message, state: FSMContext) -> None:
 async def admin_broadcast_btn(callback: CallbackQuery, state: FSMContext) -> None:
     """Start broadcast flow from admin panel button."""
     await callback.answer()
-    from src.handlers.messaging import BroadcastStates
-    from src.keyboards.messaging_kb import get_broadcast_target_kb
-
     await state.set_state(BroadcastStates.select_target)
     await callback.message.edit_text(
         "📢 Рассылка\n\nВыбери, кому отправить:",

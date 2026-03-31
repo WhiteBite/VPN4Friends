@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import preact from '@preact/preset-vite';
 
 const cloudflareIgnorePlugin = () => {
   return {
@@ -11,8 +11,12 @@ const cloudflareIgnorePlugin = () => {
 }
 
 export default defineConfig({
-  plugins: [react(), cloudflareIgnorePlugin()],
+  plugins: [preact(), cloudflareIgnorePlugin()],
   base: './',
+  build: {
+    target: 'esnext',
+    cssMinify: 'lightningcss',
+  },
   test: {
     globals: true,
     environment: 'jsdom',

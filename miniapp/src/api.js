@@ -3,7 +3,7 @@ import { getInitData } from './telegram';
 // use relative /api for production same-origin hosting, dev fallback to localhost
 // Use VITE_API_BASE_URL if provided (even in prod for cross-subdomain calls), 
 // otherwise fallback to relative /api or localhost.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
   (import.meta.env.PROD ? '/api' : 'http://localhost:8000/api');
 
 async function apiRequest(path, options = {}) {
@@ -67,88 +67,6 @@ async function apiRequest(path, options = {}) {
 }
 
 // ----- User state -----
-
-export function subscribeToWebSockets(callbacks = {}) {
-  const initData = getInitData();
-  const storedToken = localStorage.getItem('auth_token');
-
-  // Need at least one auth method for WS
-  if (!initData && !storedToken && !import.meta.env.DEV) return () => {};
-
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // Derive WS host from API base URL or fall back to current page host
-  let wsHost = window.location.host;
-  try {
-    const apiUrl = new URL(API_BASE_URL);
-    wsHost = apiUrl.host;
-  } catch { /* use page host */ }
-
-  let wsUrl = `${protocol}//${wsHost}/ws`;
-  if (storedToken) {
-    wsUrl += `?token=${encodeURIComponent(storedToken)}`;
-  } else if (initData) {
-    wsUrl += `?init_data=${encodeURIComponent(initData)}`;
-  }
-
-  let ws = null;
-  let retryDelay = 2000;       // Start with 2s
-  const MAX_DELAY = 30000;     // Cap at 30s
-  const MAX_RETRIES = 5;       // Stop reconnecting after 5 failures
-  let retryCount = 0;
-  let retryTimer = null;
-  let closed = false;          // True when user calls unsubscribe
-
-  function connect() {
-    if (closed) return;
-
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      retryDelay = 2000; // Reset on successful connect
-      retryCount = 0;
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (callbacks[data.type]) {
-          callbacks[data.type](data);
-        }
-      } catch { /* ignore malformed messages */ }
-    };
-
-    ws.onclose = () => {
-      if (closed) return;
-      retryCount++;
-      if (retryCount > MAX_RETRIES) {
-        // Stop trying — WS is optional, app works without it
-        return;
-      }
-      // Auto-reconnect with exponential backoff
-      retryTimer = setTimeout(() => {
-        retryDelay = Math.min(retryDelay * 2, MAX_DELAY);
-        connect();
-      }, retryDelay);
-    };
-
-    ws.onerror = () => {
-      // onclose will fire after onerror, so reconnect is handled there
-    };
-  }
-
-  connect();
-
-  // Return cleanup function
-  return () => {
-    closed = true;
-    if (retryTimer) clearTimeout(retryTimer);
-    if (ws) {
-      ws.onclose = null; // Prevent reconnect on intentional close
-      ws.close();
-      ws = null;
-    }
-  };
-}
 
 export function fetchMe() {
   return apiRequest('/me');

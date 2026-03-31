@@ -24,8 +24,11 @@ export default function SettingsPanel({
       {/* SNI Selection */}
       {profile.available_snis?.length > 1 && (
         <>
-          <div className="section-title" style={{ marginTop: '16px' }}>SNI маскировка</div>
-          <div className="chips-row" style={{ marginBottom: '24px' }}>
+          <div className="section-title" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            SNI маскировка 
+            <span data-tooltip="Маскировка трафика под другие сайты для обхода блокировок" style={{ color: 'var(--text-hint)', cursor: 'help' }}>ℹ️</span>
+          </div>
+          <div className="chips-row" style={{ marginBottom: '24px', marginTop: '12px' }}>
             {profile.available_snis.map((sni) => {
               const isActive = profile.sni === sni;
               return (
@@ -34,7 +37,10 @@ export default function SettingsPanel({
                   type="button"
                   className={`chip ${isActive ? 'chip--active' : ''}`}
                   onClick={() => !busy && !isActive && onUpdateSni(sni)}
-                  disabled={busy || isActive}
+                  disabled={busy}
+                  style={{
+                    opacity: busy && !isActive ? 0.5 : 1
+                  }}
                 >
                   {sni}
                 </button>
@@ -45,7 +51,7 @@ export default function SettingsPanel({
       )}
 
       {/* Compact Danger Zone */}
-      <div style={{ marginTop: '24px', borderTop: '1px dotted var(--border)' }}>
+      <div style={{ marginTop: '24px' }}>
         <button
           onClick={() => {
             const msg = "⚠️ Вы уверены, что хотите полностью удалить свой VPN? Это действие необратимо.";
@@ -62,17 +68,25 @@ export default function SettingsPanel({
           }}
           disabled={busy}
           style={{
-            background: 'none',
-            border: 'none',
-            color: 'rgba(239, 68, 68, 0.6)',
-            fontSize: '13px',
-            padding: '12px 0',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#EF4444',
+            fontSize: '14px',
+            fontWeight: '600',
+            padding: '12px 16px',
+            borderRadius: '12px',
             width: '100%',
             cursor: 'pointer',
-            textAlign: 'center'
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'all 0.2s',
           }}
         >
-          {busy ? 'Удаление...' : 'Отозвать доступ'}
+          <span style={{ fontSize: '18px' }}>🗑️</span>
+          {busy ? 'Удаление...' : 'Отозвать доступ (Удалить VPN)'}
         </button>
       </div>
     </Card>

@@ -962,7 +962,7 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 
 .fab-support {
   position: fixed;
-  bottom: calc(80px + env(safe-area-inset-bottom));
+  bottom: calc(100px + env(safe-area-inset-bottom));
   right: 16px;
   width: 52px;
   height: 52px;

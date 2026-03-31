@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import create_access_token
 from src.bot.config import settings
+from src.bot.messages import HELP_TEXT, ONBOARDING_TEXT
 from src.database.repositories import RequestRepository, UserRepository
+from src.handlers.messaging import FeedbackStates
 from src.keyboards.admin_kb import get_request_action_kb
 from src.keyboards.messaging_kb import get_cancel_kb
 from src.keyboards.onboarding_kb import (
@@ -27,15 +29,6 @@ from src.services.vpn_service import VPNService
 
 logger = logging.getLogger(__name__)
 router = Router(name="user")
-
-
-# App download links (used in /help)
-APP_LINKS = (
-    "📱 <b>Приложения:</b>\n"
-    "• iPhone → <a href='https://apps.apple.com/app/v2raytun/id6476628951'>V2RayTun</a>\n"
-    "• Android → <a href='https://play.google.com/store/apps/details?id=com.v2ray.ang'>V2RayNG</a>\n"
-    "• Windows/Mac → <a href='https://github.com/hiddify/hiddify-app/releases'>Hiddify</a>"
-)
 
 
 @router.message(Command("start"))
@@ -99,18 +92,7 @@ async def cmd_menu(message: Message, session: AsyncSession) -> None:
 async def cmd_help(message: Message) -> None:
     """Handle /help command."""
     await message.answer(
-        "📖 <b>Справка</b>\n\n"
-        "Бот для бесплатного VPN от Дани.\n\n"
-        "<b>Как подключиться:</b>\n"
-        "1. Скачай приложение из списка ниже\n"
-        "2. Открой Кабинет → скопируй подписку\n"
-        "3. Вставь в приложение → Подключись\n\n"
-        f"{APP_LINKS}\n\n"
-        "<b>Команды:</b>\n"
-        "/start — главное меню\n"
-        "/support — написать админу\n"
-        "/web — войти через браузер\n"
-        "/help — эта справка",
+        HELP_TEXT,
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
@@ -119,8 +101,6 @@ async def cmd_help(message: Message) -> None:
 @router.message(Command("support"))
 async def cmd_support(message: Message, state: FSMContext) -> None:
     """Handle /support command."""
-    from src.handlers.messaging import FeedbackStates
-
     await state.set_state(FeedbackStates.waiting_for_message)
     await message.answer(
         "✉️ Напиши сообщение для Дани:",
@@ -342,35 +322,6 @@ async def show_onboarding(callback: CallbackQuery) -> None:
     platform = callback.data.split("_")[2]
     media_path = f"src/bot/media/{platform}_onboarding.png"
 
-    text_map = {
-        "iphone": (
-            "🍏 <b>Инструкция для iPhone (V2RayTun)</b>\n\n"
-            "1. Зайдите во вкладку <b>Локации</b> в кабинете\n"
-            "2. Нажмите <b>Скопировать ссылку</b> нужного сервера\n"
-            "3. Установите V2RayTun по ссылке ниже\n"
-            "4. Откройте приложение, нажмите '<b>+</b>' в правом верхнем углу, "
-            "выберите <b>'Импорт из буфера обмена'</b>\n"
-            "5. Нажмите большую кнопку подключения! 🚀"
-        ),
-        "android": (
-            "🤖 <b>Инструкция для Android (v2rayNG)</b>\n\n"
-            "1. Зайдите во вкладку <b>Локации</b> в кабинете\n"
-            "2. Нажмите <b>Скопировать ссылку</b> нужного сервера\n"
-            "3. Установите v2rayNG по ссылке ниже\n"
-            "4. Откройте приложение, нажмите '<b>+</b>' в правом верхнем углу, "
-            "выберите <b>'Импорт профиля из буфера обмена'</b>\n"
-            "5. Нажмите кнопку подключения (круг со значком V) внизу! 🚀"
-        ),
-        "desktop": (
-            "💻 <b>Инструкция для PC/Mac (Hiddify)</b>\n\n"
-            "1. Зайдите во вкладку <b>Локации</b> в кабинете\n"
-            "2. Нажмите <b>Скопировать ссылку</b> нужного сервера\n"
-            "3. Скачайте приложение Hiddify Desktop\n"
-            "4. Нажмите кнопку '<b>+ New profile</b>' -> '<b>Add from clipboard</b>'\n"
-            "5. Нажмите круглую центральную кнопку '<b>Tap to Connect</b>'! 🚀"
-        ),
-    }
-
     kb_map = {
         "iphone": get_iphone_onboarding_kb(),
         "android": get_android_onboarding_kb(),
@@ -385,7 +336,7 @@ async def show_onboarding(callback: CallbackQuery) -> None:
             await callback.message.delete()
             await callback.message.answer_photo(
                 photo=photo,
-                caption=text_map[platform],
+                caption=ONBOARDING_TEXT[platform],
                 reply_markup=kb_map[platform],
                 parse_mode="HTML",
             )
@@ -395,10 +346,10 @@ async def show_onboarding(callback: CallbackQuery) -> None:
         logger.error(f"Failed to send onboarding image: {e}")
         if callback.message.content_type == "text":
             await callback.message.edit_text(
-                text_map[platform], reply_markup=kb_map[platform], parse_mode="HTML"
+                ONBOARDING_TEXT[platform], reply_markup=kb_map[platform], parse_mode="HTML"
             )
         else:
             await callback.message.delete()
             await callback.message.answer(
-                text_map[platform], reply_markup=kb_map[platform], parse_mode="HTML"
+                ONBOARDING_TEXT[platform], reply_markup=kb_map[platform], parse_mode="HTML"
             )

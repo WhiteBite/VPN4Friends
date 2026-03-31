@@ -142,21 +142,26 @@ export default function ConnectionCard({ profile, subscriptionUrl, onCopySubscri
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text)' }}>Ссылка подписки</div>
             <button 
+              data-tooltip="QR-код для быстрой настройки на другом устройстве"
               onClick={() => setShowQr(!showQr)} 
               style={{ 
-                background: 'transparent', 
-                border: 'none', 
-                color: 'var(--primary)', 
+                background: 'rgba(255, 255, 255, 0.08)', 
+                border: '1px solid rgba(255, 255, 255, 0.1)', 
+                color: 'var(--text)', 
                 fontSize: '13px', 
                 fontWeight: '600', 
                 cursor: 'pointer',
-                padding: '4px 8px',
-                borderRadius: '6px',
-                transition: 'background 0.2s'
+                padding: '6px 12px',
+                borderRadius: '8px',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
-              onMouseOver={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
-              onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+              onMouseOut={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
             >
+              <span style={{ fontSize: '16px' }}>📱</span>
               {showQr ? 'Скрыть QR' : 'Показать QR'}
             </button>
           </div>
