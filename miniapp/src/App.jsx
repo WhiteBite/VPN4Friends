@@ -16,6 +16,7 @@ import LoginScreen from './components/LoginScreen';
 import Card from './ui/Card';
 import Button from './ui/Button';
 
+const APP_VERSION = "1.0.43";
 
 
 function App() {
@@ -333,6 +334,26 @@ function App() {
               onRevokeVpn={handleRevokeVpn}
               busy={busy === 'protocol' || busy === 'revoke'}
             />
+
+            {/* Version & Force Refresh */}
+            <div style={{ 
+              marginTop: '16px', 
+              textAlign: 'center', 
+              fontSize: '11px', 
+              color: 'var(--text-hint)',
+              opacity: 0.5,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}>
+              <div>Сборка v{APP_VERSION}</div>
+              <div 
+                onClick={() => window.location.reload(true)} 
+                style={{ textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Проверить обновления (Hard Reload)
+              </div>
+            </div>
           </div>
         )}
 

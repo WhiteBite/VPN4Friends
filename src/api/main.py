@@ -73,6 +73,20 @@ frontend_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "miniapp", "dist"
 )
 
+
+# Cache-Control Middleware to prevent stale Mini App versions
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    # Force re-validation for the main page and HTML files
+    if path in ("/", "/app", "/app/") or path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 # API routes MUST be included before the catch-all static mount
 app.include_router(admin_router, prefix="/api")
 app.include_router(system_router, prefix="/api")
