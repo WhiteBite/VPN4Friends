@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { fetchAdminRequests, approveRequest, rejectRequest, sendAdminBroadcast, fetchUsers, revokeUserVpn } from '../api';
+import { fetchAdminRequests, approveRequest, rejectRequest, sendAdminBroadcast, fetchUsers, revokeUserVpn, fetchAdminServerStats } from '../api';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import AdminChats from './AdminChats';
@@ -39,6 +39,9 @@ export default function AdminPanel({ onError, onSuccess }) {
   const [usersLoading, setUsersLoading] = useState(false);
   const [revokeConfirmId, setRevokeConfirmId] = useState(null);
   const [revoking, setRevoking] = useState(null);
+  
+  // Servers tab state
+  const [serverStats, setServerStats] = useState([]);
 
   const isDev = import.meta.env.DEV;
 
@@ -87,6 +90,9 @@ export default function AdminPanel({ onError, onSuccess }) {
       } else if (activeTab === 'users') {
         const data = await fetchUsers();
         setUsers(data || []);
+      } else if (activeTab === 'servers') {
+        const data = await fetchAdminServerStats();
+        setServerStats(data || []);
       }
     } catch (e) {
       onError(e.message || 'Ошибка загрузки данных');
@@ -478,9 +484,67 @@ export default function AdminPanel({ onError, onSuccess }) {
       <Button variant="primary" onClick={handleSyncAll} isLoading={syncingAll}>
         Синхронизировать всех
       </Button>
-      <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-        Серверы активны и работают в штатном режиме.
-      </div>
+      
+      {serverStats.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '8px' }}>Статусы Нод</h3>
+          {serverStats.map((stat, i) => (
+            <div key={i} style={{
+              padding: '16px',
+              background: 'var(--bg-elevated)',
+              borderRadius: '16px',
+              border: '1px solid var(--border)',
+              display: 'flex', flexDirection: 'column', gap: '8px',
+              position: 'relative', overflow: 'hidden'
+            }}>
+              {/* Online Indicator */}
+              <div style={{
+                position: 'absolute', top: '16px', right: '16px',
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: stat.online ? 'var(--success)' : 'var(--danger)',
+                boxShadow: `0 0 8px ${stat.online ? 'var(--success)' : 'var(--danger)'}`
+              }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px', fontWeight: '800' }}>{stat.name}</span>
+                {stat.online && stat.latency_ms && (
+                  <span style={{ fontSize: '12px', color: 'var(--text-hint)' }}>{stat.latency_ms} ms</span>
+                )}
+              </div>
+
+              {stat.online ? (
+                <>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    <div style={{ flex: 1, minWidth: '100px', background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-hint)', marginBottom: '4px' }}>ПОДКЛЮЧЕНИЙ</div>
+                      <div style={{ fontSize: '14px', fontWeight: '700' }}>{stat.clients} чел.</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>на {stat.inbounds} портах</div>
+                    </div>
+                    
+                    <div style={{ flex: 1, minWidth: '100px', background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-hint)', marginBottom: '4px' }}>ТРАФИК (Общий)</div>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--success)' }}>
+                        ↑ {formatBytes(stat.upload)}
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#3b82f6', marginTop: '2px' }}>
+                        ↓ {formatBytes(stat.download)}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize: '13px', color: 'var(--danger)', marginTop: '4px', background: 'rgba(239, 68, 68, 0.1)', padding: '8px', borderRadius: '8px' }}>
+                  Ошибка подключения: {stat.error || 'Server unreachable'}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: '14px' }}>
+          {loading ? 'Загрузка статусов...' : 'Статусы серверов не найдены.'}
+        </div>
+      )}
     </div>
   );
 

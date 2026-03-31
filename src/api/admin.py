@@ -661,3 +661,39 @@ async def sync_all_users(
         success=True,
         message=f"Глобальная синхронизация для {len(users)} пользователей запущена в фоновом режиме.",
     )
+
+
+@router.get("/servers/status")
+async def get_servers_status(admin: User = Depends(require_admin)) -> list[dict]:
+    """Fetch live status metrics from all configured endpoints/nodes."""
+    from src.services.xui_api import XUIApi
+
+    # We want to check unique instances by api_url to avoid polling the same panel multiple times
+    # Wait, the config is per 'node'. Let's iterate over nodes in settings.nodes_config
+    results = []
+
+    async def fetch_node_status(node_name: str, node_cfg: dict):
+        panel_cfg = node_cfg.get("panel_config")
+        if not panel_cfg or not panel_cfg.get("api_url"):
+            # Could be a relay node without API
+            return {"name": node_name, "status": "offline", "error": "Not a panel node"}
+
+        try:
+            async with XUIApi(panel_cfg) as api:
+                from asyncio import wait_for
+
+                status = await wait_for(api.get_server_status(), timeout=5.0)
+                return {"name": node_name, **status}
+        except Exception as e:
+            logger.warning(f"Failed to fetch status for node {node_name}: {e}")
+            return {"name": node_name, "status": "offline", "error": str(e)}
+
+    tasks = []
+    for node_name, node_cfg in settings.nodes_config.items():
+        tasks.append(fetch_node_status(node_name, node_cfg))
+
+    if tasks:
+        node_statuses = await asyncio.gather(*tasks)
+        results.extend(node_statuses)
+
+    return results

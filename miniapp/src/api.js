@@ -138,6 +138,10 @@ export function sendAdminBroadcast(payload) {
   });
 }
 
+export function fetchAdminServerStats() {
+  return apiRequest('/staff/servers/status');
+}
+
 // ----- Support Chats -----
 
 export function fetchAdminChats() {
