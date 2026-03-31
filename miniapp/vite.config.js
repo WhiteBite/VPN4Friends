@@ -11,7 +11,10 @@ const cloudflareIgnorePlugin = () => {
 }
 
 export default defineConfig({
-  plugins: [preact(), cloudflareIgnorePlugin()],
+  plugins: [
+    ...preact().filter(p => !['preact:transform-hook-names'].includes(p.name)),
+    cloudflareIgnorePlugin()
+  ],
   base: './',
   build: {
     target: 'esnext',

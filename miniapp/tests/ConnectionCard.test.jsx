@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/preact';
 import ConnectionCard from '../src/components/ConnectionCard';
 
 describe('ConnectionCard Component', () => {
