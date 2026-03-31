@@ -106,58 +106,67 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
                       <div
                         key={ep.name}
                         onClick={() => categoryName === 'vpn' ? onSelect(ep.name) : onCopy(ep.name)}
+                        className={`server-card ${isActive ? 'server-card--active' : ''}`}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          padding: '12px',
-                          borderRadius: '12px',
-                          background: isActive ? 'var(--accent)' : 'var(--bg-color)',
-                          color: isActive ? '#000' : 'var(--text)',
+                          padding: '16px',
                           cursor: (busy && categoryName === 'vpn') ? 'not-allowed' : 'pointer',
-                          gap: '12px',
                           opacity: (busy && !isActive && categoryName === 'vpn') ? 0.6 : 1,
-                          transition: 'all 0.2s',
-                          border: isActive ? 'none' : '1px solid var(--border)'
+                          marginBottom: '8px',
+                          background: isActive ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.8), rgba(5, 150, 105, 0.9))' : 'rgba(255, 255, 255, 0.03)',
+                          border: isActive ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(255, 255, 255, 0.08)',
+                          color: isActive ? '#fff' : 'var(--text)',
+                          boxShadow: isActive ? '0 8px 24px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2)' : 'none',
                         }}
                       >
                         {categoryName === 'vpn' && (
-                          <div className={`server-card__radio ${isActive ? 'server-card__radio--active' : ''}`}>
-                            {isActive && <IconCheck />}
+                          <div className={`server-card__radio ${isActive ? 'server-card__radio--active' : ''}`} style={{ borderColor: isActive ? '#fff' : 'rgba(255,255,255,0.2)', background: isActive ? 'rgba(255,255,255,0.2)' : 'transparent' }}>
+                            {isActive && <IconCheck style={{ color: '#fff' }} />}
                           </div>
                         )}
                         
-                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               {/* Status Indicator */}
                               <div style={{ 
                                 width: '8px', 
                                 height: '8px', 
                                 borderRadius: '50%', 
-                                background: ep.status === 'up' ? '#4CAF50' : (ep.status === 'down' ? '#F44336' : '#9E9E9E'),
-                                border: '1px solid rgba(255,255,255,0.1)'
+                                background: ep.status === 'up' ? (isActive ? '#fff' : '#4CAF50') : (ep.status === 'down' ? '#F44336' : '#9E9E9E'),
+                                boxShadow: isActive ? '0 0 8px rgba(255,255,255,0.8)' : 'none'
                               }} />
-                              <span style={{ fontWeight: isActive ? '700' : '500', fontSize: '15px' }}>
+                              <span style={{ fontWeight: isActive ? '700' : '600', fontSize: '15px', color: isActive ? '#fff' : 'var(--text)' }}>
                                 {ep.label || ep.name}
                               </span>
-                              <Tooltip text={getTransportTooltip(ep.transport, ep.is_relay)} />
+                              <Tooltip iconStyle={{ color: isActive ? 'rgba(255,255,255,0.7)' : 'var(--text-hint)' }} text={getTransportTooltip(ep.transport, ep.is_relay)} />
                               {ep.status === 'up' && ep.latency && (
-                                <span style={{ fontSize: '10px', opacity: 0.6, marginLeft: '4px', fontVariantNumeric: 'tabular-nums' }}>
+                                <span style={{ fontSize: '11px', opacity: isActive ? 0.9 : 0.5, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums', fontWeight: '500' }}>
                                   {ep.latency}ms
                                 </span>
                               )}
                             </div>
-                            <span style={{ fontSize: '12px', opacity: isActive ? 0.8 : 0.6 }}>
+                            <span style={{ fontSize: '12px', color: isActive ? 'rgba(255,255,255,0.8)' : 'var(--text-hint)', fontWeight: '500' }}>
                               {ep.country ? `Локация: ${ep.country}` : (ep.is_relay ? 'Оптимально (через МСК)' : 'Прямое к серверу')}
                             </span>
                           </div>
 
                         {/* Action Box */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
                           {ep.vpn_link && (
                             <div 
                               onClick={(e) => { e.stopPropagation(); setQrModal({ name: ep.label || ep.name, link: ep.vpn_link }); }}
                               title="Показать QR-код"
-                              style={{ padding: '8px', borderRadius: '8px', background: isActive ? 'rgba(0,0,0,0.1)' : 'var(--bg-elevated)', cursor: 'pointer' }}
+                              style={{ 
+                                padding: '10px', 
+                                borderRadius: '10px', 
+                                background: isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)', 
+                                color: isActive ? '#fff' : 'var(--text-hint)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                border: isActive ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.05)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}
+                              onMouseOver={e => e.currentTarget.style.background = isActive ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)'}
+                              onMouseOut={e => e.currentTarget.style.background = isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)'}
                             >
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                             </div>
@@ -167,9 +176,13 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
                             onClick={(e) => { e.stopPropagation(); onCopy(ep.name); }}
                             title="Скопировать ссылку"
                             style={{
-                              background: isActive ? 'rgba(0,0,0,0.1)' : 'var(--bg-elevated)',
-                              color: isActive ? '#000' : 'var(--text)'
+                              background: isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                              color: isActive ? '#fff' : 'var(--text-hint)',
+                              border: isActive ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.05)',
+                              width: '40px', height: '40px', borderRadius: '10px'
                             }}
+                            onMouseOver={e => e.currentTarget.style.background = isActive ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)'}
+                            onMouseOut={e => e.currentTarget.style.background = isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)'}
                           >
                             <IconCopy />
                           </div>

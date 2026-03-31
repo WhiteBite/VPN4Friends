@@ -137,42 +137,60 @@ export default function ConnectionCard({ profile, subscriptionUrl, onCopySubscri
           padding: '16px', 
           marginBottom: '24px', 
           border: '1px solid var(--border)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+          boxShadow: '0 8px 32px rgba(0,0,0,0.15)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text)' }}>Ссылка подписки</div>
+            <div style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '16px', color: 'var(--primary)' }}>🔗</span> Ссылка подписки
+            </div>
             <button 
-              title="QR-код для быстрой настройки на другом устройстве"
+              title="Показать QR-код для сканирования"
               onClick={() => setShowQr(!showQr)} 
               style={{ 
-                background: 'rgba(255, 255, 255, 0.08)', 
-                border: '1px solid rgba(255, 255, 255, 0.1)', 
-                color: 'var(--text)', 
-                fontSize: '13px', 
-                fontWeight: '600', 
+                background: showQr ? 'rgba(14, 165, 233, 0.15)' : 'rgba(255, 255, 255, 0.05)', 
+                border: '1px solid',
+                borderColor: showQr ? 'rgba(14, 165, 233, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                color: showQr ? 'var(--primary)' : 'var(--text-hint)', 
                 cursor: 'pointer',
                 padding: '6px 12px',
                 borderRadius: '8px',
-                transition: 'all 0.2s',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '6px',
+                fontSize: '13px',
+                fontWeight: '600'
               }}
-              onMouseOver={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
-              onMouseOut={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
             >
-              <span style={{ fontSize: '16px' }}>📱</span>
-              {showQr ? 'Скрыть QR' : 'Показать QR'}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              {showQr ? 'Скрыть QR' : 'QR-код'}
             </button>
           </div>
           
-          {showQr && subscriptionUrl && (
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 16px 0', background: '#fff', padding: '16px', borderRadius: '12px', width: 'max-content', alignSelf: 'center', marginInline: 'auto', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-              <QRCodeSVG value={subscriptionUrl} size={160} level="M" includeMargin={false} />
-            </div>
-          )}
+          {/* Animated QR Reveal */}
+          <div style={{ 
+            maxHeight: showQr ? '300px' : '0', 
+            opacity: showQr ? 1 : 0, 
+            overflow: 'hidden', 
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            {subscriptionUrl && (
+              <div style={{ margin: '8px 0 20px 0', background: '#fff', padding: '16px', borderRadius: '16px', width: 'max-content', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+                <QRCodeSVG value={subscriptionUrl} size={160} level="M" includeMargin={false} />
+              </div>
+            )}
+          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'stretch', 
+            background: 'rgba(0,0,0,0.4)', 
+            borderRadius: '12px', 
+            border: '1px solid rgba(255,255,255,0.08)',
+            overflow: 'hidden'
+          }}>
             <div style={{ 
               flex: 1, 
               whiteSpace: 'nowrap', 
@@ -181,35 +199,74 @@ export default function ConnectionCard({ profile, subscriptionUrl, onCopySubscri
               fontFamily: 'monospace', 
               fontSize: '13px',
               color: 'var(--text)',
-              opacity: 0.9
+              opacity: 0.8,
+              padding: '14px 12px',
+              display: 'flex',
+              alignItems: 'center'
             }}>
-              {subscriptionUrl || 'Загрузка...'}
+              {subscriptionUrl || 'Формирование ссылки...'}
             </div>
-            <Button variant="primary" style={{ padding: '10px 16px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)' }} onClick={onCopySubscription}>
+            <button 
+              onClick={onCopySubscription}
+              style={{
+                background: 'linear-gradient(135deg, var(--neon-blue), var(--btn))',
+                color: '#fff',
+                border: 'none',
+                padding: '0 20px',
+                fontWeight: '600',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'filter 0.2s',
+              }}
+              onMouseOver={e => e.currentTarget.style.filter = 'brightness(1.1)'}
+              onMouseOut={e => e.currentTarget.style.filter = 'brightness(1)'}
+            >
               <IconCopy /> Копировать
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Compact Apps Guide */}
         <div>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-hint)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px', textAlign: 'center' }}>
+          <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-hint)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px', textAlign: 'center' }}>
             Приложения для подключения
           </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
-            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <img src="https://v2rayng.org/assets/images/logo.png" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }} alt="v2rayNG" />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>v2rayNG</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-hint)' }}>Android</div>
+            <div style={{ 
+              background: 'rgba(255,255,255,0.02)', 
+              borderRadius: '16px', 
+              padding: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px', 
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)'
+            }}>
+              <img src="https://v2rayng.org/assets/images/logo.png" style={{ width: '40px', height: '40px', borderRadius: '10px', objectFit: 'cover' }} alt="v2rayNG" />
+              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>v2rayNG</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-hint)', fontWeight: '500' }}>Android</div>
               </div>
             </div>
-            <div style={{ background: 'var(--bg-elevated)', borderRadius: '14px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '20px', fontWeight: 'bold', boxShadow: '0 2px 6px rgba(59, 130, 246, 0.4)' }}>S</div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Streisand</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-hint)' }}>iOS / Apple</div>
+            
+            <div style={{ 
+              background: 'rgba(255,255,255,0.02)', 
+              borderRadius: '16px', 
+              padding: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px', 
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)'
+            }}>
+              <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, #0EA5E9, #2563EB)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '20px', fontWeight: 'bold', boxShadow: '0 4px 12px var(--neon-blue-glow)' }}>S</div>
+              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Streisand</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-hint)', fontWeight: '500' }}>iOS / Apple</div>
               </div>
             </div>
           </div>

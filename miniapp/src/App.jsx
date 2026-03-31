@@ -258,17 +258,25 @@ function App() {
             {me?.profile?.has_profile ? (
               <>
                 <div style={{
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border)',
+                  background: 'linear-gradient(90deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.02))',
+                  border: '1px solid rgba(14, 165, 233, 0.15)',
+                  borderLeft: '4px solid var(--neon-blue)',
                   borderRadius: '12px',
-                  padding: '12px 16px',
-                  marginBottom: '16px',
+                  padding: '16px',
+                  marginBottom: '20px',
                   fontSize: '13px',
-                  color: 'var(--text-hint)',
-                  lineHeight: '1.4'
+                  color: '#CBD5E1',
+                  lineHeight: '1.5',
+                  display: 'flex',
+                  gap: '12px',
+                  alignItems: 'flex-start',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                 }}>
-                  ℹ️ Если вы используете <b>подписку</b> (со вкладки «Главная») — все серверы уже добавлены автоматически.
-                  Здесь можно скопировать ссылку на <b>конкретный сервер</b> для ручной настройки.
+                  <div style={{ fontSize: '18px', filter: 'drop-shadow(0 2px 4px rgba(14,165,233,0.3))' }}>ℹ️</div>
+                  <div>
+                    <span style={{ color: 'var(--text)', fontWeight: '600' }}>Важно:</span> Если вы используете <b style={{ color: 'var(--text)' }}>подписку</b> (со вкладки «Главная»), то все серверы уже добавлены в ваш клиент автоматически.<br/>
+                    <span style={{ opacity: 0.8, display: 'inline-block', marginTop: '6px' }}>Здесь вы можете выбрать и скопировать конфигурацию <b>конкретного сервера</b> для настройки вручную.</span>
+                  </div>
                 </div>
                 <ServerSelector
                   endpoints={endpoints}
