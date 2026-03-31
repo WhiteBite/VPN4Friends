@@ -163,20 +163,53 @@ function App() {
     }
   };
 
-  const handleCopySubscription = async () => {
+  const getFullSubscriptionUrl = () => {
     const subUrl = me?.subscription_url;
-    if (!subUrl) {
+    if (!subUrl) return '';
+    const origin = import.meta.env.VITE_API_BASE_URL 
+      ? new URL(import.meta.env.VITE_API_BASE_URL, window.location.href).origin
+      : 'https://vpn4friends-api.whitebite.ru';
+    return `${origin}${subUrl}`;
+  };
+
+  const handleCopySubscription = async () => {
+    const fullUrl = getFullSubscriptionUrl();
+    if (!fullUrl) {
       showToast('Подписка недоступна.', 'error');
       return;
     }
-    const origin = import.meta.env.VITE_API_BASE_URL 
-      ? new URL(import.meta.env.VITE_API_BASE_URL).origin
-      : 'https://vpn4friends-api.whitebite.ru';
-    const fullUrl = `${origin}${subUrl}`;
+    
     try {
-      await navigator.clipboard.writeText(fullUrl);
-      showToast('Ссылка на подписку скопирована!', 'success');
-    } catch {
+      const tg = getTelegram();
+      if (tg && tg.isVersionAtLeast && tg.isVersionAtLeast('6.4')) {
+        tg.writeTextToClipboard(fullUrl, () => {
+          showToast('Ссылка на подписку скопирована!', 'success');
+        });
+        return;
+      }
+      
+      // Fallback to navigator clipboard
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(fullUrl);
+        showToast('Ссылка на подписку скопирована!', 'success');
+      } else {
+        // Fallback for older browsers (create textarea, copy)
+        const textArea = document.createElement("textarea");
+        textArea.value = fullUrl;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          showToast('Ссылка на подписку скопирована!', 'success');
+        } catch (err) {
+          showToast('Не удалось скопировать.', 'error');
+        }
+        textArea.remove();
+      }
+    } catch (err) {
       showToast('Не удалось скопировать.', 'error');
     }
   };
@@ -239,6 +272,7 @@ function App() {
           <div className="tab-pane fade-in">
             <ConnectionCard
               profile={me?.profile}
+              subscriptionUrl={getFullSubscriptionUrl()}
               onCopySubscription={handleCopySubscription}
               onRequest={handleRequestVpn}
               isBusy={busy === 'request'}
