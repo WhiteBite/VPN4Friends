@@ -281,8 +281,15 @@ class VPNService:
 
         links = []
         for endpoint in settings.endpoints:
+            user_proto = active_profile.protocol_name.lower()
+            if "reality" in user_proto or "finland_xhttp" in user_proto:
+                user_proto = "vless"
+            ep_proto = (endpoint.protocol or "").lower()
+            if "reality" in ep_proto or "finland_xhttp" in ep_proto:
+                ep_proto = "vless"
+
             # We only generate links for endpoints that match the user's current protocol
-            if endpoint.visible_in_sub and endpoint.protocol == active_profile.protocol_name:
+            if endpoint.visible_in_sub and ep_proto == user_proto:
                 link = generate_vpn_link(
                     active_profile.protocol_name,
                     active_profile.profile_data,

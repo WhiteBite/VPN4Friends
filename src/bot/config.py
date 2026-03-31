@@ -46,6 +46,7 @@ class ServerEndpoint(BaseModel):
     serviceName: str | None = None
     path: str | None = None
     host_override: str | None = None  # Using host_override to avoid collision with base host
+    secret: str | None = None  # MTProto secret
 
     # Reality-specific overrides
     pbk: str | None = None
