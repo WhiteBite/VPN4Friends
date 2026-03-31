@@ -672,25 +672,29 @@ async def get_servers_status(admin: User = Depends(require_admin)) -> list[dict]
     # Wait, the config is per 'node'. Let's iterate over nodes in settings.nodes_config
     results = []
 
-    async def fetch_node_status(node_name: str, node_cfg: dict):
-        panel_cfg = node_cfg.get("panel_config")
+    async def fetch_panel_status(panel_name: str, panel_cfg: dict):
         if not panel_cfg or not panel_cfg.get("api_url"):
-            # Could be a relay node without API
-            return {"name": node_name, "status": "offline", "error": "Not a panel node"}
+            return {"name": panel_name, "status": "offline", "error": "Not a panel"}
 
         try:
             async with XUIApi(panel_cfg) as api:
                 from asyncio import wait_for
 
                 status = await wait_for(api.get_server_status(), timeout=5.0)
-                return {"name": node_name, **status}
+                return {"name": panel_name, **status}
         except Exception as e:
-            logger.warning(f"Failed to fetch status for node {node_name}: {e}")
-            return {"name": node_name, "status": "offline", "error": str(e)}
+            logger.warning(f"Failed to fetch status for {panel_name}: {e}")
+            return {"name": panel_name, "status": "offline", "error": str(e)}
 
     tasks = []
-    for node_name, node_cfg in settings.nodes_config.items():
-        tasks.append(fetch_node_status(node_name, node_cfg))
+    seen_urls = set()
+
+    for ep in settings.endpoints:
+        if ep.panel_type == "3xui" and ep.panel_config:
+            api_url = ep.panel_config.get("api_url")
+            if api_url and api_url not in seen_urls:
+                seen_urls.add(api_url)
+                tasks.append(fetch_panel_status(ep.label or ep.name, ep.panel_config))
 
     if tasks:
         node_statuses = await asyncio.gather(*tasks)

@@ -399,11 +399,19 @@ function App() {
       {me?.user && (
         <>
           <button
-            className="fab-support"
+            className={`fab-support ${showSupport ? 'active' : ''}`}
             onClick={() => setShowSupport(!showSupport)}
             title="Поддержка"
           >
-            {showSupport ? '✕' : '💬'}
+            {showSupport ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            ) : (
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 11.5C21 16.1944 16.9706 20 12 20C10.6698 20 9.40702 19.7402 8.27192 19.2687C7.69766 19.0302 7.04273 18.96 6.42593 19.0881C5.16104 19.3511 4 20.1222 4 20.1222C4 20.1222 4.41738 18.6601 4.54271 17.5898C4.59371 17.1541 4.46995 16.7115 4.19793 16.3537C3.43572 15.3512 3 14.0734 3 12.6937C3 7.99933 7.02944 4.1937 12 4.1937C16.9706 4.1937 21 7.99933 21 11.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
           </button>
           {showSupport && (
             <div className="support-modal-overlay" onClick={() => setShowSupport(false)}>
