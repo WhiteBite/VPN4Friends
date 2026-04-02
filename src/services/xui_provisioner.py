@@ -317,6 +317,7 @@ async def sync_node_routing(node_name: str, node_config: dict) -> bool:
 
     expected_outbounds = node_config.get("outbounds", [])
     expected_routing = node_config.get("routing", {})
+    expected_dns = node_config.get("dns", {})
 
     # Remove non-routing keys like _comment
     expected_routing = {k: v for k, v in expected_routing.items() if not k.startswith("_")}
@@ -354,6 +355,7 @@ async def sync_node_routing(node_name: str, node_config: dict) -> bool:
                             "settings": {"address": "127.0.0.1"},
                         }
                     ],
+                    "dns": {},
                     "outbounds": [],
                     "routing": {
                         "domainStrategy": "AsIs",
@@ -377,8 +379,15 @@ async def sync_node_routing(node_name: str, node_config: dict) -> bool:
             current_outbounds = template.get("outbounds", [])
             current_routing = template.get("routing", {})
             current_rules = current_routing.get("rules", [])
+            current_dns = template.get("dns", {})
 
             changed = False
+
+            # --- Sync DNS ---
+            if expected_dns and current_dns != expected_dns:
+                logger.info(f"Node {node_name}: dns settings mismatch, updating")
+                template["dns"] = expected_dns
+                changed = True
 
             # --- Sync outbounds ---
             current_tags = {o.get("tag") for o in current_outbounds}
@@ -445,6 +454,13 @@ async def sync_node_routing(node_name: str, node_config: dict) -> bool:
                         new_rules.append(rule)
 
                 current_routing["rules"] = new_rules
+                changed = True
+
+            # Check domainStrategy specifically from routing root
+            expected_ds = expected_routing.get("domainStrategy", "UseIPv4")
+            if current_routing.get("domainStrategy") != expected_ds:
+                logger.info(f"Node {node_name}: updating tracking domainStrategy to {expected_ds}")
+                current_routing["domainStrategy"] = expected_ds
                 changed = True
 
             if changed:

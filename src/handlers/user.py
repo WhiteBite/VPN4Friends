@@ -132,7 +132,10 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
             lines.append(f"📦 <b>АВТО-ПОДПИСКА (Рекомендуется)</b>:\n<code>{sub_url}</code>\n")
 
         for label, link in links:
-            lines.append(f"• <b>{label}</b>:\n<code>{link}</code>\n")
+            if link.startswith("tg://"):
+                lines.append(f"• <b>{label}</b>: <a href='{link}'>Нажми для подключения</a>\n")
+            else:
+                lines.append(f"• <b>{label}</b>:\n<code>{link}</code>\n")
 
         lines.append(
             "Просто скопируй нужную ссылку (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun / V2Box</b> (iPhone)."
@@ -250,7 +253,10 @@ async def show_my_vpn(callback: CallbackQuery, session: AsyncSession) -> None:
             lines.append(f"📦 <b>АВТО-ПОДПИСКА (Рекомендуется)</b>:\n<code>{sub_url}</code>\n")
 
         for label, link in links:
-            lines.append(f"• <b>{label}</b>:\n<code>{link}</code>\n")
+            if link.startswith("tg://"):
+                lines.append(f"• <b>{label}</b>: <a href='{link}'>Нажми для подключения</a>\n")
+            else:
+                lines.append(f"• <b>{label}</b>:\n<code>{link}</code>\n")
 
         lines.append(
             "Просто скопируй нужную ссылку (нажми на текст) и добавь в приложение <b>v2rayNG</b> (Android) или <b>V2RayTun / V2Box</b> (iPhone)."
