@@ -79,6 +79,7 @@ def generate_vless_url(
     if short_id is None:
         short_id = settings.reality_short_id
     spider_x = reality.get("spider_x", "/")
+    alpn_val = reality.get("alpn", "h2,http/1.1")
 
     # Endpoint override takes priority over profile_data and settings
     country_name = "VPN"
@@ -117,6 +118,8 @@ def generate_vless_url(
             fingerprint = endpoint.fp
         if getattr(endpoint, "spx", None):
             spider_x = endpoint.spx
+        if getattr(endpoint, "alpn", None):
+            alpn_val = endpoint.alpn
     else:
         host = profile_data.get("host", settings.xui_host)
         port = profile_data.get("port", 443)
@@ -134,6 +137,9 @@ def generate_vless_url(
         params_dict["fp"] = fingerprint
     if sni:
         params_dict["sni"] = sni
+
+    if alpn_val and security == "reality":
+        params_dict["alpn"] = quote(alpn_val, safe=",/")
 
     if security == "reality":
         if public_key:
