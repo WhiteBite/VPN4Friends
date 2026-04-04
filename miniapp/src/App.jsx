@@ -3,16 +3,18 @@ import { getTelegram, getInitData, loadTelegramSdk } from './telegram';
 import { useVPN } from './hooks/useVPN';
 import { useWebSocket } from './hooks/useWebSocket';
 
-import ConnectionCard from './components/ConnectionCard';
-import ServerSelector from './components/ServerSelector';
+import { lazy, Suspense } from 'react';
+
+const ConnectionCard = lazy(() => import('./components/ConnectionCard'));
+const ServerSelector = lazy(() => import('./components/ServerSelector'));
+const StatsCard = lazy(() => import('./components/StatsCard'));
+const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
+const BottomNav = lazy(() => import('./components/BottomNav'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const SupportForm = lazy(() => import('./components/SupportForm'));
+const LoginScreen = lazy(() => import('./components/LoginScreen'));
+const Toast = lazy(() => import('./components/Toast'));
 import { copyToClipboard } from './utils/clipboard';
-import StatsCard from './components/StatsCard';
-import SettingsPanel from './components/SettingsPanel';
-import Toast from './components/Toast';
-import BottomNav from './components/BottomNav';
-import AdminPanel from './components/AdminPanel';
-import SupportForm from './components/SupportForm';
-import LoginScreen from './components/LoginScreen';
 import Card from './ui/Card';
 import Button from './ui/Button';
 
@@ -195,12 +197,14 @@ function App() {
   // ----- Auth gate -----
   if (needsAuth) {
     return (
+      <Suspense fallback={<div style={{padding: '20px', textAlign: 'center'}}>Загрузка интерфейса...</div>}>
       <LoginScreen
         onLogin={async () => {
           await loadAll();
           setNeedsAuth(false);
         }}
       />
+      </Suspense>
     );
   }
 
@@ -241,6 +245,7 @@ function App() {
       </header>
 
       <div className="tab-content" style={{ paddingBottom: 'calc(120px + env(safe-area-inset-bottom))' }}>
+        <Suspense fallback={<div style={{padding: '20px', textAlign: 'center'}}>Загрузка интерфейса...</div>}>
         {activeTab === 'home' && (
           <div className="tab-pane fade-in">
             <ConnectionCard
@@ -391,8 +396,10 @@ function App() {
             <AdminPanel onError={(msg) => showToast(msg, 'error')} onSuccess={(msg) => showToast(msg, 'success')} />
           </div>
         )}
+        </Suspense>
       </div>
 
+      <Suspense fallback={null}>
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} isAdmin={Boolean(me?.user?.is_admin)} />
 
       {/* Floating Support Button */}
@@ -433,6 +440,7 @@ function App() {
         visible={toast.visible}
         onHide={hideToast}
       />
+      </Suspense>
     </div>
   );
 }
