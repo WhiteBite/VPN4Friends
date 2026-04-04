@@ -19,6 +19,18 @@ export default defineConfig({
   build: {
     target: 'esnext',
     cssMinify: 'lightningcss',
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            return id.toString().split('node_modules/')[1].split('/')[0].toString();
+          } else if (id.includes('src/')) {
+            // Split components and pages aggressively
+            return id.toString().split('/').pop().split('.')[0].toString();
+          }
+        }
+      }
+    }
   },
   test: {
     globals: true,
