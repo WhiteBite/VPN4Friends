@@ -19,13 +19,22 @@ services:
       - ./data:/app/data
       - ./miniapp/dist:/app/miniapp/dist:ro
     network_mode: "host"
-    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn src.api.main:app --host 127.0.0.1 --port 8001
+
+  nginx:
+    image: nginx:alpine
+    container_name: vpn4friends-nginx
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ./miniapp/dist:/usr/share/nginx/miniapp:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
   api_proxy:
     image: cloudflare/cloudflared:latest
     container_name: vpn4friends-api-tunnel
     restart: unless-stopped
-    command: tunnel run
+    command: tunnel --protocol http2 run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     network_mode: "host"

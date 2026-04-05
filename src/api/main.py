@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
@@ -59,6 +60,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 
+# Compress responses (JS/CSS bundles ~3x smaller, faster load for all users)
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
 # Allow Mini App frontend to call this API from the browser.
 app.add_middleware(
     CORSMiddleware,
@@ -76,7 +80,7 @@ frontend_path = os.path.join(
 
 # Cache-Control Middleware to prevent stale Mini App versions
 @app.middleware("http")
-async def add_no_cache_headers(request: Request, call_next):
+async def add_cache_headers(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path
     # Force re-validation for the main page and HTML files
@@ -84,6 +88,9 @@ async def add_no_cache_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+    # Long-term cache for hashed static assets (Vite generates content-hashed filenames)
+    elif path.startswith("/assets/") and (path.endswith(".js") or path.endswith(".css")):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 

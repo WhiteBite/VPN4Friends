@@ -23,10 +23,11 @@ export default defineConfig({
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            return id.toString().split('node_modules/')[1].split('/')[0].toString();
+            return 'vendor-' + id.toString().split('node_modules/')[1].split('/')[0].toString();
           } else if (id.includes('src/')) {
-            // Split components and pages aggressively
-            return id.toString().split('/').pop().split('.')[0].toString();
+            // Extreme chunking: every source file gets its own chunk to prevent PMTUD drops on Cloudflare
+             const parts = id.toString().split('src/')[1].split('/');
+             return 'src-' + parts.join('-').split('.')[0];
           }
         }
       }
