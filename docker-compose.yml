@@ -34,7 +34,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: vpn4friends-api-tunnel
     restart: unless-stopped
-    command: tunnel --protocol http2 run
+    command: tunnel --loglevel debug --protocol http2 run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     network_mode: "host"
