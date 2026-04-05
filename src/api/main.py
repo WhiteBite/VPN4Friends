@@ -110,12 +110,6 @@ app.include_router(presets_router)
 app.include_router(sub_router)
 app.include_router(web_access_router)
 
-if os.path.exists(frontend_path):
-    # Mount specific /app path for the SPA
-    app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="app")
-    # The root mount should be the very LAST thing to avoid intercepting valid API routes
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, init_data: str = "", token: str = ""):
@@ -171,3 +165,10 @@ async def websocket_endpoint(websocket: WebSocket, init_data: str = "", token: s
             pass
         finally:
             ws_manager.disconnect(websocket, user.id, is_admin)
+
+
+if os.path.exists(frontend_path):
+    # Mount specific /app path for the SPA
+    app.mount("/app", StaticFiles(directory=frontend_path, html=True), name="app")
+    # The root mount should be the very LAST thing to avoid intercepting valid API routes
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
