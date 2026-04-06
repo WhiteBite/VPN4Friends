@@ -700,6 +700,17 @@ async def get_servers_status(admin: User = Depends(require_admin)) -> list[dict]
             if api_url and api_url not in seen_urls:
                 seen_urls.add(api_url)
                 tasks.append(fetch_panel_status(ep.label or ep.name, ep.panel_config))
+        elif ep.panel_type in ("mtproto", "socks5"):
+            results.append(
+                {
+                    "name": ep.label or ep.name,
+                    "online": True,
+                    "clients": "?",
+                    "inbounds": 1,
+                    "upload": 0,
+                    "download": 0,
+                }
+            )
 
     if tasks:
         node_statuses = await asyncio.gather(*tasks)
