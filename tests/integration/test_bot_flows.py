@@ -22,7 +22,7 @@ async def test_cmd_start_direct(db_session):
 
     bot = AsyncMock(spec=Bot)
 
-    await cmd_start(message, bot, db_session)
+    await cmd_start(message, db_session, bot)
 
     # Verify DB
     stmt = select(DBUser).where(DBUser.telegram_id == 9991)
@@ -47,12 +47,13 @@ async def test_set_ui_mode_bot_direct(db_session):
     callback_query.from_user = tg_user
     callback_query.data = "set_ui_mode:bot"
     callback_query.message = AsyncMock(spec=Message)
+    callback_query.answer = AsyncMock()
     callback_query.message.answer = AsyncMock()
     callback_query.message.edit_text = AsyncMock()
 
     bot = AsyncMock(spec=Bot)
 
-    await set_ui_mode(callback_query, bot, db_session)
+    await set_ui_mode(callback_query, db_session, bot)
 
     # Verify DB
     await db_session.refresh(user)
@@ -75,6 +76,7 @@ async def test_request_vpn_direct(db_session):
     tg_user = User(id=7771, is_bot=False, first_name="Requester")
     callback_query = AsyncMock(spec=CallbackQuery)
     callback_query.from_user = tg_user
+    callback_query.answer = AsyncMock()
     callback_query.message = AsyncMock(spec=Message)
     callback_query.message.edit_text = AsyncMock()
 
@@ -84,7 +86,7 @@ async def test_request_vpn_direct(db_session):
         mock_service = MockVPNService.return_value
         mock_service.create_request = AsyncMock(return_value=VPNRequest(id=555))
 
-        await request_vpn(callback_query, bot, db_session)
+        await request_vpn(callback_query, db_session, bot)
 
         mock_service.create_request.assert_called()
         callback_query.message.edit_text.assert_called()

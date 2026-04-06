@@ -100,17 +100,14 @@ async def approve_request(
 ) -> GenericResponse:
     """Approve a VPN request."""
 
-    from src.bot.config import settings
-
     req_repo = RequestRepository(session)
     request = await req_repo.get_by_id(request_id)
     if not request or request.status.value != "pending":
         raise HTTPException(status_code=404, detail="Pending request not found")
 
     vpn_service = VPNService(session)
-    # Use default endpoint name
-    default_endpoint = settings.endpoints[0].name if settings.endpoints else "vless"
-    success, message = await vpn_service.approve_request(request_id, default_endpoint)
+    # Let VPNService find the best endpoint based on user request (protocol/location)
+    success, message = await vpn_service.approve_request(request_id)
 
     if not success:
         return GenericResponse(success=False, message=message)

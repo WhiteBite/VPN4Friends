@@ -70,6 +70,51 @@ class VPNService:
 
         return panels
 
+    def _find_best_endpoint(self, protocol_hint: str | None, location_hint: str | None) -> str:
+        """Find the most suitable endpoint based on user request hints.
+
+        Logic:
+        1. Exact match for location (country) AND protocol.
+        2. Match for location only.
+        3. Match for protocol only.
+        4. Fallback to first available endpoint.
+        """
+        if not settings.endpoints:
+            return "vless"  # Fallback
+
+        candidates = settings.endpoints
+
+        # 1. Exact match: Location + Protocol
+        if location_hint and protocol_hint:
+            for ep in candidates:
+                if (
+                    ep.country.lower() == location_hint.lower()
+                    and ep.name.lower() == protocol_hint.lower()
+                ):
+                    return ep.name
+            # Fuzzy match location + protocol
+            for ep in candidates:
+                if (
+                    ep.country.lower() == location_hint.lower()
+                    and ep.protocol.lower() == protocol_hint.lower()
+                ):
+                    return ep.name
+
+        # 2. Match Location
+        if location_hint:
+            for ep in candidates:
+                if ep.country.lower() == location_hint.lower():
+                    return ep.name
+
+        # 3. Match Protocol
+        if protocol_hint:
+            for ep in candidates:
+                if ep.protocol.lower() == protocol_hint.lower():
+                    return ep.name
+
+        # 4. Fallback
+        return candidates[0].name
+
     async def create_request(
         self,
         user: User,
@@ -134,8 +179,8 @@ class VPNService:
         }
 
         try:
-            # Sync to ALL supported protocols on ALL panels
-            synced_any = await self.sync_client_to_all_panels(client_name, client_id, "vless")
+            # Sync to ALL supported protocols on ALL panels to enable truly Universal Access
+            synced_any = await self.sync_client_to_all_panels(client_name, client_id, "all")
             if not synced_any:
                 await self.request_repo.revert_to_pending(request)
                 return False, "Ошибка создания профиля: ни одна панель не доступна"
@@ -144,8 +189,10 @@ class VPNService:
             await self.request_repo.revert_to_pending(request)
             return False, "Ошибка синхронизации с серверами"
 
-        # Use finland_tcp as default starting location if none given
-        default_endpoint = protocol_name or "finland_tcp"
+        # Determine best starting endpoint honoring user request preferences
+        default_endpoint = protocol_name or self._find_best_endpoint(
+            request.protocol, request.location
+        )
         profile = await self.user_repo.create_vpn_profile(
             user=user,
             protocol_name="vless",  # Display protocol
