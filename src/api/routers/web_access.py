@@ -228,9 +228,7 @@ async def _notify_admins_new_request(user: User, vpn_request: VPNRequest) -> Non
         mention = f"<b>{user.full_name}</b>"
 
     msg_text = (
-        f"🔔 <b>Новая заявка (из браузера)!</b>\n\n"
-        f"👤 {mention}\n"
-        f"🆔 <code>{user.telegram_id}</code>"
+        f"🔔 <b>Новая заявка (из браузера)!</b>\n\n👤 {mention}\n🆔 <code>{user.telegram_id}</code>"
     )
     if vpn_request.protocol:
         msg_text += f"\n🔌 <b>Протокол:</b> {vpn_request.protocol}"

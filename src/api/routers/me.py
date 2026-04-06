@@ -366,9 +366,7 @@ async def request_vpn_endpoint(
         mention = f"<b>{user.full_name}</b>"
 
     msg_text = (
-        f"🔔 <b>Новая заявка (из WebApp)!</b>\n\n"
-        f"👤 {mention}\n"
-        f"🆔 <code>{user.telegram_id}</code>"
+        f"🔔 <b>Новая заявка (из WebApp)!</b>\n\n👤 {mention}\n🆔 <code>{user.telegram_id}</code>"
     )
     if payload.protocol:
         msg_text += f"\n🔌 <b>Протокол:</b> {payload.protocol}"

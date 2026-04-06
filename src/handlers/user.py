@@ -390,9 +390,7 @@ async def request_vpn(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
         else:
             mention = f"<b>{user.full_name}</b>"
 
-        msg_text = (
-            f"🔔 <b>Новая заявка!</b>\n\n" f"👤 {mention}\n" f"🆔 <code>{user.telegram_id}</code>"
-        )
+        msg_text = f"🔔 <b>Новая заявка!</b>\n\n👤 {mention}\n🆔 <code>{user.telegram_id}</code>"
         if request.protocol:
             msg_text += f"\n🔌 <b>Протокол:</b> {request.protocol}"
         if request.location:
