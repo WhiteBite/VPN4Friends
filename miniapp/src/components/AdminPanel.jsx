@@ -39,6 +39,7 @@ export default function AdminPanel({ onError, onSuccess }) {
   const [usersLoading, setUsersLoading] = useState(false);
   const [revokeConfirmId, setRevokeConfirmId] = useState(null);
   const [revoking, setRevoking] = useState(null);
+  const [selectedChatUser, setSelectedChatUser] = useState(null);
   
   // Servers tab state
   const [serverStats, setServerStats] = useState([]);
@@ -191,6 +192,15 @@ export default function AdminPanel({ onError, onSuccess }) {
     } finally {
       setRevoking(null);
     }
+  };
+
+  const handleStartChat = (user) => {
+    setSelectedChatUser({
+      user_id: user.id || user.telegram_id,
+      full_name: user.full_name,
+      username: user.username
+    });
+    setActiveTab('chats');
   };
 
   useEffect(() => {
@@ -447,25 +457,46 @@ export default function AdminPanel({ onError, onSuccess }) {
                     </div>
                   )}
                 </div>
-                <button
-                  title="Отозвать VPN"
-                  onClick={() => handleRevoke(u.id)}
-                  disabled={revoking === u.id}
-                  style={{
-                    padding: '8px',
-                    borderRadius: '8px',
-                    border: '1px solid ' + (revokeConfirmId === u.id ? '#ff4d4f' : 'rgba(255,255,255,0.1)'),
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    background: revokeConfirmId === u.id ? '#ff4d4f' : 'rgba(239, 68, 68, 0.1)',
-                    color: revokeConfirmId === u.id ? '#fff' : '#EF4444',
-                    opacity: revoking === u.id ? 0.5 : 1,
-                  }}
-                >
-                  {revoking === u.id ? '⌛' : revokeConfirmId === u.id ? 'Точно?' : '🗑️'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    title="Написать сообщение"
+                    onClick={() => handleStartChat(u)}
+                    style={{
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(14, 165, 233, 0.15)',
+                      fontSize: '16px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      background: 'rgba(14, 165, 233, 0.1)',
+                      color: 'var(--accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <IconMessage size={20} />
+                  </button>
+                  <button
+                    title="Отозвать VPN"
+                    onClick={() => handleRevoke(u.id)}
+                    disabled={revoking === u.id}
+                    style={{
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid ' + (revokeConfirmId === u.id ? '#ff4d4f' : 'rgba(255,255,255,0.1)'),
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      background: revokeConfirmId === u.id ? '#ff4d4f' : 'rgba(239, 68, 68, 0.1)',
+                      color: revokeConfirmId === u.id ? '#fff' : '#EF4444',
+                      opacity: revoking === u.id ? 0.5 : 1,
+                    }}
+                  >
+                    {revoking === u.id ? '⌛' : revokeConfirmId === u.id ? 'Точно?' : '🗑️'}
+                  </button>
+                </div>
               </div>
             ))}
           </>
@@ -482,8 +513,31 @@ export default function AdminPanel({ onError, onSuccess }) {
                 border: '1px solid var(--border)',
                 opacity: 0.7
               }}>
-                <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.full_name}</div>
-                {u.username && <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>@{u.username}</div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '15px' }}>{u.full_name}</div>
+                    {u.username && <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>@{u.username}</div>}
+                  </div>
+                  <button
+                    title="Написать сообщение"
+                    onClick={() => handleStartChat(u)}
+                    style={{
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(14, 165, 233, 0.1)',
+                      fontSize: '16px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      background: 'rgba(14, 165, 233, 0.05)',
+                      color: 'var(--accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <IconMessage size={18} />
+                  </button>
+                </div>
               </div>
             ))}
           </>
@@ -603,7 +657,12 @@ export default function AdminPanel({ onError, onSuccess }) {
       </div>
 
       {activeTab === 'chats' ? (
-        <AdminChats onError={onError} onSuccess={onSuccess} />
+        <AdminChats 
+          onError={onError} 
+          onSuccess={onSuccess} 
+          initialUser={selectedChatUser} 
+          onInitialUserProcessed={() => setSelectedChatUser(null)}
+        />
       ) : (
         <Card style={{ padding: '20px' }}>
           {activeTab === 'requests' ? renderRequests() : activeTab === 'users' ? renderUsers() : activeTab === 'servers' ? renderServers() : renderBroadcast()}

@@ -62,13 +62,27 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
         )
         return
 
-    has_pending = await request_repo.has_pending(user)
+    # Existing user with selected UI mode
+    ui_service = UIService(session, bot)
+    await ui_service.set_user_ui_mode(user, user.ui_mode)
 
-    # Normal menu if UI mode is already selected
-    status_text = "🟢 <b>Подписка активна</b>" if user.has_vpn else "👋 <b>С возвращением</b>"
+    has_vpn = user.has_vpn
+    has_pending = await request_repo.has_pending_request(user.id)
+
+    status_text = "🟢 <b>Подписка активна</b>" if has_vpn else "👋 <b>С возвращением</b>"
     await message.answer(
         f"<b>VPN4Friends</b>\n\n{status_text}\nПривет, <b>{user.full_name}</b>!",
-        reply_markup=get_user_main_kb(user.has_vpn, has_pending),
+        reply_markup=get_user_main_kb(has_vpn=has_vpn, has_pending=has_pending),
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("app"))
+async def cmd_switch_mode(message: Message, session: AsyncSession, bot: Bot) -> None:
+    """Explicitly show UI mode selection."""
+    await message.answer(
+        "🌍 <b>VPN4Friends</b>\n\nВыберите режим интерфейса:",
+        reply_markup=get_ui_selection_kb(),
         parse_mode="HTML",
     )
 
@@ -83,30 +97,33 @@ async def process_ui_choice(callback: CallbackQuery, session: AsyncSession, bot:
     user = await user_repo.get_by_telegram_id(callback.from_user.id)
 
     if not user:
-        await callback.answer("Ошибка пользователя.")
+        await callback.answer("Ошибка: пользователь не найден. Пропишите /start")
         return
 
     ui_service = UIService(session, bot)
     await ui_service.set_user_ui_mode(user, mode)
 
-    await callback.answer(f"Режим {mode.value} активирован!")
+    request_repo = RequestRepository(session)
+    has_pending = await request_repo.has_pending_request(user.id)
+    has_vpn = user.has_vpn
 
-    # Final greeting after mode selection
-    if mode == UIMode.MINIAPP:
+    if mode == UIMode.BOT:
         await callback.message.edit_text(
-            "⚡ <b>Mini App активирован!</b>\n\n"
-            "Кнопка 'Меню' слева теперь заменена на <b>🚀 Открыть</b>.\n"
-            "Нажмите её, чтобы управлять своим VPN.",
+            "🤖 <b>Режим чат-бота активирован!</b>\n\n"
+            "Теперь вы можете управлять своим VPN через сообщения.\n"
+            "Используйте кнопку 'Меню' ниже или введите /menu.",
+            reply_markup=get_user_main_kb(has_vpn=has_vpn, has_pending=has_pending),
             parse_mode="HTML",
         )
     else:
         await callback.message.edit_text(
-            "🤖 <b>Режим чат-бота активирован!</b>\n\n"
-            "Теперь вы можете управлять VPN через сообщения.\n"
-            "Используйте кнопку 'Меню' или введите /menu.",
-            reply_markup=get_user_main_kb(user.has_vpn),
+            "🚀 <b>Режим Mini App активирован!</b>\n\n"
+            "Используйте кнопку <b>🚀 Открыть</b> в меню для доступа к кабинету (она появится через момент).",
+            reply_markup=get_user_main_kb(has_vpn=has_vpn, has_pending=has_pending),
             parse_mode="HTML",
         )
+
+    await callback.answer("Режим изменен!")
 
 
 @router.message(Command("menu"))

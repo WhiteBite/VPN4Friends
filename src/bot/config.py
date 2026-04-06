@@ -15,6 +15,7 @@ class Protocol(BaseModel):
     label: str
     description: str
     recommended: bool = False
+    icon: str | None = None
 
 
 class ServerEndpoint(BaseModel):

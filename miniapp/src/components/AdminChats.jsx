@@ -3,7 +3,7 @@ import { fetchAdminChats, fetchChatHistory, sendChatReply } from '../api';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 
-export default function AdminChats({ onError }) {
+export default function AdminChats({ onError, initialUser, onInitialUserProcessed }) {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -40,11 +40,7 @@ export default function AdminChats({ onError }) {
     }
   }, [isDev, onError]);
 
-  useEffect(() => {
-    loadChats();
-  }, [loadChats]);
-
-  const openChatThread = async (chat) => {
+  const openChatThread = useCallback(async (chat) => {
     setActiveChatUserId(chat.user_id);
     setActiveChatUser(chat);
     setLoadingThread(true);
@@ -63,7 +59,19 @@ export default function AdminChats({ onError }) {
     } finally {
       setLoadingThread(false);
     }
-  };
+  }, [isDev, onError]);
+
+  useEffect(() => {
+    loadChats();
+  }, [loadChats]);
+
+  // Handle incoming focus request
+  useEffect(() => {
+    if (initialUser) {
+      openChatThread(initialUser);
+      if (onInitialUserProcessed) onInitialUserProcessed();
+    }
+  }, [initialUser, openChatThread, onInitialUserProcessed]);
 
   useEffect(() => {
     if (messagesEndRef.current) {

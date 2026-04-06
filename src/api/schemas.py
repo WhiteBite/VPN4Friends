@@ -70,6 +70,7 @@ class ProtocolSchema(BaseModel):
     label: str
     description: str
     recommended: bool
+    icon: str | None = None
 
 
 class SwitchProtocolResponse(BaseModel):

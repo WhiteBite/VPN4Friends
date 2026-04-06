@@ -17,6 +17,7 @@ const Toast = lazy(() => import('./components/Toast'));
 import { copyToClipboard } from './utils/clipboard';
 import Card from './ui/Card';
 import Button from './ui/Button';
+import Skeleton from './ui/Skeleton';
 
 const APP_VERSION = "1.0.44";
 
@@ -212,19 +213,20 @@ function App() {
     return (
       <div className="app" data-theme={colorScheme}>
         <header className="header">
-          <div className="header-icon">🛡</div>
-          <div className="header-text">
-            <div className="title">VPN4Friends</div>
-            <div className="subtitle">Загрузка...</div>
+          <Skeleton type="circle" />
+          <div className="header-text" style={{ flex: 1 }}>
+            <Skeleton type="text" width="60%" height="18px" />
+            <Skeleton type="text" width="40%" height="13px" />
           </div>
         </header>
-        <section className="card">
-          <div className="skeleton-group">
-            <div className="skeleton skeleton--text skeleton--text-long" />
-            <div className="skeleton skeleton--text skeleton--text-short" />
-            <div className="skeleton skeleton--box" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Skeleton type="card" height="240px" />
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <Skeleton type="box" height="80px" style={{ flex: 1 }} />
+            <Skeleton type="box" height="80px" style={{ flex: 1 }} />
           </div>
-        </section>
+          <Skeleton type="card" height="180px" />
+        </div>
       </div>
     );
   }

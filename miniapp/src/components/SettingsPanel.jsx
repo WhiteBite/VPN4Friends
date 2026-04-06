@@ -29,7 +29,7 @@ export default function SettingsPanel({
           <div style={{ fontSize: '11px', color: 'var(--text-hint)', marginBottom: '12px' }}>
             Способ подключения к серверу. VLESS считается самым надежным.
           </div>
-          <div className="chips-row" style={{ marginBottom: '20px' }}>
+          <div className="chips-row" style={{ marginBottom: '12px' }}>
             {sortedProtocols.map((p) => {
               const isActive = profile.protocol === p.name;
               return (
@@ -40,14 +40,33 @@ export default function SettingsPanel({
                   onClick={() => !busy && !isActive && onSwitchProtocol(p.name)}
                   disabled={busy}
                   style={{
-                    opacity: busy && !isActive ? 0.5 : 1
+                    opacity: busy && !isActive ? 0.5 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
+                  {p.icon && <span>{p.icon}</span>}
                   {p.label}
+                  {p.recommended && !isActive && <span style={{ fontSize: '10px', opacity: 0.8 }}>⭐</span>}
                 </button>
               );
             })}
           </div>
+          {/* Dynamic description from server */}
+          {sortedProtocols.find(p => p.name === profile.protocol)?.description && (
+            <div style={{ 
+              fontSize: '11px', 
+              color: 'var(--text-hint)', 
+              marginBottom: '20px',
+              padding: '8px 12px',
+              background: 'rgba(255,255,255,0.02)',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.05)'
+            }}>
+              {sortedProtocols.find(p => p.name === profile.protocol).description}
+            </div>
+          )}
         </>
       )}
 

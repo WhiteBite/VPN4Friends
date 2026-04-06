@@ -29,22 +29,16 @@ async def list_protocols() -> list[ProtocolSchema]:
     This endpoint is used by the Mini App frontend to render protocol
     selection chips instead of relying on hardcoded values.
     """
-    # Use endpoints instead of protocols
-    protocols = []
-    seen = set()
-    for ep in settings.endpoints:
-        protocol_type = getattr(ep, "protocol", "vless")
-        if protocol_type not in seen and protocol_type != "mtproto":
-            seen.add(protocol_type)
-            protocols.append(
-                ProtocolSchema(
-                    name=protocol_type,
-                    label=protocol_type.upper(),
-                    description=f"{protocol_type} protocol",
-                    recommended=(protocol_type == "vless"),
-                )
-            )
-    return protocols
+    return [
+        ProtocolSchema(
+            name=p.name,
+            label=p.label,
+            icon=p.icon,
+            description=p.description,
+            recommended=p.recommended,
+        )
+        for p in settings.protocols
+    ]
 
 
 @router.get("/endpoints", response_model=list[EndpointSchema])

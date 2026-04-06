@@ -701,16 +701,42 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 /* ---- Skeletons ---- */
 
 .skeleton {
-  background: linear-gradient(90deg, var(--card) 25%, var(--card-hover) 50%, var(--card) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
   border-radius: 8px;
 }
 
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.05) 20%,
+    rgba(255, 255, 255, 0.1) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: shimmer 2s infinite;
+}
 
-.skeleton--text { height: 14px; }
-.skeleton--box { height: 80px; border-radius: var(--r); }
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton--text { height: 14px; margin: 4px 0; }
+.skeleton--text-long { width: 90%; }
+.skeleton--text-short { width: 40%; }
+.skeleton--box { height: 120px; border-radius: var(--r-lg); }
+.skeleton--circle { width: 48px; height: 48px; border-radius: 50%; }
+.skeleton--card { height: 180px; border-radius: var(--r-lg); }
 
 /* ---- Empty State ---- */
 
