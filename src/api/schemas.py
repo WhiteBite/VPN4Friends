@@ -50,6 +50,8 @@ class SwitchProtocolRequest(BaseModel):
 
 class RequestVPNSchema(BaseModel):
     comment: str | None = None
+    protocol: str | None = None
+    location: str | None = None
 
 
 class SupportMessageRequest(BaseModel):
@@ -129,6 +131,8 @@ class EndpointSchema(BaseModel):
     transport: str = "vless"
     status: str = "unknown"
     latency: float | None = None
+    load_level: str | None = None
+    online_count: int | None = None
     vpn_link: str | None = None
 
 
@@ -166,6 +170,8 @@ class AdminRequestSchema(BaseModel):
     status: str
     created_at: datetime
     user_comment: str | None = None
+    protocol: str | None = None
+    location: str | None = None
 
 
 class BroadcastRequestSchema(BaseModel):

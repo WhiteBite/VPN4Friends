@@ -76,9 +76,11 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
 
 @router.message(Command("app"))
 async def cmd_switch_mode(message: Message, session: AsyncSession, bot: Bot) -> None:
-    """Explicitly show UI mode selection."""
+    """Show UI mode selection."""
     await message.answer(
-        "🌍 <b>VPN4Friends</b>\n\nВыберите режим интерфейса:",
+        "🌍 <b>VPN4Friends</b>\n\nВыберите режим интерфейса:\n\n"
+        "🚀 <b>Mini App</b> — современный интерфейс (Рекомендуется)\n"
+        "🤖 <b>Чат-бот</b> — классическое управление через сообщения",
         reply_markup=get_ui_selection_kb(),
         parse_mode="HTML",
     )
@@ -108,7 +110,12 @@ async def set_ui_mode(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
         await callback.message.edit_text(
             "🤖 <b>Режим чат-бота активирован!</b>\n\n"
             "Теперь вы можете управлять своим VPN через сообщения.\n"
-            "Используйте кнопку 'Меню' ниже или введите /menu.",
+            "Используйте кнопки меню ниже:",
+            parse_mode="HTML",
+        )
+        # Explicitly send main menu to show it's working
+        await callback.message.answer(
+            "📱 <b>Главное меню (Чат-бот)</b>",
             reply_markup=get_user_main_kb(has_vpn=has_vpn, has_pending=has_pending),
             parse_mode="HTML",
         )
@@ -218,24 +225,6 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
         await msg.edit_text(
             "⚠️ Не удалось сформировать ссылки. Возможно, профиль еще не синхронизирован."
         )
-
-
-@router.message(Command("app"))
-async def cmd_app(message: Message, session: AsyncSession, bot: Bot) -> None:
-    """Explicitly switch to Mini App mode."""
-    user_repo = UserRepository(session)
-    user = await user_repo.get_by_telegram_id(message.from_user.id)
-    if not user:
-        return
-
-    ui_service = UIService(session, bot)
-    await ui_service.set_user_ui_mode(user, UIMode.MINIAPP)
-
-    await message.answer(
-        "🚀 <b>Переходим в Mini App!</b>\n\n"
-        "Теперь всё управление доступно по кнопке <b>'Открыть'</b> слева от поля ввода.",
-        parse_mode="HTML",
-    )
 
 
 @router.message(F.text, ~F.text.startswith("/"))
@@ -396,12 +385,23 @@ async def request_vpn(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
     )
 
     for admin_id in settings.admin_ids:
+        if user.username:
+            mention = f"<a href='https://t.me/{user.username}'>@{user.username}</a>"
+        else:
+            mention = f"<b>{user.full_name}</b>"
+
+        msg_text = (
+            f"🔔 <b>Новая заявка!</b>\n\n" f"👤 {mention}\n" f"🆔 <code>{user.telegram_id}</code>"
+        )
+        if request.protocol:
+            msg_text += f"\n🔌 <b>Протокол:</b> {request.protocol}"
+        if request.location:
+            msg_text += f"\n📍 <b>Локация:</b> {request.location}"
+
         with contextlib.suppress(Exception):
             await bot.send_message(
                 admin_id,
-                f"🔔 <b>Новая заявка!</b>\n\n"
-                f"👤 {user.display_name}\n"
-                f"🆔 <code>{user.telegram_id}</code>",
+                msg_text,
                 reply_markup=get_request_action_kb(request),
                 parse_mode="HTML",
             )

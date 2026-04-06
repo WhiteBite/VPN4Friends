@@ -71,7 +71,11 @@ class VPNService:
         return panels
 
     async def create_request(
-        self, user: User, user_comment: str | None = None
+        self,
+        user: User,
+        user_comment: str | None = None,
+        protocol: str | None = None,
+        location: str | None = None,
     ) -> VPNRequest | None:
         """Create VPN access request if user doesn't have one pending."""
         if user.has_vpn:
@@ -82,7 +86,12 @@ class VPNService:
             logger.info(f"User {user.telegram_id} already has pending request")
             return None
 
-        request = await self.request_repo.create(user, user_comment=user_comment)
+        request = await self.request_repo.create(
+            user,
+            user_comment=user_comment,
+            protocol=protocol,
+            location=location,
+        )
         logger.info(f"Created VPN request {request.id} for user {user.telegram_id}")
         return request
 

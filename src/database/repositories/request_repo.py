@@ -15,9 +15,20 @@ class RequestRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def create(self, user: User, user_comment: str | None = None) -> VPNRequest:
+    async def create(
+        self,
+        user: User,
+        user_comment: str | None = None,
+        protocol: str | None = None,
+        location: str | None = None,
+    ) -> VPNRequest:
         """Create new VPN request."""
-        request = VPNRequest(user_id=user.id, user_comment=user_comment)
+        request = VPNRequest(
+            user_id=user.id,
+            user_comment=user_comment,
+            protocol=protocol,
+            location=location,
+        )
         self.session.add(request)
         await self.session.commit()
         await self.session.refresh(request)

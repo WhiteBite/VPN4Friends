@@ -7,8 +7,8 @@ import { IconMessage } from '../ui/Icons';
 import { getTelegram } from '../telegram';
 
 const MOCK_REQUESTS = [
-  { id: 1, full_name: 'Вася Пупкин', telegram_id: 12345678, status: 'pending', created_at: new Date().toISOString() },
-  { id: 2, full_name: 'Оля', username: 'olya', telegram_id: 87654321, status: 'pending', created_at: new Date(Date.now() - 3600000).toISOString() },
+  { id: 1, full_name: 'Вася Пупкин', telegram_id: 12345678, status: 'pending', created_at: new Date().toISOString(), protocol: 'vless', location: 'Финляндия' },
+  { id: 2, full_name: 'Оля', username: 'olya', telegram_id: 87654321, status: 'pending', created_at: new Date(Date.now() - 3600000).toISOString(), protocol: 'vless', location: 'Германия' },
 ];
 
 const formatBytes = (bytes) => {
@@ -283,6 +283,33 @@ export default function AdminPanel({ onError, onSuccess }) {
               </div>
             </div>
             
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              {req.protocol && (
+                <span style={{ 
+                  fontSize: '11px', 
+                  fontWeight: '700', 
+                  background: 'rgba(59, 130, 246, 0.1)', 
+                  color: '#60a5fa', 
+                  padding: '4px 8px', 
+                  borderRadius: '6px',
+                  textTransform: 'uppercase'
+                }}>
+                  🔌 {req.protocol}
+                </span>
+              )}
+              {req.location && (
+                <span style={{ 
+                  fontSize: '11px', 
+                  fontWeight: '700', 
+                  background: 'rgba(16, 185, 129, 0.1)', 
+                  color: '#34d399', 
+                  padding: '4px 8px', 
+                  borderRadius: '6px'
+                }}>
+                  📍 {req.location}
+                </span>
+              )}
+            </div>
             {req.user_comment && (
               <div style={{ 
                 padding: '8px 12px', 

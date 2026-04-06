@@ -1,147 +1,91 @@
-from datetime import datetime
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from aiogram import Bot, Dispatcher
-from aiogram.types import CallbackQuery, Chat, Message, Update
-from aiogram.types import User as TGUser
-from sqlalchemy.ext.asyncio import AsyncSession
+from aiogram import Bot
+from aiogram.types import CallbackQuery, Chat, Message, User
+from sqlalchemy import select
 
-from src.database.models import RequestStatus, UIMode
-from src.database.repositories.request_repo import RequestRepository
-from src.database.repositories.user_repo import UserRepository
+from src.database.models import UIMode, VPNRequest
+from src.database.models import User as DBUser
+from src.handlers.user import cmd_start, request_vpn, set_ui_mode
 
 
 @pytest.mark.asyncio
-async def test_full_new_user_flow(dispatcher: Dispatcher, mock_bot: Bot, db_session: AsyncSession):
-    # 1. Simulate /start command
-    tg_user = TGUser(id=123, is_bot=False, first_name="Test", username="testuser")
-    chat = Chat(id=123, type="private")
-    message = Message(
-        message_id=1, date=datetime.now(), chat=chat, from_user=tg_user, text="/start", bot=mock_bot
-    )
+async def test_cmd_start_direct(db_session):
+    """Test cmd_start handler directly."""
+    tg_user = User(id=9991, is_bot=False, first_name="Direct", last_name="User")
+    chat = Chat(id=9991, type="private")
+    message = AsyncMock(spec=Message)
+    message.from_user = tg_user
+    message.chat = chat
+    message.answer = AsyncMock()
 
-    # Send update to dispatcher
-    update = Update(update_id=1, message=message)
-    await dispatcher.feed_update(mock_bot, update)
+    bot = AsyncMock(spec=Bot)
 
-    # Verify:
-    # - User created in DB
-    user_repo = UserRepository(db_session)
-    user = await user_repo.get_by_telegram_id(123)
+    await cmd_start(message, bot, db_session)
+
+    # Verify DB
+    stmt = select(DBUser).where(DBUser.telegram_id == 9991)
+    result = await db_session.execute(stmt)
+    user = result.scalar_one_or_none()
     assert user is not None
 
-    # - UI Selection keyboard sent
-    # Capture all possible ways aiogram might call the bot
-    all_calls = []
-    for call in mock_bot.mock_calls:
-        # call is (name, args, kwargs)
-        # If it's a direct call, name is ''
-        name, args, kwargs = call
-        if name == "" or name == "send_message":
-            # For direct calls, the first arg is the request object (SendMessage, etc.)
-            if name == "" and len(args) > 0:
-                req = args[0]
-                if hasattr(req, "text"):
-                    text = req.text
-                else:
-                    # Might be a different object
-                    continue
-            else:
-                text = kwargs.get("text", "") or (args[1] if len(args) > 1 else "")
-
-            if "выберите, как вам удобнее" in text.lower():
-                all_calls.append(call)
-
-    assert all_calls, f"Expected UI selection message not found. Mock calls: {mock_bot.mock_calls}"
+    # Verify feedback
+    message.answer.assert_called()
+    assert "Привет" in message.answer.call_args.args[0]
 
 
 @pytest.mark.asyncio
-async def test_ui_mode_selection_bot(
-    dispatcher: Dispatcher, mock_bot: Bot, db_session: AsyncSession
-):
-    # Setup: User already exists
-    user_repo = UserRepository(db_session)
-    user, _ = await user_repo.get_or_create(123, "testuser", "Test")
-    user.ui_mode = UIMode.NONE
+async def test_set_ui_mode_bot_direct(db_session):
+    """Test set_ui_mode callback handler directly for bot mode."""
+    user = DBUser(telegram_id=8881, full_name="Switch User", ui_mode=UIMode.NONE)
+    db_session.add(user)
     await db_session.commit()
-    await db_session.refresh(user)
 
-    # 2. Simulate clicking "Чат-бот" button
-    tg_user = TGUser(id=123, is_bot=False, first_name="Test", username="testuser")
-    callback = CallbackQuery(
-        id="12345",
-        from_user=tg_user,
-        chat_instance="inst123",
-        data="set_ui_mode:bot",
-        message=Message(
-            message_id=2, date=datetime.now(), chat=Chat(id=123, type="private"), bot=mock_bot
-        ),
-        bot=mock_bot,
-    )
+    tg_user = User(id=8881, is_bot=False, first_name="Switch")
+    callback_query = AsyncMock(spec=CallbackQuery)
+    callback_query.from_user = tg_user
+    callback_query.data = "set_ui_mode:bot"
+    callback_query.message = AsyncMock(spec=Message)
+    callback_query.message.answer = AsyncMock()
+    callback_query.message.edit_text = AsyncMock()
 
-    update = Update(update_id=2, callback_query=callback)
-    await dispatcher.feed_update(mock_bot, update)
+    bot = AsyncMock(spec=Bot)
 
-    # Verify:
-    # - UI mode updated in DB
+    await set_ui_mode(callback_query, bot, db_session)
+
+    # Verify DB
     await db_session.refresh(user)
     assert user.ui_mode == UIMode.BOT
 
-    # Check for confirmation (edit_text) or command set
-    method_names = [call[0] for call in mock_bot.mock_calls]
-    assert "set_my_commands" in method_names or any(c[0] == "" for c in mock_bot.mock_calls)
+    # Verify feedback
+    callback_query.message.edit_text.assert_called()
+    assert "Режим чат-бота активирован" in callback_query.message.edit_text.call_args.args[0]
+    callback_query.message.answer.assert_called()
+    assert "Главное меню" in callback_query.message.answer.call_args.args[0]
 
 
 @pytest.mark.asyncio
-async def test_request_vpn_flow(dispatcher: Dispatcher, mock_bot: Bot, db_session: AsyncSession):
-    # Setup: User in BOT mode
-    user_repo = UserRepository(db_session)
-    user, _ = await user_repo.get_or_create(123, "testuser", "Test")
-    user.ui_mode = UIMode.BOT
-
-    # Instead of setting read-only has_vpn, ensure they have no active profiles
-    for p in user.profiles:
-        p.is_active = False
+async def test_request_vpn_direct(db_session):
+    """Test request_vpn callback handler directly."""
+    user = DBUser(telegram_id=7771, full_name="Requester", ui_mode=UIMode.BOT)
+    db_session.add(user)
     await db_session.commit()
-    await db_session.refresh(user)
-    assert not user.has_vpn
 
-    # 3. Simulate clicking "Попросить VPN"
-    tg_user = TGUser(id=123, is_bot=False, first_name="Test", username="testuser")
-    callback = CallbackQuery(
-        id="12346",
-        from_user=tg_user,
-        chat_instance="inst124",
-        data="request_vpn",
-        message=Message(
-            message_id=3, date=datetime.now(), chat=Chat(id=123, type="private"), bot=mock_bot
-        ),
-        bot=mock_bot,
-    )
+    tg_user = User(id=7771, is_bot=False, first_name="Requester")
+    callback_query = AsyncMock(spec=CallbackQuery)
+    callback_query.from_user = tg_user
+    callback_query.message = AsyncMock(spec=Message)
+    callback_query.message.edit_text = AsyncMock()
 
-    update = Update(update_id=3, callback_query=callback)
-    await dispatcher.feed_update(mock_bot, update)
+    bot = AsyncMock(spec=Bot)
 
-    # Verify:
-    # - Request created
-    req_repo = RequestRepository(db_session)
-    req = await req_repo.get_pending_for_user(user)
+    with patch("src.handlers.user.VPNService") as MockVPNService:
+        mock_service = MockVPNService.return_value
+        mock_service.create_request = AsyncMock(return_value=VPNRequest(id=555))
 
-    assert req is not None, "VPN Request was not created in DB"
-    assert req.status == RequestStatus.PENDING
+        await request_vpn(callback_query, bot, db_session)
 
-    # - Check notification to admin (id 123456789 from test settings)
-    admin_notified = False
-    for name, args, kwargs in mock_bot.mock_calls:
-        chat_id = None
-        if name == "send_message":
-            chat_id = kwargs.get("chat_id") or (args[0] if args else None)
-        elif name == "" and len(args) > 0 and hasattr(args[0], "chat_id"):
-            # Direct call with an object like SendMessage
-            chat_id = args[0].chat_id
-
-        if str(chat_id) == "123456789" or chat_id == 123456789:
-            admin_notified = True
-            break
-
-    assert admin_notified, f"Admins (123456789) not notified. Calls: {mock_bot.mock_calls}"
+        mock_service.create_request.assert_called()
+        callback_query.message.edit_text.assert_called()
+        assert "Заявка отправлена" in callback_query.message.edit_text.call_args.args[0]

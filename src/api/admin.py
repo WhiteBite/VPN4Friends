@@ -85,6 +85,8 @@ async def get_requests(
             status=req.status.value,
             created_at=req.created_at,
             user_comment=req.user_comment,
+            protocol=req.protocol,
+            location=req.location,
         )
         for req in requests
     ]

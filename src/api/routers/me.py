@@ -234,6 +234,8 @@ async def get_my_endpoints(
                 transport=getattr(ep, "transport", "vless") or "vless",
                 status=health.get("status", "unknown"),
                 latency=health.get("latency"),
+                load_level=health.get("load_level", "unknown"),
+                online_count=health.get("online_count", 0),
                 vpn_link=vpn_link,
             )
         )
@@ -350,15 +352,28 @@ async def request_vpn_endpoint(
             message="У вас уже есть активный VPN профиль.",
         )
 
-    request = await req_repo.create(user, user_comment=payload.comment)
+    request = await req_repo.create(
+        user,
+        user_comment=payload.comment,
+        protocol=payload.protocol,
+        location=payload.location,
+    )
 
     # Notify admins via Telegram
-    display_name = f"@{user.username}" if user.username else user.full_name
+    if user.username:
+        mention = f"<a href='https://t.me/{user.username}'>@{user.username}</a>"
+    else:
+        mention = f"<b>{user.full_name}</b>"
+
     msg_text = (
         f"🔔 <b>Новая заявка (из WebApp)!</b>\n\n"
-        f"👤 {display_name}\n"
+        f"👤 {mention}\n"
         f"🆔 <code>{user.telegram_id}</code>"
     )
+    if payload.protocol:
+        msg_text += f"\n🔌 <b>Протокол:</b> {payload.protocol}"
+    if payload.location:
+        msg_text += f"\n📍 <b>Локация:</b> {payload.location}"
     if payload.comment:
         msg_text += f"\n💬 <b>Комментарий:</b> {payload.comment}"
 

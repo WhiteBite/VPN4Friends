@@ -64,6 +64,8 @@ async def list_endpoints() -> list[EndpointSchema]:
                 transport=getattr(ep, "transport", "vless") or "vless",
                 status=health["status"],
                 latency=health.get("latency"),
+                load_level=health.get("load_level", "unknown"),
+                online_count=health.get("online_count", 0),
             )
         )
     return results

@@ -121,6 +121,8 @@ class VPNRequest(Base):
     processed_at: Mapped[datetime | None] = mapped_column(DateTime)
     admin_comment: Mapped[str | None] = mapped_column(String(500))
     user_comment: Mapped[str | None] = mapped_column(String(500))
+    protocol: Mapped[str | None] = mapped_column(String(50))
+    location: Mapped[str | None] = mapped_column(String(100))
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="requests")

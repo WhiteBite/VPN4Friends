@@ -51,6 +51,8 @@ class WebAccessRequestPayload(BaseModel):
     """Request body for web access."""
 
     username: str
+    protocol: str | None = None
+    location: str | None = None
 
     @field_validator("username")
     @classmethod
@@ -159,6 +161,8 @@ async def request_web_access(
     vpn_request = await req_repo.create(
         user,
         user_comment=f"Заявка из браузера (@{username})",
+        protocol=payload.protocol,
+        location=payload.location,
     )
 
     # Create poll token (WebAccessRequest row)
@@ -218,12 +222,20 @@ async def _notify_admins_new_request(user: User, vpn_request: VPNRequest) -> Non
     from src.bot.config import settings
     from src.keyboards.admin_kb import get_request_action_kb
 
-    display_name = f"@{user.username}" if user.username else user.full_name
+    if user.username:
+        mention = f"<a href='https://t.me/{user.username}'>@{user.username}</a>"
+    else:
+        mention = f"<b>{user.full_name}</b>"
+
     msg_text = (
         f"🔔 <b>Новая заявка (из браузера)!</b>\n\n"
-        f"👤 {display_name}\n"
+        f"👤 {mention}\n"
         f"🆔 <code>{user.telegram_id}</code>"
     )
+    if vpn_request.protocol:
+        msg_text += f"\n🔌 <b>Протокол:</b> {vpn_request.protocol}"
+    if vpn_request.location:
+        msg_text += f"\n📍 <b>Локация:</b> {vpn_request.location}"
     if vpn_request.user_comment:
         msg_text += f"\n💬 <b>Комментарий:</b> {vpn_request.user_comment}"
 

@@ -166,7 +166,7 @@ async def main() -> None:
     if settings.miniapp_url:
         await bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
-                text="🚀 VPN Кабинет", web_app=WebAppInfo(url=settings.miniapp_url)
+                text="Мои настройки VPN", web_app=WebAppInfo(url=settings.miniapp_url)
             )
         )
         logger.info(f"Mini App menu button set to: {settings.miniapp_url}")

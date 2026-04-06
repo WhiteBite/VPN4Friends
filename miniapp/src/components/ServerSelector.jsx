@@ -18,6 +18,13 @@ const getTransportTooltip = (transport, isRelay) => {
   if (transport === 'vless' || transport === 'reality') return "Прямое подключение к серверу (Reality). Самая высокая скорость (идеально для YouTube), но провайдер может пытаться блокировать.";
   return "Стандартное VPN подключение.";
 };
+ 
+const getStatusColor = (status, loadLevel) => {
+  if (status !== 'up') return '#F44336';
+  if (loadLevel === 'high') return '#F44336';
+  if (loadLevel === 'medium') return '#FFC107';
+  return '#4CAF50';
+};
 
 const GROUP_INFO = {
   'fast': { title: '⚡ Для обычного использования', desc: 'Wi-Fi, домашний интернет и быстрая загрузка без потерь скорости.' },
@@ -140,17 +147,25 @@ export default function ServerSelector({ endpoints, currentEndpoint, onSelect, o
                                 width: '8px', 
                                 height: '8px', 
                                 borderRadius: '50%', 
-                                background: ep.status === 'up' ? '#4CAF50' : (ep.status === 'down' ? '#F44336' : '#9E9E9E'),
+                                background: getStatusColor(ep.status, ep.load_level),
+                                boxShadow: ep.status === 'up' ? `0 0 8px ${getStatusColor(ep.status, ep.load_level)}` : 'none'
                               }} />
                               <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text)' }}>
                                 {ep.label || ep.name}
                               </span>
                               <Tooltip iconStyle={{ color: 'var(--text-hint)' }} text={getTransportTooltip(ep.transport, ep.is_relay)} />
-                              {ep.status === 'up' && ep.latency && (
-                                <span style={{ fontSize: '11px', opacity: 0.5, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums', fontWeight: '500' }}>
-                                  {ep.latency}ms
-                                </span>
-                              )}
+                              <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                                {ep.status === 'up' && ep.latency && (
+                                  <span style={{ fontSize: '11px', opacity: 0.5, fontVariantNumeric: 'tabular-nums', fontWeight: '500' }}>
+                                    {ep.latency}ms
+                                  </span>
+                                )}
+                                {ep.status === 'up' && ep.online_count > 0 && (
+                                  <span style={{ fontSize: '10px', opacity: 0.4, fontWeight: '400' }}>
+                                    👥 {ep.online_count}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <span style={{ fontSize: '12px', color: 'var(--text-hint)', fontWeight: '500' }}>
                               {ep.country ? `Локация: ${ep.country}` : (ep.is_relay ? 'Оптимально (через МСК)' : 'Прямое к серверу')}
