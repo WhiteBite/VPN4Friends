@@ -24,15 +24,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/sub", tags=["subscription"])
 
-# Group display order and labels
-GROUP_ORDER = {
-    "fast": (1, "⚡ Быстрый"),
-    "warp": (2, "🎬 Разблокировка"),
-    "stealth": (3, "🛡 Стойкий"),
-    "stealth_warp": (4, "🛡🎬 Стойкий + Разблокировка"),
-    "moscow": (5, "📱 Через Москву"),
-    "cdn": (6, "☁️ CDN Fallback"),
-}
+# Group display order and labels are now loaded from settings.groups_config
 
 
 def _build_sub_label(endpoint: ServerEndpoint) -> str:
@@ -41,7 +33,10 @@ def _build_sub_label(endpoint: ServerEndpoint) -> str:
     if not label:
         # Auto-generate from endpoint fields
         country_flag = "🇫🇮" if "финл" in endpoint.country.lower() else "🇩🇪"
-        group_prefix = GROUP_ORDER.get(endpoint.group, (99, ""))[1].split(" ")[0]  # emoji only
+
+        # Emoji only from group label
+        group_info = settings.groups_config.get(endpoint.group)
+        group_prefix = group_info.label.split(" ")[0] if group_info else "🌐"
 
         transport_suffix = ""
         if endpoint.transport and endpoint.transport not in ("tcp",):
@@ -56,15 +51,14 @@ def _build_sub_label(endpoint: ServerEndpoint) -> str:
             relay_suffix = " МСК"
         label = f"{group_prefix} {country_flag} {endpoint.country}{transport_suffix}{warp_suffix}{relay_suffix}"
 
-    GROUP_EXPLANATIONS = {
-        "fast": "Прямое подключение, мин. пинг",
-        "moscow": "Обход блокировок (если не заходит)",
-        "warp": "Для Netflix, ChatGPT и др.",
-        "stealth": "Скрытый протокол для сложных сетей",
-        "stealth_warp": "Скрытый вход + разблокировка",
-        "cdn": "Медленный, через Cloudflare",
-    }
-    explanation = GROUP_EXPLANATIONS.get(endpoint.group)
+    explanation = (
+        settings.groups_config.get(endpoint.group).explanation
+        if endpoint.group in settings.groups_config
+        else None
+    )
+    if explanation:
+        return f"{label} ({explanation})"
+    return label
     if explanation:
         return f"{label} ({explanation})"
     return label
@@ -144,7 +138,9 @@ async def get_subscription(token: str) -> PlainTextResponse:
     sorted_endpoints = sorted(
         settings.endpoints,
         key=lambda ep: (
-            GROUP_ORDER.get(ep.group, (99, ""))[0],
+            settings.groups_config.get(ep.group).order
+            if ep.group in settings.groups_config
+            else 99,
             ep.sort_order,
             ep.name,
         ),

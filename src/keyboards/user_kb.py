@@ -47,7 +47,8 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
     builder.row(
         InlineKeyboardBuilder()
         .button(text="🚀 Перейти в Mini App", callback_data="set_ui_mode:miniapp")
-        .as_button()
+        .as_markup()
+        .inline_keyboard[0][0]
     )
 
     return builder.as_markup()

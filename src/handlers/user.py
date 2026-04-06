@@ -1,6 +1,4 @@
-"""User handlers for VPN bot."""
-
-import logging
+import contextlib
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
@@ -30,13 +28,12 @@ from src.keyboards.user_kb import (
 from src.services.ui_service import UIService
 from src.services.vpn_service import VPNService
 
-logger = logging.getLogger(__name__)
 router = Router(name="user")
 
 
 @router.message(Command("start"))
 async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
-    """Handle /start command with UI mode onboarding."""
+    """Handle /start command."""
     user_repo = UserRepository(session)
     request_repo = RequestRepository(session)
 
@@ -88,8 +85,8 @@ async def cmd_switch_mode(message: Message, session: AsyncSession, bot: Bot) -> 
 
 
 @router.callback_query(F.data.startswith("set_ui_mode:"))
-async def process_ui_choice(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
-    """Handle UI mode selection callback."""
+async def set_ui_mode(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
+    """Set preferred UI mode and show main menu."""
     mode_str = callback.data.split(":")[1]
     mode = UIMode.MINIAPP if mode_str == "miniapp" else UIMode.BOT
 
@@ -399,7 +396,7 @@ async def request_vpn(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
     )
 
     for admin_id in settings.admin_ids:
-        try:
+        with contextlib.suppress(Exception):
             await bot.send_message(
                 admin_id,
                 f"🔔 <b>Новая заявка!</b>\n\n"
@@ -408,8 +405,6 @@ async def request_vpn(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
                 reply_markup=get_request_action_kb(request),
                 parse_mode="HTML",
             )
-        except Exception as e:
-            logger.warning(f"Failed to notify admin {admin_id}: {e}")
 
 
 @router.callback_query(F.data == "pending_info")
@@ -526,28 +521,23 @@ async def show_onboarding(callback: CallbackQuery) -> None:
         "desktop": get_onboarding_kb(),
     }
 
-    try:
-        import os
+    import os
 
-        if os.path.exists(media_path):
-            photo = FSInputFile(media_path)
-            await callback.message.delete()
-            await callback.message.answer_photo(
-                photo=photo,
-                caption=ONBOARDING_TEXT[platform],
-                reply_markup=kb_map[platform],
-                parse_mode="HTML",
-            )
-        else:
-            raise FileNotFoundError(f"Media not found: {media_path}")
-    except Exception as e:
-        logger.error(f"Failed to send onboarding image: {e}")
-        if callback.message.content_type == "text":
-            await callback.message.edit_text(
-                ONBOARDING_TEXT[platform], reply_markup=kb_map[platform], parse_mode="HTML"
-            )
-        else:
-            await callback.message.delete()
-            await callback.message.answer(
-                ONBOARDING_TEXT[platform], reply_markup=kb_map[platform], parse_mode="HTML"
-            )
+    if os.path.exists(media_path):
+        photo = FSInputFile(media_path)
+        await callback.message.delete()
+        await callback.message.answer_photo(
+            photo=photo,
+            caption=ONBOARDING_TEXT[platform],
+            reply_markup=kb_map[platform],
+            parse_mode="HTML",
+        )
+    elif callback.message.content_type == "text":
+        await callback.message.edit_text(
+            ONBOARDING_TEXT[platform], reply_markup=kb_map[platform], parse_mode="HTML"
+        )
+    else:
+        await callback.message.delete()
+        await callback.message.answer(
+            ONBOARDING_TEXT[platform], reply_markup=kb_map[platform], parse_mode="HTML"
+        )

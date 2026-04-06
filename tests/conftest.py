@@ -1,9 +1,9 @@
 """Test configuration and fixtures."""
 
-import asyncio
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -22,14 +22,6 @@ from src.database.models import Base  # noqa: E402
 
 # Test database URL (in-memory SQLite)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="function")
@@ -123,3 +115,71 @@ def mock_endpoint_data() -> dict[str, Any]:
         "sni": "max.ru",
         "flow": "xtls-rprx-vision",
     }
+
+
+@pytest.fixture
+def mock_bot() -> AsyncMock:
+    """Create a mock bot instance."""
+    bot = AsyncMock()
+    bot.id = 123456789
+    bot.username = "test_bot"
+    bot.send_message = AsyncMock()
+    bot.edit_message_text = AsyncMock()
+    bot.answer_callback_query = AsyncMock()
+    return bot
+
+
+@pytest_asyncio.fixture
+async def dispatcher(db_session: AsyncSession) -> Any:
+    """Create a dispatcher with all routers and middlewares."""
+    import logging
+    import traceback
+
+    from aiogram import Dispatcher
+
+    from src.bot.middlewares import DatabaseMiddleware
+    from src.bot.middlewares.ui_mode import UIModeMiddleware
+
+    # Configure logging to see what's happening
+    logging.basicConfig(level=logging.DEBUG)
+
+    dp = Dispatcher()
+
+    # AIOGRAM 3 log any errors in tests
+    @dp.errors()
+    async def error_handler(event: Any, exception: Exception):
+        print(f"\n!!! DISPATCHER ERROR: {exception}")
+        traceback.print_exc()
+        return False
+
+    # Fixed session factory mock: must be a function returning an async context manager
+    class SessionContextManager:
+        def __init__(self, session):
+            self.session = session
+
+        async def __aenter__(self):
+            return self.session
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def session_factory_mock():
+        return SessionContextManager(db_session)
+
+    dp.update.middleware(DatabaseMiddleware(session_factory_mock))
+    dp.update.middleware(UIModeMiddleware())
+
+    from src.handlers.admin import router as admin_router
+    from src.handlers.messaging import admin_router as admin_messaging_router
+    from src.handlers.messaging import user_router as user_messaging_router
+    from src.handlers.user import router as user_router
+
+    # Reset internal parent_router to allow re-attachment in different tests
+    # AIOGRAM 3.x+ doesn't allow None via the public property setter
+    for r in [user_router, user_messaging_router, admin_router, admin_messaging_router]:
+        if r is not None:
+            print(f"DEBUG: Including router {r.name if hasattr(r, 'name') else 'unnamed'}")
+            r._parent_router = None
+            dp.include_router(r)
+
+    return dp

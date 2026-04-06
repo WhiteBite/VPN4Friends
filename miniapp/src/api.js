@@ -73,7 +73,7 @@ export function fetchMe() {
 }
 
 export function fetchProtocols() {
-  return apiRequest('/auth/protocols');
+  return apiRequest('/protocols');
 }
 
 // ----- VPN Link (direct, no preset needed) -----

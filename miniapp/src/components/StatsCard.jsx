@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { fetchStats } from '../api';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
+import Spinner from '../ui/Spinner';
+import Skeleton from '../ui/Skeleton';
 import { IconBarChart, IconUpload, IconDownload, IconRefresh } from '../ui/Icons';
 
 export default function StatsCard({ visible, onError }) {
@@ -31,10 +33,10 @@ export default function StatsCard({ visible, onError }) {
   return (
     <Card>
       <div className="card-title">📊 Статистика</div>
-      {loading ? (
-        <div className="skeleton-group">
-          <div className="skeleton skeleton--text skeleton--text-long" />
-          <div className="skeleton skeleton--text skeleton--text-short" />
+      {loading && !stats ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+          <Skeleton type="box" height="72px" style={{ borderRadius: '16px' }} />
+          <Skeleton type="box" height="72px" style={{ borderRadius: '16px' }} />
         </div>
       ) : stats ? (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
@@ -89,7 +91,7 @@ export default function StatsCard({ visible, onError }) {
             transition: 'all 0.2s'
           }}
         >
-          ↻ Обновить
+          {loading ? <Spinner size="sm" /> : '↻'} Обновить
         </button>
       )}
     </Card>

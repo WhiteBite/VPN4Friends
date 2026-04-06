@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchAdminChats, fetchChatHistory, sendChatReply } from '../api';
+import { fetchAdminChats, fetchChatHistory, sendChatReply, fetchUsers } from '../api';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 
@@ -11,6 +11,12 @@ export default function AdminChats({ onError, initialUser, onInitialUserProcesse
   const [activeChatUserId, setActiveChatUserId] = useState(null);
   const [activeChatUser, setActiveChatUser] = useState(null); // the user object
   
+  // New Chat Selection State
+  const [isSelectingUser, setIsSelectingUser] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+
   // Thread state
   const [messages, setMessages] = useState([]);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -40,10 +46,23 @@ export default function AdminChats({ onError, initialUser, onInitialUserProcesse
     }
   }, [isDev, onError]);
 
+  const loadAllUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const data = await fetchUsers();
+      setAllUsers(data || []);
+    } catch (err) {
+      onError(err.message || 'Ошибка загрузки пользователей');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   const openChatThread = useCallback(async (chat) => {
-    setActiveChatUserId(chat.user_id);
+    setActiveChatUserId(chat.user_id || chat.id); // support both chat list and user list objects
     setActiveChatUser(chat);
     setLoadingThread(true);
+    setIsSelectingUser(false);
     try {
       if (isDev) {
         setMessages([
@@ -51,15 +70,17 @@ export default function AdminChats({ onError, initialUser, onInitialUserProcesse
           { id: 2, is_from_admin: true, text: 'Привет, попробуй обновить конфиг.', created_at: new Date().toISOString() }
         ]);
       } else {
-        const data = await fetchChatHistory(chat.user_id);
+        const data = await fetchChatHistory(chat.user_id || chat.id);
         setMessages(data || []);
       }
     } catch (err) {
-      onError(err.message || 'Ошибка загрузки истории');
+      // If history fails, we might still want to allow sending a new message
+      setMessages([]);
+      console.error('History fetch failed:', err);
     } finally {
       setLoadingThread(false);
     }
-  }, [isDev, onError]);
+  }, [isDev]);
 
   useEffect(() => {
     loadChats();
@@ -90,12 +111,8 @@ export default function AdminChats({ onError, initialUser, onInitialUserProcesse
         setMessages(prev => [...prev, { id: Date.now(), is_from_admin: true, text: replyText, created_at: new Date().toISOString()}]);
       }
       setReplyText('');
-      // Optimistically update the list so on back it shows latest
-      setChats(prev => prev.map(c => 
-        c.user_id === activeChatUserId 
-          ? { ...c, last_message: replyText, is_last_from_admin: true, last_message_at: new Date().toISOString() } 
-          : c
-      ));
+      // Refresh list in background
+      loadChats();
     } catch (err) {
       onError(err.message || 'Ошибка отправки');
     } finally {
@@ -103,57 +120,136 @@ export default function AdminChats({ onError, initialUser, onInitialUserProcesse
     }
   };
 
+  const filteredUsers = allUsers.filter(u => {
+    const search = userSearch.toLowerCase();
+    return (
+      (u.full_name || '').toLowerCase().includes(search) || 
+      (u.username || '').toLowerCase().includes(search) ||
+      (u.telegram_id || '').toString().includes(search)
+    );
+  });
+
+  // Render User Selection View
+  if (isSelectingUser) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+          <Button variant="secondary" onClick={() => setIsSelectingUser(false)} style={{ padding: '8px 12px' }}>Назад</Button>
+          <div style={{ fontWeight: 'bold', fontSize: '18px' }}>Начать новый чат</div>
+        </div>
+        
+        <input 
+          type="text"
+          placeholder="Поиск по имени или @username..."
+          value={userSearch}
+          onChange={(e) => setUserSearch(e.target.value)}
+          style={{
+            padding: '12px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--bg-elevated)',
+            color: 'var(--text)',
+            fontSize: '15px',
+            outline: 'none'
+          }}
+        />
+
+        {loadingUsers ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Загрузка пользователей...</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '60vh', overflowY: 'auto' }}>
+            {filteredUsers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Никого не нашли</div>
+            ) : (
+              filteredUsers.map(u => (
+                <div 
+                  key={u.id}
+                  onClick={() => openChatThread({ ...u, user_id: u.id })}
+                  style={{
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}
+                >
+                  <span style={{ fontWeight: 'bold' }}>{u.full_name}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                    {u.username ? `@${u.username}` : `ID: ${u.telegram_id}`}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Render Thread List View
   if (!activeChatUserId) {
-    if (loading) return <div className="empty-state">Загрузка чатов...</div>;
-    
-    if (chats.length === 0) {
-      return (
-        <div className="empty-state">
-          <div className="empty-icon">💬</div>
-          <div className="empty-title">Нет сообщений</div>
-          <div className="empty-text">Здесь будут отображаться вопросы от пользователей.</div>
-        </div>
-      );
-    }
-
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {chats.map(chat => (
-          <div
-            key={chat.user_id}
-            onClick={() => openChatThread(chat)}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              padding: '16px',
-              borderRadius: '12px',
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
-              cursor: 'pointer',
-              gap: '6px'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--text)' }}>
-                {chat.full_name} {chat.username && <span style={{color: 'var(--text-muted)', fontSize: '13px', fontWeight: 'normal'}}>@{chat.username}</span>}
-              </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                {new Date(chat.last_message_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-              </span>
-            </div>
-            <div style={{ fontSize: '14px', color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {chat.is_last_from_admin ? "Вы: " : ""}{chat.last_message}
-            </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <Button 
+          variant="primary" 
+          onClick={() => {
+            setIsSelectingUser(true);
+            loadAllUsers();
+          }}
+          style={{ marginBottom: '8px' }}
+        >
+          ➕ Написать пользователю
+        </Button>
+
+        {loading ? (
+          <div className="empty-state">Загрузка чатов...</div>
+        ) : chats.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">💬</div>
+            <div className="empty-title">Нет активных чатов</div>
+            <div className="empty-text">Нажмите кнопку выше, чтобы написать кому-то первым.</div>
           </div>
-        ))}
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {chats.map(chat => (
+              <div
+                key={chat.user_id}
+                onClick={() => openChatThread(chat)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  cursor: 'pointer',
+                  gap: '6px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--text)' }}>
+                    {chat.full_name} {chat.username && <span style={{color: 'var(--text-muted)', fontSize: '13px', fontWeight: 'normal'}}>@{chat.username}</span>}
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {new Date(chat.last_message_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </span>
+                </div>
+                <div style={{ fontSize: '14px', color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {chat.is_last_from_admin ? "Вы: " : ""}{chat.last_message}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
   // Render Thread View
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '60vh', minHeight: '400px', backgroundColor: 'var(--bg-elevated)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '65vh', minHeight: '450px', backgroundColor: 'var(--bg-elevated)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
       
       {/* Thread Header */}
       <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--surface)'}}>

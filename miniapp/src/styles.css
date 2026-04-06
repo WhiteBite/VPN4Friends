@@ -726,17 +726,68 @@ button { font-family: inherit; border: none; background: none; cursor: pointer; 
 }
 
 @keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-.skeleton--text { height: 14px; margin: 4px 0; }
+/* Base skeleton pulsed fade */
+.skeleton {
+  background: rgba(255, 255, 255, 0.05);
+  animation: pulse-bg 2s infinite ease-in-out;
+}
+
+@keyframes pulse-bg {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.skeleton--text { height: 14px; margin: 4px 0; border-radius: 4px; }
 .skeleton--text-long { width: 90%; }
 .skeleton--text-short { width: 40%; }
 .skeleton--box { height: 120px; border-radius: var(--r-lg); }
 .skeleton--circle { width: 48px; height: 48px; border-radius: 50%; }
 .skeleton--card { height: 180px; border-radius: var(--r-lg); }
+
+/* ---- Spinners ---- */
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--neon-blue);
+  animation: spin 0.8s linear infinite;
+  box-shadow: 0 0 8px var(--neon-blue-glow);
+}
+
+.spinner--sm { width: 16px; height: 16px; border-width: 2px; }
+.spinner--lg { width: 48px; height: 48px; border-width: 4px; }
+
+.spinner--overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(9, 11, 15, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  animation: fade-in 0.2s ease;
+}
+
+.spinner-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 /* ---- Empty State ---- */
 

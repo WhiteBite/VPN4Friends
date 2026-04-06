@@ -70,6 +70,15 @@ class ServerEndpoint(BaseModel):
     routing_tag: str = "direct"  # Outbound tag for provisioner routing: "direct" or "warp"
 
 
+class GroupConfig(BaseModel):
+    """Metadata for grouping endpoints in subscriptions and UI."""
+
+    name: str  # e.g., "fast"
+    order: int  # Sorting order
+    label: str  # Display label with emoji
+    explanation: str | None = None  # Brief tooltip text
+
+
 class Settings(BaseSettings):
     """Bot configuration loaded from environment variables."""
 
@@ -93,6 +102,10 @@ class Settings(BaseSettings):
     # Protocols configuration (JSON string from .env)
     protocols_config: str = "[]"
     protocols: list[Protocol] = []
+
+    # Server groups metadata (JSON string from .env)
+    groups_config_raw: str = ""
+    groups_config: dict[str, GroupConfig] = {}
 
     # Server endpoints (JSON string from .env)
     endpoints_config: str = "[]"
@@ -140,6 +153,63 @@ class Settings(BaseSettings):
         except (json.JSONDecodeError, ValueError):
             # Endpoints are optional — don't crash if not configured
             self.endpoints = []
+        return self
+
+    @model_validator(mode="after")
+    def parse_groups_config(self) -> "Settings":
+        """Parse GROUPS_CONFIG_RAW JSON string into a dict of GroupConfig objects."""
+        default_groups = {
+            "fast": {
+                "name": "fast",
+                "order": 1,
+                "label": "⚡ Быстрый",
+                "explanation": "Прямое подключение, мин. пинг",
+            },
+            "warp": {
+                "name": "warp",
+                "order": 2,
+                "label": "🎬 Разблокировка",
+                "explanation": "Для Netflix, ChatGPT и др.",
+            },
+            "stealth": {
+                "name": "stealth",
+                "order": 3,
+                "label": "🛡 Стойкий",
+                "explanation": "Скрытый протокол для сложных сетей",
+            },
+            "stealth_warp": {
+                "name": "stealth_warp",
+                "order": 4,
+                "label": "🛡🎬 Стойкий + Разблокировка",
+                "explanation": "Скрытый вход + разблокировка",
+            },
+            "moscow": {
+                "name": "moscow",
+                "order": 5,
+                "label": "📱 Через Москву",
+                "explanation": "Обход блокировок (если не заходит)",
+            },
+            "cdn": {
+                "name": "cdn",
+                "order": 6,
+                "label": "☁️ CDN Fallback",
+                "explanation": "Медленный, через Cloudflare",
+            },
+        }
+
+        try:
+            if not self.groups_config_raw:
+                # Use defaults if not provided in env
+                self.groups_config = {k: GroupConfig(**v) for k, v in default_groups.items()}
+                return self
+
+            groups_data = json.loads(self.groups_config_raw)
+            if not isinstance(groups_data, dict):
+                raise ValueError("GROUPS_CONFIG_RAW must be a JSON object")
+            self.groups_config = {k: GroupConfig(**v) for k, v in groups_data.items()}
+        except (json.JSONDecodeError, ValueError):
+            # Fallback to default on error
+            self.groups_config = {k: GroupConfig(**v) for k, v in default_groups.items()}
         return self
 
     @model_validator(mode="after")

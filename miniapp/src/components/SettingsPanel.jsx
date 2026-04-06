@@ -1,5 +1,6 @@
 import React from 'react';
 import Card from '../ui/Card';
+import Skeleton from '../ui/Skeleton';
 import { getTelegram } from '../telegram';
 
 export default function SettingsPanel({
@@ -21,13 +22,20 @@ export default function SettingsPanel({
       <div className="card-title">⚙️ Настройки</div>
 
       {/* Protocol Selection */}
-      {sortedProtocols.length > 1 && (
+      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', marginTop: '12px', marginBottom: '4px' }}>
+        Протокол
+      </div>
+      
+      {!protocols || protocols.length === 0 ? (
+        <div className="chips-row" style={{ marginBottom: '12px', marginTop: '8px' }}>
+          <Skeleton type="text" width="80px" height="32px" style={{ borderRadius: '100px' }} />
+          <Skeleton type="text" width="100px" height="32px" style={{ borderRadius: '100px' }} />
+          <Skeleton type="text" width="70px" height="32px" style={{ borderRadius: '100px' }} />
+        </div>
+      ) : (
         <>
-          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', marginTop: '12px', marginBottom: '4px' }}>
-            Протокол
-          </div>
           <div style={{ fontSize: '11px', color: 'var(--text-hint)', marginBottom: '12px' }}>
-            Способ подключения к серверу. VLESS считается самым надежным.
+            Выберите способ подключения. Рекомендуемые отмечены ⭐
           </div>
           <div className="chips-row" style={{ marginBottom: '12px' }}>
             {sortedProtocols.map((p) => {
@@ -53,8 +61,11 @@ export default function SettingsPanel({
               );
             })}
           </div>
-          {/* Dynamic description from server */}
-          {sortedProtocols.find(p => p.name === profile.protocol)?.description && (
+        </>
+      )}
+
+      {/* Dynamic description from server */}
+      {sortedProtocols.find(p => p.name === profile.protocol)?.description && (
             <div style={{ 
               fontSize: '11px', 
               color: 'var(--text-hint)', 
@@ -67,8 +78,6 @@ export default function SettingsPanel({
               {sortedProtocols.find(p => p.name === profile.protocol).description}
             </div>
           )}
-        </>
-      )}
 
       {/* Danger Zone — subtle, not aggressive */}
       <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>

@@ -18,6 +18,7 @@ import { copyToClipboard } from './utils/clipboard';
 import Card from './ui/Card';
 import Button from './ui/Button';
 import Skeleton from './ui/Skeleton';
+import Spinner from './ui/Spinner';
 
 const APP_VERSION = "1.0.44";
 
@@ -213,19 +214,38 @@ function App() {
     return (
       <div className="app" data-theme={colorScheme}>
         <header className="header">
-          <Skeleton type="circle" />
+          <Skeleton type="circle" width="40px" height="40px" />
           <div className="header-text" style={{ flex: 1 }}>
-            <Skeleton type="text" width="60%" height="18px" />
-            <Skeleton type="text" width="40%" height="13px" />
+            <Skeleton type="text" width="120px" height="18px" style={{ marginBottom: '8px' }} />
+            <Skeleton type="text" width="80px" height="13px" />
           </div>
         </header>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+        <div className="tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Mock ConnectionCard skeleton */}
           <Skeleton type="card" height="240px" />
+          
+          {/* Mock Quick Actions skeleton */}
           <div style={{ display: 'flex', gap: '12px' }}>
-            <Skeleton type="box" height="80px" style={{ flex: 1 }} />
-            <Skeleton type="box" height="80px" style={{ flex: 1 }} />
+            <Skeleton type="box" height="80px" style={{ flex: 1, borderRadius: '16px' }} />
+            <Skeleton type="box" height="80px" style={{ flex: 1, borderRadius: '16px' }} />
           </div>
+
+          {/* Mock Bottom Chart skeleton */}
           <Skeleton type="card" height="180px" />
+        </div>
+        
+        {/* Nav Skeleton */}
+        <div style={{ 
+          position: 'fixed', bottom: 0, left: 0, right: 0, 
+          height: '70px', background: 'rgba(15,15,15,0.8)', 
+          display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          borderTop: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          <Skeleton type="circle" width="24px" height="24px" />
+          <Skeleton type="circle" width="24px" height="24px" />
+          <Skeleton type="circle" width="24px" height="24px" />
         </div>
       </div>
     );
@@ -443,6 +463,21 @@ function App() {
         onHide={hideToast}
       />
       </Suspense>
+
+      {/* Global Activity Spinner */}
+      {busy && (
+        <Spinner 
+          overlay 
+          size="large" 
+          text={
+            busy === 'protocol' ? 'Переключаем протокол...' :
+            busy === 'endpoint' ? 'Смена локации...' :
+            busy === 'revoke' ? 'Удаление VPN...' :
+            busy === 'request' ? 'Отправка заявки...' :
+            'Загрузка...'
+          } 
+        />
+      )}
     </div>
   );
 }
