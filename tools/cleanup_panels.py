@@ -12,22 +12,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cleanup")
 
 
-def mask_url_password(url: str) -> str:
-    """Mask password in URL string for safe logging."""
-    from urllib.parse import urlparse, urlunparse
+def get_safe_panel_host(url: str) -> str:
+    """Get only the host and port from URL for safe logging."""
+    from urllib.parse import urlparse
 
     try:
         parsed = urlparse(url)
-        if parsed.password:
-            # Replace password with asterisks
-            new_netloc = f"{parsed.username}:******@{parsed.hostname}"
-            if parsed.port:
-                new_netloc += f":{parsed.port}"
-            parsed = parsed._replace(netloc=new_netloc)
-            return urlunparse(parsed)
+        return f"{parsed.hostname}:{parsed.port}" if parsed.port else str(parsed.hostname)
     except Exception:
-        pass
-    return url
+        return "unknown-host"
 
 
 async def cleanup_panels(dry_run: bool = True):
@@ -62,8 +55,8 @@ async def cleanup_panels(dry_run: bool = True):
     for panel in panels_to_sync:
         try:
             async with panel:
-                safe_url = mask_url_password(panel._cfg["api_url"])
-                logger.info(f"Checking panel: {safe_url}")
+                safe_host = get_safe_panel_host(panel._cfg["api_url"])
+                logger.info(f"Checking panel: {safe_host}")
                 inbounds = await panel.list_inbounds()
 
                 for inbound in inbounds:
@@ -106,8 +99,8 @@ async def cleanup_panels(dry_run: bool = True):
                             logger.error(f"  Failed to update inbound {inbound['id']}")
 
         except Exception as e:
-            safe_url = mask_url_password(panel._cfg["api_url"])
-            logger.error(f"Failed to cleanup panel {safe_url}: {e}")
+            safe_host = get_safe_panel_host(panel._cfg["api_url"])
+            logger.error(f"Failed to cleanup panel {safe_host}: {e}")
 
 
 if __name__ == "__main__":
