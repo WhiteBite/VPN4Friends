@@ -47,6 +47,8 @@ tools/*.exe
 tools/*.zip
 tools/sing-box*/
 tools/xray/
+tools/xray_bin/
+tools/node_modules/
 
 # Caddy runtime data
 caddy_data/

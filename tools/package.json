@@ -1,0 +1,16 @@
+{
+  "name": "vpn4friends-manager",
+  "version": "1.0.0",
+  "description": "Deployment manager for VPN4Friends architecture",
+  "main": "manager.js",
+  "scripts": {
+    "deploy": "node manager.js deploy"
+  },
+  "dependencies": {
+    "cli-table3": "^0.6.5",
+    "colors": "^1.4.0",
+    "socks-proxy-agent": "^10.0.0",
+    "ssh2": "^1.15.0",
+    "tcp-ping": "^0.1.1"
+  }
+}
