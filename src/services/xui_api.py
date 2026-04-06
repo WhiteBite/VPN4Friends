@@ -155,7 +155,7 @@ class XUIApi(PanelAPI):
         """Get a new client template based on the protocol.
 
         IMPORTANT: flow=xtls-rprx-vision is ONLY compatible with TCP transport.
-        For gRPC, xHTTP, WS — flow MUST be empty or the connection will fail silently.
+        For gRPC, xHTTP, WS вЂ” flow MUST be empty or the connection will fail silently.
         """
         base_template = {
             "email": email,
@@ -253,7 +253,7 @@ class XUIApi(PanelAPI):
             inbound_id: Target inbound ID
             clients_info: List of (email, client_id) tuples
             protocol: Protocol (vless, etc.)
-            transport: Transport type (tcp, grpc, xhttp, ws) — affects flow setting
+            transport: Transport type (tcp, grpc, xhttp, ws) вЂ” affects flow setting
         """
         if not clients_info:
             return True
@@ -267,7 +267,7 @@ class XUIApi(PanelAPI):
         changed = False
         for email, client_id in clients_info:
             if client_id in existing_keys:
-                # Client already exists (matched by UUID) — fix flow if wrong
+                # Client already exists (matched by UUID) вЂ” fix flow if wrong
                 for c in clients:
                     if c.get("id") == client_id:
                         correct_flow = "xtls-rprx-vision" if transport == "tcp" else ""
@@ -280,7 +280,7 @@ class XUIApi(PanelAPI):
                             )
                 continue
 
-            # Client not on this inbound — add with suffixed email
+            # Client not on this inbound вЂ” add with suffixed email
             suffixed_email = f"{email}-{inbound_port}" if inbound_port else email
             new_client = self._get_client_template(protocol, client_id, suffixed_email, transport)
             clients.append(new_client)
@@ -501,8 +501,14 @@ class XUIApi(PanelAPI):
                 # Count unique active clients across all inbounds
                 for c in clients:
                     if c.get("enable", True):
-                        # Use id (VLESS/VMess), password (Trojan), or email as unique identifier
-                        identifier = c.get("id") or c.get("password") or c.get("email")
+                        # 1. Try UUID/Password as strongest unique ID
+                        # 2. Fallback to Email, stripping port suffix (email-443 -> email)
+                        uid = c.get("id") or c.get("password")
+                        email = c.get("email", "")
+                        base_email = email.split("-")[0] if "-" in email else email
+
+                        # Identifier is UUID if present, otherwise base email
+                        identifier = uid or base_email
                         if identifier:
                             unique_clients.add(identifier)
 
@@ -635,7 +641,7 @@ class XUIApi(PanelAPI):
                 logger.error(f"update_xray_template API error: {result.get('msg')}")
                 return False
 
-        # 3x-ui does NOT auto-restart Xray on template update — must call explicitly
+        # 3x-ui does NOT auto-restart Xray on template update вЂ” must call explicitly
         return await self.restart_xray()
 
     async def restart_xray(self) -> bool:
@@ -673,9 +679,9 @@ async def check_xui_connection() -> tuple[bool, str]:
 def generate_client_name(username: str | None, telegram_id: int) -> str:
     """Generate client name for VPN profile using Telegram username."""
     if username:
-        # Убираем недопустимые символы, оставляем только буквы, цифры, _, -
+        # РЈР±РёСЂР°РµРј РЅРµРґРѕРїСѓСЃС‚РёРјС‹Рµ СЃРёРјРІРѕР»С‹, РѕСЃС‚Р°РІР»СЏРµРј С‚РѕР»СЊРєРѕ Р±СѓРєРІС‹, С†РёС„СЂС‹, _, -
         clean_name = "".join(c for c in username if c.isalnum() or c in "_-")
         if clean_name:
             return clean_name
-    # Fallback на telegram_id если username нет
+    # Fallback РЅР° telegram_id РµСЃР»Рё username РЅРµС‚
     return f"user_{telegram_id}"

@@ -100,10 +100,11 @@ def get_ui_selection_kb() -> InlineKeyboardMarkup:
         text="🤖 Чат-бот (Классика)",
         callback_data="set_ui_mode:bot",
     )
-    builder.button(
-        text="🌐 Браузер (Без Telegram)",
-        url="https://vpn4friends.ru/app",
-    )
+    if settings.miniapp_url:
+        builder.button(
+            text="🌐 Браузер (Без Telegram)",
+            url=settings.miniapp_url,
+        )
 
     builder.adjust(1, 1, 1)
     return builder.as_markup()

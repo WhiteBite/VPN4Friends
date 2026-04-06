@@ -67,8 +67,13 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
     has_pending = await request_repo.has_pending(user)
 
     status_text = "🟢 <b>Подписка активна</b>" if has_vpn else "👋 <b>С возвращением</b>"
+
+    greeting = f"<b>VPN4Friends</b>\n\n{status_text}\nПривет, <b>{user.full_name}</b>!"
+    if settings.miniapp_url:
+        greeting += f"\n\n🌐 <a href='{settings.miniapp_url}'>Открыть в браузере (Без Telegram)</a>"
+
     await message.answer(
-        f"<b>VPN4Friends</b>\n\n{status_text}\nПривет, <b>{user.full_name}</b>!",
+        greeting,
         reply_markup=get_user_main_kb(has_vpn=has_vpn, has_pending=has_pending),
         parse_mode="HTML",
     )
