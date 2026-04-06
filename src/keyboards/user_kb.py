@@ -106,3 +106,12 @@ def get_ui_selection_kb() -> InlineKeyboardMarkup:
 
     builder.adjust(1, 1, 1)
     return builder.as_markup()
+
+
+def get_confirm_delete_kb() -> InlineKeyboardMarkup:
+    """Create a confirmation keyboard for VPN profile deletion."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Да, удалить", callback_data="confirm_delete_vpn")
+    builder.button(text="❌ Отмена", callback_data="back_to_menu")
+    builder.adjust(1)
+    return builder.as_markup()
