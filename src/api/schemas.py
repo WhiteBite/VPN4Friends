@@ -12,6 +12,7 @@ class UserSchema(BaseModel):
     full_name: str
     username: str | None
     is_admin: bool = False
+    ui_mode: str | None = None
 
 
 class PresetSchema(BaseModel):
@@ -76,6 +77,10 @@ class SwitchProtocolResponse(BaseModel):
     message: str
     protocol: str | None = None
     link: str | None = None
+
+
+class SetUIModeRequest(BaseModel):
+    mode: str  # "bot" or "miniapp"
 
 
 class GenericResponse(BaseModel):

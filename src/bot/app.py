@@ -144,6 +144,9 @@ async def main() -> None:
 
     # Register middleware
     dp.update.middleware(DatabaseMiddleware(session_factory))
+    from src.bot.middlewares.ui_mode import UIModeMiddleware
+
+    dp.update.middleware(UIModeMiddleware())
 
     # Register error handler first
     dp.include_router(error_router)

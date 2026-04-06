@@ -17,9 +17,9 @@ async function ensureXray() {
     }
     console.log("⬇️ Скачивание Xray Core для проведения тестов...");
     try {
-        cp.execSync(`powershell -Command "Invoke-WebRequest -Uri ${XRAY_ZIP_URL} -OutFile xray.zip"`, { stdio: 'inherit' });
+        cp.execSync(`powershell -Command "Invoke-WebRequest -Uri '${XRAY_ZIP_URL}' -OutFile xray.zip"`, { stdio: 'inherit' });
         console.log("📦 Распаковка архива...");
-        cp.execSync(`powershell -Command "Expand-Archive -Path xray.zip -DestinationPath ${XRAY_DIR} -Force"`, { stdio: 'inherit' });
+        cp.execSync(`powershell -Command "Expand-Archive -Path xray.zip -DestinationPath '${XRAY_DIR}' -Force"`, { stdio: 'inherit' });
         fs.unlinkSync('xray.zip');
         console.log("✅ Xray Core успешно установлен.");
     } catch(e) {

@@ -16,6 +16,7 @@ from src.api.schemas import (
     ProfileSchema,
     RequestVPNSchema,
     SelectEndpointRequest,
+    SetUIModeRequest,
     StatsResponse,
     SwitchProtocolRequest,
     SwitchProtocolResponse,
@@ -23,10 +24,11 @@ from src.api.schemas import (
 )
 from src.api.ws import manager as ws_manager
 from src.bot.config import settings
-from src.database.models import User, VPNRequest
+from src.database.models import UIMode, User, VPNRequest
 from src.database.repositories import RequestRepository, UserRepository
 from src.database.session import get_session
 from src.services import PresetService, VPNService
+from src.services.ui_service import UIService
 from src.services.url_generator import generate_vpn_link
 
 logger = logging.getLogger(__name__)
@@ -56,6 +58,7 @@ async def get_me(
         full_name=user.full_name,
         username=user.username,
         is_admin=user.is_admin,
+        ui_mode=user.ui_mode.value if user.ui_mode else None,
     )
 
     # Get profile info
@@ -384,4 +387,26 @@ async def request_vpn_endpoint(
     return GenericResponse(
         success=True,
         message="Заявка успешно отправлена!",
+    )
+
+
+@router.post("/ui_mode", response_model=GenericResponse)
+async def set_ui_mode(
+    payload: SetUIModeRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> GenericResponse:
+    """Switch user's UI mode (e.g., from Mini App back to Bot)."""
+    try:
+        new_mode = UIMode(payload.mode)
+    except ValueError:
+        return GenericResponse(success=False, message="Недопустимый режим.")
+
+    async with create_bot() as bot:
+        ui_service = UIService(session, bot)
+        await ui_service.set_user_ui_mode(user, new_mode)
+
+    return GenericResponse(
+        success=True,
+        message=f"Режим {new_mode.value} успешно установлен.",
     )

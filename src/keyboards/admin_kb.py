@@ -105,6 +105,10 @@ def get_user_detail_kb(user: User) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     if user.has_vpn:
         builder.button(
+            text="💬 Написать",
+            callback_data=UserAction(action="message", user_id=user.id).pack(),
+        )
+        builder.button(
             text="📊 Статистика",
             callback_data=UserAction(action="stats", user_id=user.id).pack(),
         )
@@ -112,7 +116,7 @@ def get_user_detail_kb(user: User) -> InlineKeyboardMarkup:
             text="🗑️ Отозвать VPN",
             callback_data=UserAction(action="revoke", user_id=user.id).pack(),
         )
-        builder.adjust(2)
+        builder.adjust(1, 2)
     builder.button(text="⬅️ К списку", callback_data="admin_users")
     return builder.as_markup()
 

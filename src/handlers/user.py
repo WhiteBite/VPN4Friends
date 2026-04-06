@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import create_access_token
 from src.bot.config import settings
 from src.bot.messages import HELP_TEXT, ONBOARDING_TEXT
+from src.database.models import UIMode
 from src.database.repositories import RequestRepository, UserRepository
 from src.handlers.messaging import FeedbackStates
 from src.keyboards.admin_kb import get_request_action_kb
@@ -23,8 +24,10 @@ from src.keyboards.onboarding_kb import (
 from src.keyboards.user_kb import (
     get_back_kb,
     get_confirm_delete_kb,
+    get_ui_selection_kb,
     get_user_main_kb,
 )
+from src.services.ui_service import UIService
 from src.services.vpn_service import VPNService
 
 logger = logging.getLogger(__name__)
@@ -33,7 +36,7 @@ router = Router(name="user")
 
 @router.message(Command("start"))
 async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
-    """Handle /start command."""
+    """Handle /start command with UI mode onboarding."""
     user_repo = UserRepository(session)
     request_repo = RequestRepository(session)
 
@@ -45,27 +48,65 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
         is_admin=is_admin,
     )
 
-    has_pending = await request_repo.has_pending(user)
-
-    if created:
-        # New user — clean onboarding
+    # NEW: If UI mode is not set, force selection
+    if user.ui_mode == UIMode.NONE:
         await message.answer(
             f"🌍 <b>VPN4Friends</b>\n\n"
             f"Привет, <b>{user.full_name}</b>! 👋\n\n"
-            f"Персональный VPN с обходом блокировок.\n"
-            f"Нажми кнопку ниже, чтобы запросить доступ.",
-            reply_markup=get_user_main_kb(user.has_vpn, has_pending),
+            f"Выберите, как вам удобнее пользоваться нашим сервисом:\n\n"
+            f"🚀 <b>Mini App</b> — современный интерфейс в одно касание (Рекомендуется)\n"
+            f"🤖 <b>Чат-бот</b> — классическое управление через сообщения\n\n"
+            f"<i>Вы всегда сможете сменить режим в настройках.</i>",
+            reply_markup=get_ui_selection_kb(),
             parse_mode="HTML",
         )
         return
 
-    # Returning user
+    has_pending = await request_repo.has_pending(user)
+
+    # Normal menu if UI mode is already selected
     status_text = "🟢 <b>Подписка активна</b>" if user.has_vpn else "👋 <b>С возвращением</b>"
     await message.answer(
         f"<b>VPN4Friends</b>\n\n{status_text}\nПривет, <b>{user.full_name}</b>!",
         reply_markup=get_user_main_kb(user.has_vpn, has_pending),
         parse_mode="HTML",
     )
+
+
+@router.callback_query(F.data.startswith("set_ui_mode:"))
+async def process_ui_choice(callback: CallbackQuery, session: AsyncSession, bot: Bot) -> None:
+    """Handle UI mode selection callback."""
+    mode_str = callback.data.split(":")[1]
+    mode = UIMode.MINIAPP if mode_str == "miniapp" else UIMode.BOT
+
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(callback.from_user.id)
+
+    if not user:
+        await callback.answer("Ошибка пользователя.")
+        return
+
+    ui_service = UIService(session, bot)
+    await ui_service.set_user_ui_mode(user, mode)
+
+    await callback.answer(f"Режим {mode.value} активирован!")
+
+    # Final greeting after mode selection
+    if mode == UIMode.MINIAPP:
+        await callback.message.edit_text(
+            "⚡ <b>Mini App активирован!</b>\n\n"
+            "Кнопка 'Меню' слева теперь заменена на <b>🚀 Открыть</b>.\n"
+            "Нажмите её, чтобы управлять своим VPN.",
+            parse_mode="HTML",
+        )
+    else:
+        await callback.message.edit_text(
+            "🤖 <b>Режим чат-бота активирован!</b>\n\n"
+            "Теперь вы можете управлять VPN через сообщения.\n"
+            "Используйте кнопку 'Меню' или введите /menu.",
+            reply_markup=get_user_main_kb(user.has_vpn),
+            parse_mode="HTML",
+        )
 
 
 @router.message(Command("menu"))
@@ -78,6 +119,9 @@ async def cmd_menu(message: Message, session: AsyncSession) -> None:
     if not user:
         await message.answer("Нажми /start")
         return
+
+    if user.ui_mode == UIMode.NONE:
+        return await cmd_start(message, session, None)
 
     has_pending = await request_repo.has_pending(user)
     status_emoji = "🟢 Подписка активна" if user.has_vpn else "🔴 Нет профиля"
@@ -160,6 +204,39 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
         await msg.edit_text(
             "⚠️ Не удалось сформировать ссылки. Возможно, профиль еще не синхронизирован."
         )
+
+
+@router.message(Command("app"))
+async def cmd_app(message: Message, session: AsyncSession, bot: Bot) -> None:
+    """Explicitly switch to Mini App mode."""
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(message.from_user.id)
+    if not user:
+        return
+
+    ui_service = UIService(session, bot)
+    await ui_service.set_user_ui_mode(user, UIMode.MINIAPP)
+
+    await message.answer(
+        "🚀 <b>Переходим в Mini App!</b>\n\n"
+        "Теперь всё управление доступно по кнопке <b>'Открыть'</b> слева от поля ввода.",
+        parse_mode="HTML",
+    )
+
+
+@router.message(F.text, ~F.text.startswith("/"))
+async def miniapp_mode_responder(message: Message, ui_mode: UIMode) -> None:
+    """Politely remind users to use the Mini App button if they are in that mode."""
+    if ui_mode != UIMode.MINIAPP:
+        return  # Let other handlers (or lack thereof) deal with it
+
+    await message.answer(
+        "👋 <b>Вы в режиме Mini App!</b>\n\n"
+        "Бот не реагирует на текстовые сообщения в этом режиме. "
+        "Пожалуйста, используйте кнопку <b>'🚀 Открыть'</b> внизу для управления VPN.\n\n"
+        "<i>Если хотите вернуться к классическому управлению через чат, введите /start.</i>",
+        parse_mode="HTML",
+    )
 
 
 @router.message(Command("web"))
@@ -264,13 +341,14 @@ async def show_my_vpn(callback: CallbackQuery, session: AsyncSession) -> None:
 
         from src.utils.messaging import send_smart_message
 
-        await callback.message.delete()
         await send_smart_message(
             callback.message,
             "\n".join(lines),
             disable_web_page_preview=True,
             reply_markup=get_back_kb(),
+            edit=True,
         )
+
     else:
         await callback.message.edit_text(
             "⚠️ Не удалось сформировать ссылки. Возможно, профиль еще не синхронизирован.",

@@ -14,10 +14,23 @@ async def send_smart_message(
     text: str,
     reply_markup: InlineKeyboardMarkup | None = None,
     parse_mode: str = "HTML",
+    edit: bool = False,
     **kwargs,
 ) -> None:
-    """Send long message by splitting it into smaller chunks."""
+    """Send long message by splitting it into smaller chunks.
+
+    If edit is True, the first chunk will try to edit the provided message.
+    """
     if len(text) <= MAX_MESSAGE_LENGTH:
+        if edit:
+            try:
+                await message.edit_text(
+                    text, reply_markup=reply_markup, parse_mode=parse_mode, **kwargs
+                )
+                return
+            except Exception:
+                # Fallback to answer if editing fails (e.g. message too old or no content change)
+                pass
         await message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode, **kwargs)
         return
 

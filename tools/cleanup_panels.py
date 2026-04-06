@@ -12,6 +12,24 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cleanup")
 
 
+def mask_url_password(url: str) -> str:
+    """Mask password in URL string for safe logging."""
+    from urllib.parse import urlparse, urlunparse
+
+    try:
+        parsed = urlparse(url)
+        if parsed.password:
+            # Replace password with asterisks
+            new_netloc = f"{parsed.username}:******@{parsed.hostname}"
+            if parsed.port:
+                new_netloc += f":{parsed.port}"
+            parsed = parsed._replace(netloc=new_netloc)
+            return urlunparse(parsed)
+    except Exception:
+        pass
+    return url
+
+
 async def cleanup_panels(dry_run: bool = True):
     """
     Remove all clients from the 3X-UI panels that do not exist
@@ -44,7 +62,8 @@ async def cleanup_panels(dry_run: bool = True):
     for panel in panels_to_sync:
         try:
             async with panel:
-                logger.info(f"Checking panel: {panel._cfg['api_url']}")
+                safe_url = mask_url_password(panel._cfg["api_url"])
+                logger.info(f"Checking panel: {safe_url}")
                 inbounds = await panel.list_inbounds()
 
                 for inbound in inbounds:
@@ -87,7 +106,8 @@ async def cleanup_panels(dry_run: bool = True):
                             logger.error(f"  Failed to update inbound {inbound['id']}")
 
         except Exception as e:
-            logger.error(f"Failed to cleanup panel {panel._cfg['api_url']}: {e}")
+            safe_url = mask_url_password(panel._cfg["api_url"])
+            logger.error(f"Failed to cleanup panel {safe_url}: {e}")
 
 
 if __name__ == "__main__":

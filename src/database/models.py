@@ -31,6 +31,14 @@ class RequestStatus(enum.Enum):
     REJECTED = "rejected"
 
 
+class UIMode(enum.Enum):
+    """User interface mode."""
+
+    NONE = "none"
+    BOT = "bot"
+    MINIAPP = "miniapp"
+
+
 class User(Base):
     """Telegram user model."""
 
@@ -41,6 +49,7 @@ class User(Base):
     username: Mapped[str | None] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(255))
     is_admin: Mapped[bool] = mapped_column(default=False)
+    ui_mode: Mapped[UIMode] = mapped_column(Enum(UIMode), default=UIMode.NONE)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     # Relationships

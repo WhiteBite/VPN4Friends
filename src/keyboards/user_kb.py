@@ -43,6 +43,13 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
         builder.button(text="🔑 Попросить VPN тут", callback_data="request_vpn")
         builder.adjust(1, 1)
 
+    # Always add a switch button for Bot Mode users to go to Mini App
+    builder.row(
+        InlineKeyboardBuilder()
+        .button(text="🚀 Перейти в Mini App", callback_data="set_ui_mode:miniapp")
+        .as_button()
+    )
+
     return builder.as_markup()
 
 
@@ -80,10 +87,22 @@ def get_back_kb() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_confirm_delete_kb() -> InlineKeyboardMarkup:
-    """Get confirmation keyboard for VPN deletion."""
+def get_ui_selection_kb() -> InlineKeyboardMarkup:
+    """Get keyboard for first-time UI mode selection."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Да, удалить", callback_data="confirm_delete_vpn")
-    builder.button(text="❌ Нет", callback_data="back_to_menu")
-    builder.adjust(2)
+
+    builder.button(
+        text="🚀 Mini App (Рекомендуется)",
+        callback_data="set_ui_mode:miniapp",
+    )
+    builder.button(
+        text="🤖 Чат-бот (Классика)",
+        callback_data="set_ui_mode:bot",
+    )
+    builder.button(
+        text="🌐 Браузер (Без Telegram)",
+        url="https://vpn4friends.ru/app",
+    )
+
+    builder.adjust(1, 1, 1)
     return builder.as_markup()

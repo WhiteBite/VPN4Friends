@@ -371,6 +371,42 @@ async def user_detail(
     )
 
 
+@router.callback_query(UserAction.filter(F.action == "message"))
+async def admin_message_user(
+    callback: CallbackQuery,
+    callback_data: UserAction,
+    state: FSMContext,
+    session: AsyncSession,
+) -> None:
+    """Initiate direct message flow for a specific user."""
+    await callback.answer()
+
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_id(callback_data.user_id)
+
+    if not user:
+        await callback.message.edit_text("❌ Юзер не найден")
+        return
+
+    # Set state and data for the messaging handler in messaging.py
+    await state.update_data(
+        user_id=user.telegram_id,
+        user_name=user.display_name,
+    )
+    await state.set_state(BroadcastStates.waiting_for_dm_message)
+
+    from src.keyboards.messaging_kb import get_cancel_kb
+
+    await callback.message.answer(
+        f"✉️ Сообщение пользователю:\n"
+        f"👤 {user.display_name}\n"
+        f"🆔 <code>{user.telegram_id}</code>\n\n"
+        f"Напиши текст сообщения или вопроса:",
+        reply_markup=get_cancel_kb(),
+        parse_mode="HTML",
+    )
+
+
 @router.callback_query(UserAction.filter(F.action == "stats"))
 async def user_stats(
     callback: CallbackQuery,
