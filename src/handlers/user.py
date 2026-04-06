@@ -67,7 +67,7 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
     await ui_service.set_user_ui_mode(user, user.ui_mode)
 
     has_vpn = user.has_vpn
-    has_pending = await request_repo.has_pending_request(user.id)
+    has_pending = await request_repo.has_pending(user)
 
     status_text = "🟢 <b>Подписка активна</b>" if has_vpn else "👋 <b>С возвращением</b>"
     await message.answer(
@@ -104,7 +104,7 @@ async def process_ui_choice(callback: CallbackQuery, session: AsyncSession, bot:
     await ui_service.set_user_ui_mode(user, mode)
 
     request_repo = RequestRepository(session)
-    has_pending = await request_repo.has_pending_request(user.id)
+    has_pending = await request_repo.has_pending(user)
     has_vpn = user.has_vpn
 
     if mode == UIMode.BOT:
