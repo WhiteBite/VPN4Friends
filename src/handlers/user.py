@@ -1,9 +1,11 @@
 import contextlib
+import logging
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, FSInputFile, Message
+from aiogram.types import CallbackQuery, FSInputFile, LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import create_access_token
@@ -29,6 +31,7 @@ from src.services.ui_service import UIService
 from src.services.vpn_service import VPNService
 
 router = Router(name="user")
+logger = logging.getLogger(__name__)
 
 
 @router.message(Command("start"))
@@ -74,7 +77,9 @@ async def cmd_start(message: Message, session: AsyncSession, bot: Bot) -> None:
 
     await message.answer(
         greeting,
-        reply_markup=get_user_main_kb(has_vpn=has_vpn, has_pending=has_pending),
+        reply_markup=get_user_main_kb(
+            has_vpn=has_vpn, has_pending=has_pending, ui_mode=user.ui_mode
+        ),
         parse_mode="HTML",
     )
 
@@ -111,26 +116,34 @@ async def set_ui_mode(callback: CallbackQuery, session: AsyncSession, bot: Bot) 
     has_pending = await request_repo.has_pending(user)
     has_vpn = user.has_vpn
 
-    if mode == UIMode.BOT:
-        await callback.message.edit_text(
-            "🤖 <b>Режим чат-бота активирован!</b>\n\n"
-            "Теперь вы можете управлять своим VPN через сообщения.\n"
-            "Используйте кнопки меню ниже:",
-            parse_mode="HTML",
-        )
-        # Explicitly send main menu to show it's working
-        await callback.message.answer(
-            "📱 <b>Главное меню (Чат-бот)</b>",
-            reply_markup=get_user_main_kb(has_vpn=has_vpn, has_pending=has_pending),
-            parse_mode="HTML",
-        )
-    else:
-        await callback.message.edit_text(
-            "🚀 <b>Режим Mini App активирован!</b>\n\n"
-            "Используйте кнопку <b>🚀 Открыть</b> в меню для доступа к кабинету (она появится через момент).",
-            reply_markup=get_user_main_kb(has_vpn=has_vpn, has_pending=has_pending),
-            parse_mode="HTML",
-        )
+    try:
+        if mode == UIMode.BOT:
+            await callback.message.edit_text(
+                "🤖 <b>Режим чат-бота активирован!</b>\n\n"
+                "Теперь вы можете управлять своим VPN через сообщения.\n"
+                "Используйте кнопки меню ниже:",
+                parse_mode="HTML",
+            )
+            # Explicitly send main menu to show it's working
+            await callback.message.answer(
+                "📱 <b>Главное меню (Чат-бот)</b>",
+                reply_markup=get_user_main_kb(
+                    has_vpn=has_vpn, has_pending=has_pending, ui_mode=mode
+                ),
+                parse_mode="HTML",
+            )
+        else:
+            await callback.message.edit_text(
+                "🚀 <b>Режим Mini App активирован!</b>\n\n"
+                "Используйте кнопку <b>🚀 Открыть</b> в меню для доступа к кабинету (она появится через момент).",
+                reply_markup=get_user_main_kb(
+                    has_vpn=has_vpn, has_pending=has_pending, ui_mode=mode
+                ),
+                parse_mode="HTML",
+            )
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            logger.error(f"Error setting UI mode message: {e}")
 
     await callback.answer("Режим изменен!")
 
@@ -153,7 +166,7 @@ async def cmd_menu(message: Message, session: AsyncSession) -> None:
     status_emoji = "🟢 Подписка активна" if user.has_vpn else "🔴 Нет профиля"
     await message.answer(
         f"<b>Меню управления</b>\nСтатус: {status_emoji}",
-        reply_markup=get_user_main_kb(user.has_vpn, has_pending),
+        reply_markup=get_user_main_kb(user.has_vpn, has_pending, user.ui_mode),
         parse_mode="HTML",
     )
 
@@ -164,7 +177,7 @@ async def cmd_help(message: Message) -> None:
     await message.answer(
         HELP_TEXT,
         parse_mode="HTML",
-        disable_web_page_preview=True,
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
 
@@ -224,7 +237,7 @@ async def cmd_link(message: Message, session: AsyncSession) -> None:
         await send_smart_message(
             message,
             "\n".join(lines),
-            disable_web_page_preview=True,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
         )
     else:
         await msg.edit_text(
@@ -266,7 +279,7 @@ async def cmd_web(message: Message, session: AsyncSession) -> None:
         "⚠️ <b>Не передавайте ссылку посторонним!</b>\n\n"
         f"🔗 <a href='{web_url}'>Открыть кабинет в браузере</a>",
         parse_mode="HTML",
-        disable_web_page_preview=True,
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
 
@@ -289,7 +302,7 @@ async def back_to_menu(callback: CallbackQuery, session: AsyncSession) -> None:
     status_emoji = "🟢 Подписка активна" if user.has_vpn else "🔴 Нет профиля"
     await callback.message.edit_text(
         f"<b>Меню управления</b>\nСтатус: {status_emoji}",
-        reply_markup=get_user_main_kb(user.has_vpn, has_pending),
+        reply_markup=get_user_main_kb(user.has_vpn, has_pending, user.ui_mode),
         parse_mode="HTML",
     )
 
@@ -310,7 +323,7 @@ async def back_to_menu_new(callback: CallbackQuery, session: AsyncSession) -> No
     await callback.message.delete()
     await callback.message.answer(
         "🏠 Меню",
-        reply_markup=get_user_main_kb(user.has_vpn, has_pending),
+        reply_markup=get_user_main_kb(user.has_vpn, has_pending, user.ui_mode),
     )
 
 
@@ -352,7 +365,7 @@ async def show_my_vpn(callback: CallbackQuery, session: AsyncSession) -> None:
         await send_smart_message(
             callback.message,
             "\n".join(lines),
-            disable_web_page_preview=True,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
             reply_markup=get_back_kb(),
             edit=True,
         )
@@ -449,12 +462,12 @@ async def cancel_request(callback: CallbackQuery, session: AsyncSession) -> None
         await session.commit()
         await callback.message.edit_text(
             "✅ Заявка отменена.\n\nМожешь подать новую в любой момент.",
-            reply_markup=get_user_main_kb(has_vpn=False, has_pending=False),
+            reply_markup=get_user_main_kb(has_vpn=False, has_pending=False, ui_mode=UIMode.BOT),
         )
     else:
         await callback.message.edit_text(
             "ℹ️ Нет активных заявок для отмены.",
-            reply_markup=get_user_main_kb(has_vpn=False, has_pending=False),
+            reply_markup=get_user_main_kb(has_vpn=False, has_pending=False, ui_mode=UIMode.BOT),
         )
 
 
@@ -484,7 +497,7 @@ async def confirm_delete_vpn(callback: CallbackQuery, session: AsyncSession) -> 
     if success:
         await callback.message.edit_text(
             "✅ VPN удалён.\n\nМожешь отправить новую заявку.",
-            reply_markup=get_user_main_kb(has_vpn=False),
+            reply_markup=get_user_main_kb(has_vpn=False, ui_mode=UIMode.BOT),
         )
     else:
         await callback.message.edit_text("❌ Ошибка.", reply_markup=get_back_kb())

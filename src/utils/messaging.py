@@ -28,8 +28,10 @@ async def send_smart_message(
                     text, reply_markup=reply_markup, parse_mode=parse_mode, **kwargs
                 )
                 return
-            except Exception:
-                # Fallback to answer if editing fails (e.g. message too old or no content change)
+            except Exception as e:
+                if "message is not modified" in str(e).lower():
+                    return
+                # Fallback to answer if editing fails (e.g. message too old)
                 pass
         await message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode, **kwargs)
         return

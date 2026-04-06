@@ -4,9 +4,12 @@ from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.bot.config import settings
+from src.database.models import UIMode
 
 
-def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboardMarkup:
+def get_user_main_kb(
+    has_vpn: bool, has_pending: bool = False, ui_mode: UIMode | None = None
+) -> InlineKeyboardMarkup:
     """Get main keyboard for user based on their status.
 
     - has_vpn: Cabinet + How-to + Support
@@ -43,13 +46,20 @@ def get_user_main_kb(has_vpn: bool, has_pending: bool = False) -> InlineKeyboard
         builder.button(text="🔑 Попросить VPN тут", callback_data="request_vpn")
         builder.adjust(1, 1)
 
-    # Always add a switch button for Bot Mode users to go to Mini App
-    builder.row(
-        InlineKeyboardBuilder()
-        .button(text="🚀 Перейти в Mini App", callback_data="set_ui_mode:miniapp")
-        .as_markup()
-        .inline_keyboard[0][0]
-    )
+    if ui_mode == UIMode.MINIAPP:
+        builder.row(
+            InlineKeyboardBuilder()
+            .button(text="🤖 Перейти в Чат-бот", callback_data="set_ui_mode:bot")
+            .as_markup()
+            .inline_keyboard[0][0]
+        )
+    else:
+        builder.row(
+            InlineKeyboardBuilder()
+            .button(text="🚀 Перейти в Mini App", callback_data="set_ui_mode:miniapp")
+            .as_markup()
+            .inline_keyboard[0][0]
+        )
 
     return builder.as_markup()
 
