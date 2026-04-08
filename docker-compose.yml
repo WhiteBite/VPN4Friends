@@ -26,6 +26,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
       - "8443:8443"
     volumes:
       - ./miniapp/dist:/usr/share/nginx/miniapp:ro
