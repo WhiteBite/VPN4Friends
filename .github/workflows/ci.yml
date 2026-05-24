@@ -78,9 +78,11 @@ jobs:
     steps:
       - name: Deploy to Server
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
           CFG_B64=$(echo '${{ secrets.VPN_CONFIG_RAW }}' | base64 -w0)
           JWT_B64=$(echo '${{ secrets.JWT_SECRET }}' | base64 -w0)
-          sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
             "echo ${CFG_B64} | base64 -d > /tmp/vpn_config.json && echo ${JWT_B64} | base64 -d > /tmp/jwt.txt && bash /root/deploy.sh"
