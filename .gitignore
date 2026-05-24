@@ -8,6 +8,7 @@ env/
 3x-ui.env
 
 # OpenCode project config (contains credentials)
+.opencode/
 opencode.json
 
 # Database

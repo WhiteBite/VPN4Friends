@@ -91,7 +91,7 @@ jobs:
             echo "🚀 Starting deployment..."
             
             # Переходим в директорию проекта
-            cd /home/ubuntu/VPN4Friends
+            cd /root/VPN4Friends
             
             # Если это git repo - делаем pull, иначе - чистим и клонируем
             if [ -d ".git" ]; then
@@ -121,15 +121,11 @@ jobs:
               # API Public Domain for Cloudflare tunnel
               "API_PUBLIC_DOMAIN=vpn4friends-api.whitebite.ru",
               
-              # Finland Panel (also as legacy XUI vars for backward compatibility)
-              "XUI_FINLAND_URL=\(.servers.finland.panel_url)",
-              "XUI_FINLAND_LOGIN=\(.servers.finland.login)",
-              "XUI_FINLAND_PASSWORD=\(.servers.finland.password)",
-              "XUI_FINLAND_PORT=9211",
-              "XUI_API_URL=\(.servers.finland.panel_url)",
-              "XUI_USERNAME=\(.servers.finland.login)",
-              "XUI_PASSWORD=\(.servers.finland.password)",
-              "XUI_HOST=\(.servers.finland.ip)",
+              # Germany Panel (also as legacy XUI vars for backward compatibility)
+              "XUI_API_URL=\(.servers.germany.panel_url)",
+              "XUI_USERNAME=\(.servers.germany.login)",
+              "XUI_PASSWORD=\(.servers.germany.password)",
+              "XUI_HOST=\(.servers.germany.ip)",
               
               # Reality
               "REALITY_UUID=\(.reality.uuid)",
@@ -138,9 +134,9 @@ jobs:
               "REALITY_SHORT_ID=\(.reality.short_id)",
               
               # MTProto
-              "MTPROTO_PROXY_HOST=\(.mtproto.finland.host)",
-              "MTPROTO_PROXY_PORT=\(.mtproto.finland.port)",
-              "MTPROTO_PROXY_SECRET=\(.mtproto.finland.secret)",
+              "MTPROTO_PROXY_HOST=\(.mtproto.germany.host)",
+              "MTPROTO_PROXY_PORT=\(.mtproto.germany.port)",
+              "MTPROTO_PROXY_SECRET=\(.mtproto.germany.secret)",
               
               # Endpoints (JSON array)
               "ENDPOINTS_CONFIG=\(.endpoints | @json)",
@@ -153,7 +149,6 @@ jobs:
             ' > .env
             
             # Дописываем токены и секреты из отдельных секретов GitHub
-            echo "CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}" >> .env
             echo "JWT_SECRET=${{ secrets.JWT_SECRET || 'change-me-in-production-please' }}" >> .env
             
             echo "✅ .env generated"
