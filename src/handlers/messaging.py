@@ -261,7 +261,6 @@ async def broadcast_user_configs(
     await callback.answer()
 
     from src.bot.config import settings
-    from src.services.url_generator import generate_mtproto_link
 
     user_repo = UserRepository(session)
     users = await user_repo.get_all_with_vpn()
@@ -281,11 +280,6 @@ async def broadcast_user_configs(
     for user in users:
         try:
             links = await vpn_service.get_all_active_vpn_links(user)
-            mtproto_link = generate_mtproto_link(
-                settings.mtproto_proxy_host,
-                settings.mtproto_proxy_port,
-                settings.mtproto_proxy_secret,
-            )
 
             name = user.full_name.split()[0] if user.full_name else "Друг"
 
@@ -299,18 +293,33 @@ async def broadcast_user_configs(
                 text_parts.append("<b>🔐 VLESS:</b> <i>временно недоступны</i>")
 
             text_parts.append("")
-            text_parts.append("<b>📱 Telegram Proxy (MTProto):</b>")
-            text_parts.append(f"<code>{mtproto_link}</code>")
-            text_parts.append("")
             text_parts.append(
-                "💡 <i>Скопируй ссылку и вставь в приложение. "
-                "MTProto — в настройки Telegram → Прокси.</i>"
+                "💡 <i>MTProxy будет отправлен отдельным сообщением " "с кнопкой подключения.</i>"
             )
 
+            # Send VLESS configs as HTML message
             await bot.send_message(
                 user.telegram_id,
                 "\n".join(text_parts),
                 parse_mode="HTML",
+                disable_web_page_preview=True,
+            )
+
+            # Send MTProto as separate message to trigger Telegram proxy card
+            # Use t.me/proxy format which shows native MTProto card with "Connect" button
+            mtproto_card_url = (
+                f"https://t.me/proxy?"
+                f"server={settings.mtproto_proxy_host}"
+                f"&port={settings.mtproto_proxy_port}"
+                f"&secret={settings.mtproto_proxy_secret}"
+            )
+
+            # Send without parse_mode so Telegram recognizes the proxy URL
+            # and renders the native MTProto proxy card
+            await bot.send_message(
+                user.telegram_id,
+                mtproto_card_url,
+                parse_mode=None,  # Let Telegram auto-detect the proxy link
             )
             success += 1
         except Exception as e:
