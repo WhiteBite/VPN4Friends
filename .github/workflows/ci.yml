@@ -107,7 +107,6 @@ jobs:
             git fetch origin
             git reset --hard origin/master
             echo '${{ secrets.VPN_CONFIG_RAW }}' | base64 -d > vpn-config.json || echo '${{ secrets.VPN_CONFIG_RAW }}' > vpn-config.json
-            echo 'JWT_SECRET=${{ secrets.JWT_SECRET }}' > .env.deploy
             docker compose up -d --build
             docker compose ps
             echo "Deploy finished at $(date)"
