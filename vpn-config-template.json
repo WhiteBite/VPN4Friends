@@ -1,0 +1,126 @@
+{
+  "_comment": "VPN4Friends Configuration - Copy to GitHub Secrets as VPN_CONFIG",
+  "_updated": "2026-05-25",
+  "bot": {
+    "token": "YOUR_BOT_TOKEN",
+    "admin_ids": [
+      YOUR_TELEGRAM_ID
+    ],
+    "miniapp_url": "https://your-domain.com:8443"
+  },
+  "servers": {
+    "main": {
+      "ip": "YOUR_NEW_SERVER_IP",
+      "domain": "your-domain.com",
+      "ssh_user": "root",
+      "ssh_pass": "YOUR_ROOT_PASSWORD",
+      "panel_url": "http://YOUR_NEW_SERVER_IP:2053",
+      "login": "admin",
+      "password": "STRONG_PASSWORD",
+      "role": "Main Server"
+    }
+  },
+  "reality": {
+    "uuid": "GENERATE_NEW_UUID",
+    "private_key": "GENERATE_NEW_PRIVATE_KEY",
+    "public_key": "GENERATE_NEW_PUBLIC_KEY",
+    "short_id": "GENERATE_NEW_SHORT_ID"
+  },
+  "mtproto": {
+    "main": {
+      "host": "YOUR_NEW_SERVER_IP",
+      "port": 8440,
+      "secret": "GENERATE_NEW_SECRET"
+    }
+  },
+  "nodes": {
+    "main": {
+      "panel_config": {
+        "api_url": "http://YOUR_NEW_SERVER_IP:2053",
+        "username": "admin",
+        "password": "STRONG_PASSWORD",
+        "base_path": "panel"
+      },
+      "dns": {
+        "queryStrategy": "UseIPv4",
+        "servers": [
+          "1.1.1.1",
+          "8.8.8.8",
+          "localhost"
+        ]
+      },
+      "outbounds": [
+        {
+          "tag": "direct",
+          "protocol": "freedom",
+          "settings": {
+            "domainStrategy": "UseIPv4"
+          }
+        },
+        {
+          "tag": "blocked",
+          "protocol": "blackhole",
+          "settings": {}
+        }
+      ],
+      "routing": {
+        "domainStrategy": "UseIPv4",
+        "inbound-8443": "direct",
+        "inbound-8444": "direct",
+        "inbound-8445": "direct",
+        "inbound-8446": "direct",
+        "inbound-8447": "direct",
+        "inbound-8448": "direct"
+      }
+    }
+  },
+  "endpoints": [
+    {
+      "name": "main_tcp",
+      "label": "Main Server (Direct)",
+      "category": "vpn",
+      "country": "Germany",
+      "host": "your-domain.com",
+      "port": 8443,
+      "protocol": "vless",
+      "transport": "tcp",
+      "security": "reality",
+      "sni": "www.microsoft.com",
+      "flow": "xtls-rprx-vision"
+    },
+    {
+      "name": "main_grpc",
+      "label": "Main Server (gRPC)",
+      "category": "vpn",
+      "country": "Germany",
+      "host": "your-domain.com",
+      "port": 8445,
+      "protocol": "vless",
+      "transport": "grpc",
+      "security": "reality",
+      "sni": "www.cloudflare.com",
+      "serviceName": "grpc"
+    },
+    {
+      "name": "main_xhttp",
+      "label": "Main Server (xHTTP)",
+      "category": "vpn",
+      "country": "Germany",
+      "host": "your-domain.com",
+      "port": 8447,
+      "protocol": "vless",
+      "transport": "xhttp",
+      "security": "reality",
+      "sni": "dl.google.com"
+    },
+    {
+      "name": "telegram_mtproto",
+      "label": "Telegram Proxy",
+      "category": "proxy",
+      "protocol": "mtproto",
+      "host": "your-domain.com",
+      "port": 8440,
+      "secret": "YOUR_MTPROTO_SECRET"
+    }
+  ]
+}
