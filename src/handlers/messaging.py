@@ -248,6 +248,82 @@ async def confirm_broadcast(
     )
 
 
+# ============ PER-USER CONFIG BROADCAST ============
+
+
+@admin_router.callback_query(F.data == "broadcast_configs")
+async def broadcast_user_configs(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    bot: Bot,
+) -> None:
+    """Send personalized VPN configs to all VPN users."""
+    await callback.answer()
+
+    from src.bot.config import settings
+    from src.services.url_generator import generate_mtproto_link
+
+    user_repo = UserRepository(session)
+    users = await user_repo.get_all_with_vpn()
+
+    if not users:
+        await callback.message.edit_text("❌ Нет пользователей с VPN.")
+        return
+
+    from src.services.vpn_service import VPNService
+
+    vpn_service = VPNService(session)
+    success = 0
+    failed = 0
+
+    await callback.message.edit_text(f"📡 Отправляю конфиги {len(users)} пользователям...")
+
+    for user in users:
+        try:
+            links = await vpn_service.get_all_active_vpn_links(user)
+            mtproto_link = generate_mtproto_link(
+                settings.mtproto_proxy_host,
+                settings.mtproto_proxy_port,
+                settings.mtproto_proxy_secret,
+            )
+
+            name = user.full_name.split()[0] if user.full_name else "Друг"
+
+            text_parts = [f"👋 <b>{name}, твои подключения:</b>\n"]
+
+            if links:
+                text_parts.append("<b>🔐 VLESS / VPN:</b>")
+                for _label, link in links:
+                    text_parts.append(f"<code>{link}</code>")
+            else:
+                text_parts.append("<b>🔐 VLESS:</b> <i>временно недоступны</i>")
+
+            text_parts.append("")
+            text_parts.append("<b>📱 Telegram Proxy (MTProto):</b>")
+            text_parts.append(f"<code>{mtproto_link}</code>")
+            text_parts.append("")
+            text_parts.append(
+                "💡 <i>Скопируй ссылку и вставь в приложение. "
+                "MTProto — в настройки Telegram → Прокси.</i>"
+            )
+
+            await bot.send_message(
+                user.telegram_id,
+                "\n".join(text_parts),
+                parse_mode="HTML",
+            )
+            success += 1
+        except Exception as e:
+            logger.warning(f"Config broadcast to {user.telegram_id} failed: {e}")
+            failed += 1
+
+        await asyncio.sleep(0.1)  # Flood control
+
+    await callback.message.edit_text(
+        f"✅ Рассылка конфигов завершена!\n\n📨 Отправлено: {success}\n❌ Не доставлено: {failed}"
+    )
+
+
 # ============ ADMIN DIRECT MESSAGE ============
 
 

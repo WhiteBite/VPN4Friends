@@ -228,6 +228,14 @@ def generate_shadowsocks_url(profile_data: dict[str, Any]) -> str:
     return f"ss://{userinfo_b64}#{fragment_encoded}"
 
 
+def generate_mtproto_link(host: str, port: int, secret: str) -> str:
+    """Generate MTProto proxy link for Telegram.
+
+    Returns tg://proxy link that users paste into Telegram settings.
+    """
+    return f"tg://proxy?server={host}&port={port}&secret={secret}"
+
+
 def generate_vpn_link(
     protocol_name: str,
     profile_data: dict[str, Any],

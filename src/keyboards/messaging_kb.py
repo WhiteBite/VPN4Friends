@@ -10,8 +10,9 @@ def get_broadcast_target_kb() -> InlineKeyboardMarkup:
     builder.button(text="👥 Всем", callback_data="broadcast_all")
     builder.button(text="🔑 С VPN", callback_data="broadcast_vpn")
     builder.button(text="🚫 Без VPN", callback_data="broadcast_no_vpn")
+    builder.button(text="📡 Конфиги VPN-юзерам", callback_data="broadcast_configs")
     builder.button(text="❌ Отмена", callback_data="cancel_action")
-    builder.adjust(3, 1)
+    builder.adjust(3, 1, 1)
     return builder.as_markup()
 
 
