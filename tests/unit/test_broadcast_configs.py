@@ -66,16 +66,22 @@ async def test_broadcast_user_configs_success(db_session, test_settings):
     assert any("Отправляю конфиги" in str(call) for call in calls)
     assert any("Рассылка конфигов завершена" in str(call) for call in calls)
 
-    # Bot should send message to user
-    bot.send_message.assert_awaited_once()
-    call_args = bot.send_message.await_args
-    assert call_args.kwargs["parse_mode"] == "HTML"
-    assert call_args.args[0] == 7777  # telegram_id
-    sent_text = call_args.args[1]  # text is positional arg
+    # Bot should send two messages: VLESS configs + native MTProto proxy card
+    assert bot.send_message.await_count == 2
+    first_call, second_call = bot.send_message.await_args_list
+
+    # First message: VLESS configs (HTML)
+    assert first_call.kwargs["parse_mode"] == "HTML"
+    assert first_call.args[0] == 7777  # telegram_id
+    sent_text = first_call.args[1]  # text is positional arg
     assert "Test, твои подключения" in sent_text
     assert "vless://test-uuid" in sent_text
-    assert "tg://proxy" in sent_text
-    assert "MTProto" in sent_text
+
+    # Second message: native MTProto proxy card (no parse_mode so Telegram renders it)
+    assert second_call.args[0] == 7777
+    mtproto_text = second_call.args[1]
+    assert "t.me/proxy" in mtproto_text
+    assert second_call.kwargs.get("parse_mode") is None
 
 
 @pytest.mark.asyncio
