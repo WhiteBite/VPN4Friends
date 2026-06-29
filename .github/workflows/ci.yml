@@ -80,17 +80,19 @@ jobs:
         id: ssh_key
         run: |
           KEY='${{ secrets.SSH_KEY }}'
-          # Auto-detect base64-encoded key vs raw PEM
+          # Auto-detect base64-encoded key vs raw PEM, then emit via a
+          # heredoc whose closing delimiter is guaranteed on its own line.
           if echo "$KEY" | head -1 | grep -q '^-----BEGIN'; then
-            echo "key<<EOF" >> "$GITHUB_OUTPUT"
-            printf '%s\n' "$KEY" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
+            DECODED="$KEY"
           else
             echo "Key appears base64-encoded, decoding..."
-            echo "key<<EOF" >> "$GITHUB_OUTPUT"
-            echo "$KEY" | base64 -d >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
+            DECODED="$(echo "$KEY" | base64 -d)"
           fi
+          {
+            echo "key<<SSH_KEY_EOF"
+            printf '%s\n' "$DECODED"
+            echo "SSH_KEY_EOF"
+          } >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Deploy to Server
