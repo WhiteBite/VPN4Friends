@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh VPNUS dedicated Xray client config from upstream subscription
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/vpnus-xray/refresh.env
+ExecStart=/usr/bin/python3 /opt/vpnus-xray/refresh.py

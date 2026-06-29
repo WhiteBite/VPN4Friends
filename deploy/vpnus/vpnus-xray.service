@@ -1,0 +1,14 @@
+[Unit]
+Description=VPNUS dedicated Xray client (re-proxy upstream exits via local SOCKS)
+After=network.target nss-lookup.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/vpnus-xray
+ExecStart=/opt/vpnus-xray/xray -c /opt/vpnus-xray/config.json
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
