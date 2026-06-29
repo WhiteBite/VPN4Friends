@@ -3,7 +3,7 @@
 
 Runs on the HOST (not in the bot container) via a systemd timer. It fetches the
 VPNUS subscription, parses the VLESS servers, and rebuilds the dedicated Xray
-client's config so each target country is reachable via a stable local SOCKS
+client's config so each upstream location is reachable via a stable local SOCKS
 port. The 3X-UI panel points static outbounds at those local SOCKS ports, so
 upstream rotation never touches the panel or disconnects users.
 
@@ -21,25 +21,39 @@ import sys
 import urllib.parse
 import urllib.request
 
-# Where the dedicated client config is written and which service serves it.
 CONFIG_PATH = os.environ.get("VPNUS_CONFIG", "/opt/vpnus-xray/config.json")
 SERVICE = os.environ.get("VPNUS_SERVICE", "vpnus-xray")
-# Subscription URL is secret; read from env or a host-only file (never committed).
 SUB_URL = os.environ.get("VPNUS_SUB_URL", "")
 SUB_URL_FILE = os.environ.get("VPNUS_SUB_URL_FILE", "/opt/vpnus-xray/sub_url.txt")
 USER_AGENT = os.environ.get("VPNUS_UA", "v2rayNG/1.8.19")
 
-# Target countries: code -> (local SOCKS port, substring matched in server name).
-COUNTRIES: list[tuple[str, int, str]] = [
-    ("us", 40010, "США"),
-    ("uk", 40011, "Великобритания"),
-    ("fr", 40012, "Франция"),
-    ("nl", 40013, "Нидерланды"),
-    ("tr", 40014, "Турция"),
-    ("kz", 40015, "Казахстан"),
+# Every upstream location -> (stable local SOCKS port, exact subscription name).
+# Ports are stable per location so the panel's static outbounds never change.
+SERVERS: list[tuple[str, int, str]] = [
+    ("us", 40010, "США 🇺🇸"),
+    ("uk", 40011, "Великобритания 🇬🇧"),
+    ("fr", 40012, "Франция 🇫🇷"),
+    ("nl", 40013, "Нидерланды 🇳🇱"),
+    ("tr", 40014, "Турция 🇹🇷"),
+    ("kz", 40015, "Казахстан 🇰🇿"),
+    ("de", 40016, "Германия 🇩🇪"),
+    ("se", 40017, "Швеция 🇸🇪"),
+    ("fi", 40018, "Финляндия 🇫🇮"),
+    ("ee", 40019, "🇪🇪 Эстония"),
+    ("pl", 40020, "🇵🇱 Польша"),
+    ("ru", 40021, "Россия 🇷🇺"),
+    ("lt", 40022, "Литва 🇱🇹"),
+    ("lv", 40023, "Латвия 🇱🇻"),
+    ("game1", 40024, "🇫🇮 🎮 Игровой 1"),
+    ("game2", 40025, "🇪🇪 🎮 Игровой 2"),
+    ("game3", 40026, "🇸🇪 🎮 Игровой 3"),
+    ("bypde", 40027, "🇩🇪 Обход Резерв (только Wi-Fi)"),
+    ("lte1", 40028, "🇫🇮 LTE #1"),
+    ("lte2", 40029, "🇫🇮 LTE #2"),
+    ("lte3", 40030, "🇫🇮 LTE #3"),
+    ("lter", 40031, "🇫🇮 LTE Reserve"),
 ]
 
-# uTLS fingerprints Xray accepts; fall back to chrome for anything unexpected.
 VALID_FP = {"chrome", "firefox", "safari", "ios", "android", "edge", "qq", "random", "randomized"}
 
 
@@ -80,13 +94,12 @@ def fetch_servers() -> list[dict]:
         query, _, frag = tail.partition("#")
         host, _, port = hostport.partition(":")
         params = dict(urllib.parse.parse_qsl(query))
-        name = urllib.parse.unquote(frag)
         servers.append(
             {
                 "uuid": cred,
                 "host": host,
                 "port": int(port) if port.isdigit() else 443,
-                "name": name,
+                "name": urllib.parse.unquote(frag),
                 "network": params.get("type", "tcp"),
                 "security": params.get("security", "none"),
                 "sni": params.get("sni", ""),
@@ -94,27 +107,47 @@ def fetch_servers() -> list[dict]:
                 "sid": params.get("sid", ""),
                 "fp": params.get("fp", "chrome"),
                 "flow": params.get("flow", ""),
+                "serviceName": params.get("serviceName", ""),
+                "path": params.get("path", ""),
+                "mode": params.get("mode", ""),
             }
         )
     return servers
 
 
-def pick_server(servers: list[dict], substr: str) -> dict | None:
-    """Pick the best plain TCP+REALITY server whose name contains the substring."""
-    matches = [
-        s
-        for s in servers
-        if substr in s["name"] and s["network"] == "tcp" and s["security"] == "reality"
-    ]
-    if not matches:
-        return None
-    # Prefer ones advertising xtls flow (the standard direct exits).
-    matches.sort(key=lambda s: (0 if "vision" in s["flow"] else 1, len(s["name"])))
-    return matches[0]
+def pick_server(servers: list[dict], name: str) -> dict | None:
+    """Pick the upstream server matching the given exact name (substring fallback)."""
+    for s in servers:
+        if s["name"] == name:
+            return s
+    for s in servers:
+        if name in s["name"]:
+            return s
+    return None
 
 
 def build_outbound(code: str, srv: dict) -> dict:
+    """Build a transport-aware (tcp / grpc / xhttp) VLESS+REALITY outbound."""
     fp = srv["fp"] if srv["fp"] in VALID_FP else "chrome"
+    net = srv["network"]
+    stream = {
+        "network": net,
+        "security": "reality",
+        "realitySettings": {
+            "serverName": srv["sni"],
+            "fingerprint": fp,
+            "publicKey": srv["pbk"],
+            "shortId": srv["sid"],
+            "spiderX": "/",
+        },
+    }
+    if net == "grpc":
+        stream["grpcSettings"] = {
+            "serviceName": srv.get("serviceName", ""),
+            "multiMode": srv.get("mode") == "multi",
+        }
+    elif net in ("xhttp", "splithttp"):
+        stream["xhttpSettings"] = {"path": srv.get("path") or "/", "host": srv.get("sni", "")}
     return {
         "tag": f"out-{code}",
         "protocol": "vless",
@@ -127,17 +160,7 @@ def build_outbound(code: str, srv: dict) -> dict:
                 }
             ]
         },
-        "streamSettings": {
-            "network": "tcp",
-            "security": "reality",
-            "realitySettings": {
-                "serverName": srv["sni"],
-                "fingerprint": fp,
-                "publicKey": srv["pbk"],
-                "shortId": srv["sid"],
-                "spiderX": "/",
-            },
-        },
+        "streamSettings": stream,
     }
 
 
@@ -159,7 +182,7 @@ def build_config(servers: list[dict], previous: dict) -> tuple[dict, list[str], 
     found: list[str] = []
     missing: list[str] = []
 
-    for code, port, substr in COUNTRIES:
+    for code, port, name in SERVERS:
         inbounds.append(
             {
                 "tag": f"in-{code}",
@@ -169,12 +192,12 @@ def build_config(servers: list[dict], previous: dict) -> tuple[dict, list[str], 
                 "settings": {"auth": "noauth", "udp": True},
             }
         )
-        srv = pick_server(servers, substr)
+        srv = pick_server(servers, name)
         if srv:
             outbounds.append(build_outbound(code, srv))
             found.append(code)
         elif f"out-{code}" in prev_outbounds:
-            # Preserve last-known good outbound if this refresh missed the country.
+            # Preserve last-known good outbound if this refresh missed the location.
             outbounds.append(prev_outbounds[f"out-{code}"])
             missing.append(code)
         else:
@@ -183,7 +206,6 @@ def build_config(servers: list[dict], previous: dict) -> tuple[dict, list[str], 
         rules.append({"type": "field", "inboundTag": [f"in-{code}"], "outboundTag": f"out-{code}"})
 
     outbounds.append({"tag": "direct", "protocol": "freedom", "settings": {}})
-
     config = {
         "log": {"loglevel": "warning"},
         "inbounds": inbounds,
@@ -201,9 +223,8 @@ def main() -> int:
     if not found and not previous:
         print("ERROR: no target servers found and no previous config; aborting", file=sys.stderr)
         return 1
-
     if config == previous:
-        print(f"VPNUS: no change (found={found} missing={missing})")
+        print(f"VPNUS: no change (found={len(found)} missing={missing})")
         return 0
 
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
@@ -211,7 +232,7 @@ def main() -> int:
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(config, fh, indent=2, ensure_ascii=False)
     os.replace(tmp, CONFIG_PATH)
-    print(f"VPNUS: config updated (found={found} missing={missing}); restarting {SERVICE}")
+    print(f"VPNUS: config updated (found={len(found)} missing={missing}); restarting {SERVICE}")
 
     result = subprocess.run(["systemctl", "restart", SERVICE], capture_output=True, text=True)
     if result.returncode != 0:
