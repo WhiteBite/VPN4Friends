@@ -294,7 +294,7 @@ async def broadcast_user_configs(
 
             text_parts.append("")
             text_parts.append(
-                "💡 <i>MTProxy будет отправлен отдельным сообщением " "с кнопкой подключения.</i>"
+                "💡 <i>MTProxy будет отправлен отдельным сообщением с кнопкой подключения.</i>"
             )
 
             # Send VLESS configs as HTML message
