@@ -96,3 +96,9 @@ miniapp/node_modules/
 
 # Infrastructure docs (local only, contains credentials)
 INFRASTRUCTURE.md
+
+# Agent session temp files
+.tmp/
+# Local server backups (contain secrets - never commit)
+server-backup/
+server-backup-full.zip

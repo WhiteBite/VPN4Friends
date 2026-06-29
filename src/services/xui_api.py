@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -25,6 +26,9 @@ class XUIApi(PanelAPI):
     def __init__(self, server_config: dict | None = None) -> None:
         self._session: aiohttp.ClientSession | None = None
         self._cookie_jar = aiohttp.CookieJar(unsafe=True)
+        # CSRF token required by 3X-UI v3.4+ for state-changing requests.
+        # Stays None on older panels (no csrf-token meta), preserving old behavior.
+        self._csrf_token: str | None = None
         # Allow per-server config override
         self._cfg = server_config or {
             "api_url": settings.xui_api_url,
@@ -57,10 +61,49 @@ class XUIApi(PanelAPI):
             return f"{base}/{base_path}{path}"
         return f"{base}{path}"
 
-    async def _login(self) -> None:
-        """Authenticate with 3X-UI panel."""
+    def _csrf_headers(self) -> dict[str, str]:
+        """Headers required by 3X-UI v3.4+ for state-changing (POST) requests.
+
+        Sends Origin/Referer (same-origin check) plus the X-CSRF-TOKEN when a
+        token has been obtained. Harmless on older panels that ignore them.
+        """
+        base = self._cfg["api_url"].rstrip("/")
+        headers = {"Origin": base, "Referer": base + "/"}
+        if self._csrf_token:
+            headers["X-CSRF-TOKEN"] = self._csrf_token
+        return headers
+
+    async def _fetch_csrf_token(self) -> None:
+        """Fetch the login page to obtain the session cookie and CSRF token.
+
+        3X-UI v3.4+ embeds <meta name="csrf-token" content="..."> in the page
+        and sets a session cookie; both are needed for POST requests. On older
+        panels the meta tag is absent and the token simply stays None.
+        """
         if not self._session:
             raise XUIApiError("Session not initialized")
+
+        url = self._cfg["api_url"].rstrip("/") + "/"
+        try:
+            async with self._session.get(url) as resp:
+                if resp.status != 200:
+                    return
+                html = await resp.text()
+        except Exception as e:
+            logger.debug(f"CSRF token fetch failed (older panel?): {e}")
+            return
+
+        match = re.search(r'name="csrf-token"\s+content="([^"]+)"', html)
+        if match:
+            self._csrf_token = match.group(1)
+
+    async def _login(self) -> None:
+        """Authenticate with 3X-UI panel (v3.4+ CSRF-aware)."""
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        # Obtain session cookie + CSRF token first (no-op on older panels).
+        await self._fetch_csrf_token()
 
         url = self._cfg["api_url"].rstrip("/") + "/login"
         data = {
@@ -68,7 +111,7 @@ class XUIApi(PanelAPI):
             "password": self._cfg["password"],
         }
 
-        async with self._session.post(url, data=data) as resp:
+        async with self._session.post(url, data=data, headers=self._csrf_headers()) as resp:
             if resp.status != 200:
                 raise XUIApiError(f"Login failed with status {resp.status}")
 
@@ -102,7 +145,7 @@ class XUIApi(PanelAPI):
 
         url = self._build_url(f"/api/inbounds/update/{inbound_id}")
 
-        async with self._session.post(url, json=data) as resp:
+        async with self._session.post(url, json=data, headers=self._csrf_headers()) as resp:
             if resp.status != 200:
                 body = await resp.text()
                 logger.error(
@@ -137,7 +180,7 @@ class XUIApi(PanelAPI):
             raise XUIApiError("Session not initialized")
 
         url = self._build_url("/api/inbounds/add")
-        async with self._session.post(url, json=data) as resp:
+        async with self._session.post(url, json=data, headers=self._csrf_headers()) as resp:
             if resp.status != 200:
                 body = await resp.text()
                 logger.error(f"add_inbound failed: HTTP {resp.status}, body={body}")
@@ -533,7 +576,7 @@ class XUIApi(PanelAPI):
         url = self._build_url("/api/inbounds/onlines")
 
         try:
-            async with self._session.post(url) as resp:
+            async with self._session.post(url, headers=self._csrf_headers()) as resp:
                 if resp.status != 200:
                     return []
 
@@ -598,7 +641,7 @@ class XUIApi(PanelAPI):
             raise XUIApiError("Session not initialized")
 
         url = self._build_url("/setting/all")
-        async with self._session.post(url) as resp:
+        async with self._session.post(url, headers=self._csrf_headers()) as resp:
             if resp.status != 200:
                 raise XUIApiError(f"Get settings failed with HTTP {resp.status}")
 
@@ -629,7 +672,9 @@ class XUIApi(PanelAPI):
         template_json = json.dumps(template)
 
         # /xray/update accepts form-encoded data with xraySetting field
-        async with self._session.post(url, data={"xraySetting": template_json}) as resp:
+        async with self._session.post(
+            url, data={"xraySetting": template_json}, headers=self._csrf_headers()
+        ) as resp:
             if resp.status != 200:
                 body = await resp.text()
                 logger.error(f"update_xray_template failed: HTTP {resp.status}, body={body}")
@@ -650,7 +695,7 @@ class XUIApi(PanelAPI):
             raise XUIApiError("Session not initialized")
 
         url = self._build_url("/api/server/restartXrayService")
-        async with self._session.post(url) as resp:
+        async with self._session.post(url, headers=self._csrf_headers()) as resp:
             if resp.status != 200:
                 logger.error(f"restart_xray failed: HTTP {resp.status}")
                 return False
