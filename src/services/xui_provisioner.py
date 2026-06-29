@@ -191,7 +191,9 @@ async def sync_node_inbounds(node_endpoint: ServerEndpoint) -> bool:
                 # Fetch existing client list to preserve it
                 try:
                     existing_ib = await api.get_inbound(existing_id)
-                    old_settings = json.loads(existing_ib["settings"])
+                    old_settings = existing_ib["settings"]
+                    if isinstance(old_settings, str):
+                        old_settings = json.loads(old_settings)
                     if "clients" in old_settings:
                         new_settings = json.loads(expected_payload["settings"])
                         new_settings["clients"] = old_settings["clients"]

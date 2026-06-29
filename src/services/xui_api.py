@@ -14,6 +14,22 @@ from src.services.panel_api import PanelAPI
 logger = logging.getLogger(__name__)
 
 
+def _parse_json_field(value: Any) -> dict:
+    """Parse a 3X-UI inbound field that may be a JSON string or already a dict.
+
+    3X-UI <=2.x returns settings/streamSettings as JSON strings, while v3.4+
+    returns them already decoded as dicts. Accept both; never raise.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, dict | list):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
 class XUIApiError(Exception):
     """Exception raised for 3X-UI API errors."""
 
@@ -238,7 +254,7 @@ class XUIApi(PanelAPI):
         """
         inbound = await self.get_inbound(inbound_id)
 
-        settings_data = json.loads(inbound["settings"])
+        settings_data = _parse_json_field(inbound.get("settings"))
         clients = settings_data.get("clients", [])
 
         # BUG-1 FIX: Check for existing client with same email
@@ -257,10 +273,7 @@ class XUIApi(PanelAPI):
         client_id = client_id or str(uuid.uuid4())
 
         # Detect transport from the inbound's streamSettings for correct flow
-        try:
-            ss = json.loads(inbound.get("streamSettings", "{}"))
-        except (json.JSONDecodeError, TypeError):
-            ss = {}
+        ss = _parse_json_field(inbound.get("streamSettings"))
         transport = ss.get("network", "tcp")
 
         new_client = self._get_client_template(protocol, client_id, email, transport)
@@ -303,7 +316,7 @@ class XUIApi(PanelAPI):
 
         inbound = await self.get_inbound(inbound_id)
         inbound_port = inbound.get("port", 0)
-        settings_data = json.loads(inbound["settings"])
+        settings_data = _parse_json_field(inbound.get("settings"))
         clients = settings_data.get("clients", [])
         existing_keys = {c.get("id") or c.get("password") for c in clients}
 
@@ -377,7 +390,7 @@ class XUIApi(PanelAPI):
             # Detect transport from streamSettings for correct flow
             port = inbound.get("port", 0)
             try:
-                ss = json.loads(inbound.get("streamSettings", "{}"))
+                ss = _parse_json_field(inbound.get("streamSettings"))
             except (json.JSONDecodeError, TypeError):
                 ss = {}
             transport = ss.get("network", "tcp")
@@ -386,10 +399,7 @@ class XUIApi(PanelAPI):
             suffixed_email = f"{email}-{port}" if port else email
 
             # Check if client UUID already exists on this inbound
-            try:
-                settings_data = json.loads(inbound.get("settings", "{}"))
-            except (json.JSONDecodeError, TypeError):
-                settings_data = {}
+            settings_data = _parse_json_field(inbound.get("settings"))
             existing_keys = {
                 c.get("id") or c.get("password") for c in settings_data.get("clients", [])
             }
@@ -423,7 +433,7 @@ class XUIApi(PanelAPI):
         """Delete a client from the specified inbound by email."""
         inbound = await self.get_inbound(inbound_id)
 
-        settings_data = json.loads(inbound["settings"])
+        settings_data = _parse_json_field(inbound.get("settings"))
         clients = settings_data.get("clients", [])
 
         new_clients = [c for c in clients if c["email"] != email]
@@ -538,7 +548,7 @@ class XUIApi(PanelAPI):
             for inbound in inbounds:
                 if not inbound.get("enable"):
                     continue
-                settings_data = json.loads(inbound.get("settings", "{}"))
+                settings_data = _parse_json_field(inbound.get("settings"))
                 clients = settings_data.get("clients", [])
 
                 # Count unique active clients across all inbounds
@@ -595,7 +605,7 @@ class XUIApi(PanelAPI):
         settings_data = {"port": inbound["port"], "remark": inbound["remark"]}
 
         if protocol == "vless":
-            stream_settings = json.loads(inbound["streamSettings"])
+            stream_settings = _parse_json_field(inbound.get("streamSettings"))
             reality_settings = stream_settings.get("realitySettings", {})
             reality_inner = reality_settings.get("settings", {})
             server_names = reality_settings.get("serverNames", [])
@@ -614,7 +624,7 @@ class XUIApi(PanelAPI):
             }
         elif protocol in ("shadowsocks", "shadowsocks_2022"):
             try:
-                ss_settings = json.loads(inbound.get("settings", "{}"))
+                ss_settings = _parse_json_field(inbound.get("settings"))
             except (json.JSONDecodeError, TypeError):
                 ss_settings = {}
             settings_data["shadowsocks"] = {
