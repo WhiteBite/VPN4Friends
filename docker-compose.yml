@@ -5,8 +5,11 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - ENDPOINTS_CONFIG_EXT_FILE=/opt/vpn4friends-endpoints-vpnus.json
     volumes:
       - ./data:/app/data
+      - /opt/vpn4friends-endpoints-vpnus.json:/opt/vpn4friends-endpoints-vpnus.json:ro
     network_mode: "host"
 
   vpn4friends_api:
@@ -15,9 +18,12 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - ENDPOINTS_CONFIG_EXT_FILE=/opt/vpn4friends-endpoints-vpnus.json
     volumes:
       - ./data:/app/data
       - ./miniapp/dist:/app/miniapp/dist:ro
+      - /opt/vpn4friends-endpoints-vpnus.json:/opt/vpn4friends-endpoints-vpnus.json:ro
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8001
 
   nginx:

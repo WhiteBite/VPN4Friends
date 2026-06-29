@@ -144,15 +144,37 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def parse_endpoints_config(self) -> "Settings":
-        """Parse ENDPOINTS_CONFIG JSON string into a list of ServerEndpoint objects."""
+        """Parse ENDPOINTS_CONFIG JSON string into a list of ServerEndpoint objects.
+
+        Optionally merges additional endpoints from a JSON file pointed to by
+        ENDPOINTS_CONFIG_EXT_FILE env var. This lets large endpoint lists (e.g.
+        many VPNUS locations) live outside the env_file, which has a line-length
+        limit that causes silent truncation for long values.
+        """
+        import os
+
         try:
             endpoints_data = json.loads(self.endpoints_config)
             if not isinstance(endpoints_data, list):
                 raise ValueError("ENDPOINTS_CONFIG must be a JSON array")
-            self.endpoints = [ServerEndpoint(**e) for e in endpoints_data]
         except (json.JSONDecodeError, ValueError):
-            # Endpoints are optional — don't crash if not configured
-            self.endpoints = []
+            endpoints_data = []
+
+        # Merge optional extension file (e.g. /opt/vpn4friends-endpoints-vpnus.json)
+        ext_file = os.environ.get("ENDPOINTS_CONFIG_EXT_FILE", "")
+        if ext_file:
+            try:
+                with open(ext_file, encoding="utf-8") as fh:
+                    ext_data = json.load(fh)
+                if isinstance(ext_data, list):
+                    existing_names = {e.get("name") for e in endpoints_data if isinstance(e, dict)}
+                    for entry in ext_data:
+                        if isinstance(entry, dict) and entry.get("name") not in existing_names:
+                            endpoints_data.append(entry)
+            except (OSError, json.JSONDecodeError):
+                pass  # file missing or malformed — silently ignore
+
+        self.endpoints = [ServerEndpoint(**e) for e in endpoints_data]
         return self
 
     @model_validator(mode="after")
