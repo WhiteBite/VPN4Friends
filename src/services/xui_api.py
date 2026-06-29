@@ -634,32 +634,64 @@ class XUIApi(PanelAPI):
 
         return settings_data
 
-    async def get_xray_template_config(self) -> dict[str, Any]:
-        """Get the Xray template config (outbounds + routing) from 3x-ui settings.
+    async def get_xray_template_config(self) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Get the Xray template config (outbounds + routing) from 3x-ui.
 
-        The template config is stored in the panel's database and contains
-        the outbounds, routing rules, and other Xray-level settings that are
-        merged with inbounds managed via the inbound API.
+        3X-UI v3.4+ serves the template at POST /api/xray/ (returns JSON string
+        in obj). Older panels stored it in the settings object under the key
+        xrayTemplateConfig; this method tries both so the code stays compatible.
         """
+        if not self._session:
+            raise XUIApiError("Session not initialized")
+
+        # --- v3.4+ path: POST /api/xray/ returns the template directly ---
+        try:
+            url_v34 = self._build_url("/api/xray/")
+            async with self._session.post(url_v34, headers=self._csrf_headers()) as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    if result.get("success") and result.get("obj"):
+                        template_str = result["obj"]
+                        template = (
+                            json.loads(template_str)
+                            if isinstance(template_str, str)
+                            else template_str
+                        )
+                        # Return an empty dict as full_settings — callers that
+                        # need it will get it via get_all_settings() separately.
+                        return template, {}
+        except Exception as e:
+            logger.debug(f"v3.4 template fetch via /api/xray/ failed: {e}")
+
+        # --- Legacy path: template lives inside the settings object ---
         settings = await self.get_all_settings()
         template_str = settings.get("xrayTemplateConfig", "{}")
         return json.loads(template_str), settings
 
     async def get_all_settings(self) -> dict[str, Any]:
-        """Get ALL panel settings (needed to update any single field)."""
+        """Get ALL panel settings (needed to update any single field).
+
+        3X-UI v3.4+ moved the endpoint from /setting/all to /api/setting/all.
+        Try the new path first and fall back to the old one for older panels.
+        """
         if not self._session:
             raise XUIApiError("Session not initialized")
 
-        url = self._build_url("/setting/all")
-        async with self._session.post(url, headers=self._csrf_headers()) as resp:
-            if resp.status != 200:
-                raise XUIApiError(f"Get settings failed with HTTP {resp.status}")
+        for path in ("/api/setting/all", "/setting/all"):
+            url = self._build_url(path)
+            async with self._session.post(url, headers=self._csrf_headers()) as resp:
+                if resp.status == 404:
+                    continue
+                if resp.status != 200:
+                    raise XUIApiError(f"Get settings failed with HTTP {resp.status}")
+                result = await resp.json()
+                if not result.get("success"):
+                    raise XUIApiError(f"Get settings failed: {result.get('msg')}")
+                return result.get("obj", {})
 
-            result = await resp.json()
-            if not result.get("success"):
-                raise XUIApiError(f"Get settings failed: {result.get('msg')}")
-
-            return result.get("obj", {})
+        raise XUIApiError(
+            "Get settings failed: neither /api/setting/all nor /setting/all returned 200"
+        )
 
     async def update_xray_template_config(
         self,
@@ -678,10 +710,11 @@ class XUIApi(PanelAPI):
         if not self._session:
             raise XUIApiError("Session not initialized")
 
-        url = self._build_url("/xray/update")
+        url = self._build_url("/api/xray/update")
         template_json = json.dumps(template)
 
-        # /xray/update accepts form-encoded data with xraySetting field
+        # /api/xray/update (v3.4+) and the legacy /xray/update both accept
+        # form-encoded data with an xraySetting field.
         async with self._session.post(
             url, data={"xraySetting": template_json}, headers=self._csrf_headers()
         ) as resp:
