@@ -32,6 +32,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./miniapp/dist:/usr/share/nginx/miniapp:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
