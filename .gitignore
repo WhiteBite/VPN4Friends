@@ -102,3 +102,18 @@ INFRASTRUCTURE.md
 # Local server backups (contain secrets - never commit)
 server-backup/
 server-backup-full.zip
+
+# Incident hardening (2026-08) - never commit these again
+.agent/
+.gemini/
+.git-rewrite/
+*.sqlite
+database.sqlite
+*.b64
+dist.zip
+coverage.xml
+test_out*.txt
+test_output.txt
+test_qr*.png
+tools/config.json
+app_test.js
