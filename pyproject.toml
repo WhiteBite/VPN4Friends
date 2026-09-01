@@ -19,12 +19,21 @@ select = [
     "UP",     # pyupgrade
     "ARG",    # flake8-unused-arguments
     "SIM",    # flake8-simplify
+    "ERA",    # eradicate - commented-out code
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults
     "ARG001", # unused function argument
 ]
+# report commented-out code but never auto-delete it
+unfixable = ["ERA001"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["ERA001"]                    # alembic template boilerplate
+"scripts/migrate_outdated_users.py" = ["ERA001"] # legacy baseline
+"src/services/xui_api.py" = ["ERA001"]           # legacy baseline
+"tools/rebuild_vpn_matrix.py" = ["ERA001"]       # legacy baseline
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
