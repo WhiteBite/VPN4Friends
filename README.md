@@ -194,3 +194,29 @@ python -m src.bot.app
 ## 📄 Лицензия
 
 MIT License
+
+## Who is it for
+
+<!-- TODO: who is this for? -->
+
+## Use cases
+
+<!-- TODO: 3-7 concrete use cases -->
+
+## Why choose this
+
+<!-- TODO: 2-4 differentiators, with numbers -->
+
+## Examples
+
+### Example (replace with a real one)
+
+```bash
+npm start
+```
+
+### Example (replace with a real one)
+
+```bash
+npm start
+```

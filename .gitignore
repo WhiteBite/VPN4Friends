@@ -117,3 +117,4 @@ test_output.txt
 test_qr*.png
 tools/config.json
 app_test.js
+.DS_Store
