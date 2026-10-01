@@ -31,6 +31,7 @@ npm test
 
 ## Discoverability (RDK)
 
-- `npx @whitebite/rdk-cli audit` — Discoverability Score 0-100 and findings; read-only.
-- `npx @whitebite/rdk-cli fix` — preview safe autofixes; add `--apply` to write.
+- On-demand only: run these when the user explicitly asks; never proactively.
+- `npx repo-aeo audit` — Discoverability Score 0-100 and findings; read-only.
+- `npx repo-aeo fix` — preview safe autofixes; add `--apply` to write.
 - The rdk-audit workflow fails pull requests below `vars.RDK_MIN_SCORE`.
