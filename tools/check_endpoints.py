@@ -52,6 +52,8 @@ class Result:
     exit_ip: str = ""
     latency_ms: float = 0.0
     error: str = ""
+    ok_count: int = 0
+    attempts: int = 1
 
 
 def find_xray(explicit: str | None) -> str:
@@ -184,7 +186,9 @@ def curl_through(port: int, url: str, timeout_s: int) -> tuple[str, float]:
     return proc.stdout.strip(), (time.time() - started) * 1000
 
 
-def test_endpoint(xray: str, ep: Endpoint, socks_port: int, ip_url: str, timeout_s: int) -> Result:
+def test_endpoint(
+    xray: str, ep: Endpoint, socks_port: int, ip_url: str, timeout_s: int, repeat: int
+) -> Result:
     config = build_client_config(ep, socks_port)
     with tempfile.TemporaryDirectory() as tmp:
         cfg_path = Path(tmp) / "client.json"
@@ -192,21 +196,38 @@ def test_endpoint(xray: str, ep: Endpoint, socks_port: int, ip_url: str, timeout
         proc = subprocess.Popen(
             [xray, "run", "-c", str(cfg_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
+        ok_count = 0
+        last_ip = ""
+        last_latency = 0.0
         try:
             if not wait_for_port(socks_port, 8):
-                return Result(ep, False, error="xray client did not start")
-            exit_ip, latency = curl_through(socks_port, ip_url, timeout_s)
-            if not exit_ip:
-                return Result(ep, False, error="no response through tunnel")
-            return Result(ep, True, exit_ip=exit_ip, latency_ms=latency)
-        except subprocess.TimeoutExpired:
-            return Result(ep, False, error="timeout")
+                return Result(ep, False, error="xray client did not start", attempts=repeat)
+            for _ in range(repeat):
+                try:
+                    exit_ip, latency = curl_through(socks_port, ip_url, timeout_s)
+                except subprocess.TimeoutExpired:
+                    continue
+                if exit_ip:
+                    ok_count += 1
+                    last_ip = exit_ip
+                    last_latency = latency
         finally:
             proc.terminate()
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 proc.kill()
+
+    if ok_count == 0:
+        return Result(ep, False, error="no response through tunnel", attempts=repeat)
+    return Result(
+        ep,
+        ok_count == repeat,
+        exit_ip=last_ip,
+        latency_ms=last_latency,
+        ok_count=ok_count,
+        attempts=repeat,
+    )
 
 
 def main() -> int:
@@ -221,6 +242,9 @@ def main() -> int:
         "--ip-url", default="https://api.ipify.org", help="url used to read the exit ip"
     )
     parser.add_argument("--timeout", type=int, default=15, help="per-endpoint timeout in seconds")
+    parser.add_argument(
+        "--repeat", type=int, default=1, help="requests per endpoint, to spot flakiness"
+    )
     args = parser.parse_args()
 
     if not args.uuid and not args.sub:
@@ -242,18 +266,22 @@ def main() -> int:
         socks_port = 10911 + index
         while not port_free(socks_port):
             socks_port += 1
-        result = test_endpoint(xray, ep, socks_port, args.ip_url, args.timeout)
+        result = test_endpoint(xray, ep, socks_port, args.ip_url, args.timeout, args.repeat)
+        ratio = f"{result.ok_count}/{result.attempts}"
         if result.ok:
             passed += 1
             print(
-                f"[ OK ] :{ep.port:<5} {ep.transport:<10} {result.exit_ip:<16} {result.latency_ms:6.0f} ms  {ep.name}"
+                f"[ OK ] :{ep.port:<5} {ep.transport:<10} {ratio:<5} {result.exit_ip:<16} {result.latency_ms:6.0f} ms  {ep.name}"
             )
         else:
             print(
-                f"[FAIL] :{ep.port:<5} {ep.transport:<10} {'-':<16} {'-':>7}     {ep.name}  ({result.error})"
+                f"[FAIL] :{ep.port:<5} {ep.transport:<10} {ratio:<5} {'-':<16} {'-':>7}     {ep.name}  ({result.error})"
             )
 
-    print(f"\n{passed}/{len(endpoints)} endpoints connected")
+    print(
+        f"\n{passed}/{len(endpoints)} endpoints stable"
+        + (f" (repeat={args.repeat})" if args.repeat > 1 else "")
+    )
     return 0 if passed == len(endpoints) else 2
 
 
