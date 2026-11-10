@@ -12,7 +12,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from src.bot.config import ServerEndpoint, settings
@@ -120,7 +120,10 @@ async def get_subscription(token: str) -> PlainTextResponse:
             select(VpnProfile)
             .where(
                 VpnProfile.is_active == True,  # noqa: E712
-                VpnProfile.client_id == token,
+                or_(
+                    VpnProfile.client_id == token,
+                    VpnProfile.profile_data["client_id"].as_string() == token,
+                ),
             )
             .options(selectinload(VpnProfile.user))
         )
